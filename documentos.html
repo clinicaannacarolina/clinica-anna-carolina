@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Documentos — Clínica Dra. Anna Carolina Dias</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --verde:#1D9E75;--verde-e:#0F6E56;--verde-c:#E1F5EE;
+  --amarelo:#EF9F27;--amarelo-c:#FAEEDA;
+  --vermelho:#E24B4A;--vermelho-c:#FCEBEB;
+  --rosa:#D4537E;--rosa-c:#FBEAF0;
+  --azul:#185FA5;--azul-c:#E6F1FB;
+  --bg:#F7F6F3;--card:#FFFFFF;--borda:#E8E6E1;--ct:#6B6860;--txt:#1A1916;
+  --s:0 1px 3px rgba(0,0,0,.06);--sm:0 4px 12px rgba(0,0,0,.08);
+}
+[data-theme="dark"]{--bg:#1A1916;--card:#242220;--borda:#3A3835;--ct:#9A9690;--txt:#F0EDE8;--verde-c:#0F3D2E;--amarelo-c:#3D2E0A;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:14px}
+.hdr{background:var(--verde-e);color:white;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:50;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.hdr h1{font-family:'DM Serif Display',serif;font-size:17px;font-weight:400}
+.main{max-width:900px;margin:0 auto;padding:1.5rem}
+.card{background:var(--card);border-radius:12px;padding:1.25rem;box-shadow:var(--s);border:1px solid var(--borda);margin-bottom:1rem}
+.doc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.5rem}
+.doc-card{background:var(--card);border:1.5px solid var(--borda);border-radius:12px;padding:1rem;cursor:pointer;transition:all .15s;text-align:center}
+.doc-card:hover{border-color:var(--verde);background:var(--verde-c)}
+.doc-card.active{border-color:var(--verde);background:var(--verde-c)}
+.doc-icon{font-size:28px;margin-bottom:8px}
+.doc-titulo{font-size:13px;font-weight:600;color:var(--txt)}
+.doc-sub{font-size:11px;color:var(--ct);margin-top:3px}
+.panel{display:none}.panel.active{display:block}
+label{font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px}
+input,select,textarea{padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;background:var(--card);color:var(--txt);width:100%}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,158,117,.1)}
+textarea{resize:vertical}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fgr{display:flex;flex-direction:column;gap:5px}
+.fgr.full{grid-column:1/-1}
+.fgr.t3{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.sec-title{font-size:13px;font-weight:600;color:var(--verde-e);margin:1.25rem 0 .75rem;padding-bottom:6px;border-bottom:1.5px solid var(--verde-c)}
+.check-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.check-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg);border-radius:8px;cursor:pointer}
+.check-item input[type=checkbox]{width:16px;height:16px;cursor:pointer;flex-shrink:0}
+.check-item label{font-size:13px;text-transform:none;letter-spacing:0;color:var(--txt);cursor:pointer;margin:0;font-weight:400}
+.resp-row{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg);border-radius:8px;margin-bottom:5px;flex-wrap:wrap}
+.resp-label{flex:1;font-size:13px;color:var(--txt)}
+.resp-opts{display:flex;gap:8px;align-items:center;flex-shrink:0}
+.resp-opts label{font-size:13px;text-transform:none;letter-spacing:0;color:var(--txt);margin:0;cursor:pointer;font-weight:400;display:flex;align-items:center;gap:4px}
+.resp-opts input[type=radio]{width:15px;height:15px}
+.qual-input{width:140px!important;padding:4px 8px!important;font-size:12px!important}
+/* ASSINATURA */
+.sig-area{border:2px dashed var(--borda);border-radius:10px;background:white;position:relative;cursor:crosshair}
+.sig-area canvas{display:block;border-radius:8px}
+.sig-label{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--ct);pointer-events:none}
+.sig-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:1.25rem}
+/* DOCS SALVOS */
+.doc-salvo{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:8px;margin-bottom:6px;border:1px solid var(--borda)}
+.doc-salvo-info{font-size:13px;color:var(--txt)}
+.doc-salvo-sub{font-size:12px;color:var(--ct)}
+.btn{padding:9px 18px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:1.5px solid var(--borda);background:var(--card);color:var(--txt);transition:all .15s;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:5px}
+.btn:hover{background:var(--bg)}
+.btn.pri{background:var(--verde);color:white;border-color:var(--verde)}
+.btn.pri:hover{background:var(--verde-e)}
+.btn.dan{color:var(--vermelho);border-color:var(--vermelho)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.br{display:flex;gap:8px;justify-content:flex-end;margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--borda);flex-wrap:wrap}
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;z-index:300;background:var(--txt);color:var(--bg);padding:11px 18px;border-radius:10px;font-size:14px;font-weight:500;box-shadow:var(--sm);transform:translateY(100px);opacity:0;transition:all .3s}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.verde{background:var(--verde);color:white}
+.toast.vermelho{background:var(--vermelho);color:white}
+.pac-info{background:var(--verde-c);border-radius:10px;padding:12px 16px;margin-bottom:1rem;display:flex;align-items:center;gap:12px}
+.pac-info-nome{font-weight:600;font-size:15px;color:var(--verde-e)}
+.pac-info-sub{font-size:12px;color:var(--ct)}
+.busca-pac{position:relative}
+.sug{position:absolute;left:0;right:0;background:var(--card);border:1.5px solid var(--borda);border-radius:8px;z-index:50;box-shadow:var(--sm);top:100%;margin-top:2px}
+.sug-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--borda);font-size:13px}
+.sug-item:hover{background:var(--bg)}
+.termo-texto{font-size:13px;line-height:1.8;color:var(--txt);background:var(--bg);border-radius:8px;padding:1rem;margin-bottom:1rem;border:1px solid var(--borda)}
+.termo-texto p{margin-bottom:.75rem}
+.termo-texto ul{margin:.5rem 0 .75rem 1.25rem}
+.termo-texto li{margin-bottom:.35rem}
+/* PRINT */
+@media print{
+  .hdr,.no-print,.btn{display:none!important}
+  body{background:white}
+  .card{border:none;box-shadow:none;padding:0}
+  .sig-area canvas{border:1px solid #ccc}
+}
+@media(max-width:600px){
+  .doc-grid{grid-template-columns:repeat(2,1fr)}
+  .fg{grid-template-columns:1fr}
+  .fgr.full{grid-column:1}
+  .fgr.t3{grid-template-columns:1fr 1fr}
+  .check-grid{grid-template-columns:1fr}
+  .sig-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<header class="hdr">
+  <div style="display:flex;align-items:center;gap:10px">
+    <a href="index.html" style="color:white;text-decoration:none;opacity:.8;font-size:20px">←</a>
+    <h1>📄 Documentos — Dra. Anna Carolina Dias</h1>
+  </div>
+  <div id="hdr-pac" style="font-size:12px;opacity:.8"></div>
+</header>
+
+<main class="main">
+  <!-- SELEÇÃO DE PACIENTE -->
+  <div class="card no-print" id="sec-busca">
+    <label>Selecionar paciente</label>
+    <div class="busca-pac">
+      <input type="text" id="busca-pac" placeholder="Digite o nome ou apelido..." oninput="sugPac()" autocomplete="off"/>
+      <div id="sug-pac"></div>
+    </div>
+    <div id="pac-selecionada" style="display:none;margin-top:10px"></div>
+  </div>
+
+  <!-- DOCUMENTOS DISPONÍVEIS -->
+  <div id="sec-docs" style="display:none">
+    <div class="doc-grid">
+      <div class="doc-card" onclick="abrirDoc('anamnese')"><div class="doc-icon">📋</div><div class="doc-titulo">Ficha de Anamnese</div><div class="doc-sub">Avançada</div></div>
+      <div class="doc-card" onclick="abrirDoc('termo-botox')"><div class="doc-icon">💉</div><div class="doc-titulo">Termo de Consentimento</div><div class="doc-sub">Toxina Botulínica</div></div>
+      <div class="doc-card" onclick="abrirDoc('termo-preenchimento')"><div class="doc-icon">💉</div><div class="doc-titulo">Termo de Consentimento</div><div class="doc-sub">Preenchimento Facial</div></div>
+      <div class="doc-card" onclick="abrirDoc('termo-bioestimulador')"><div class="doc-icon">💉</div><div class="doc-titulo">Termo de Consentimento</div><div class="doc-sub">Bioestimuladores</div></div>
+      <div class="doc-card" onclick="abrirDoc('autorizacao-imagem')"><div class="doc-icon">📸</div><div class="doc-titulo">Autorização de</div><div class="doc-sub">Uso de Imagem</div></div>
+      <div class="doc-card" onclick="abrirDoc('orcamento')"><div class="doc-icon">💰</div><div class="doc-titulo">Ficha de Orçamento</div><div class="doc-sub">Tratamentos</div></div>
+    </div>
+
+    <!-- DOCUMENTOS SALVOS -->
+    <div class="card">
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px">📁 Documentos salvos</div>
+      <div id="docs-salvos"><div style="color:var(--ct);font-size:13px">Nenhum documento salvo ainda.</div></div>
+    </div>
+  </div>
+
+  <!-- PAINEL: ANAMNESE -->
+  <div id="panel-anamnese" class="panel">
+    <div class="card">
+      <div style="text-align:center;margin-bottom:1rem">
+        <div style="font-family:'DM Serif Display',serif;font-size:20px">Dra. Anna Carolina</div>
+        <div style="font-size:12px;color:var(--ct)">HARMONIZAÇÃO OROFACIAL · CRO 82281 · Tel: (17) 98211-3940</div>
+        <div style="font-size:15px;font-weight:600;margin-top:12px;padding:6px;background:var(--verde-c);border-radius:8px;color:var(--verde-e)">Ficha de Anamnese Avançada</div>
+      </div>
+      <div id="anamnese-pac-info" class="pac-info"></div>
+      <div class="fg">
+        <div class="fgr full"><label>Endereço</label><input type="text" id="an-endereco"/></div>
+        <div class="fgr"><label>RG</label><input type="text" id="an-rg"/></div>
+        <div class="fgr"><label>CPF</label><input type="text" id="an-cpf"/></div>
+        <div class="fgr"><label>Sexo</label>
+          <select id="an-sexo"><option value="">Selecione</option><option>Feminino</option><option>Masculino</option></select>
+        </div>
+      </div>
+
+      <div class="sec-title">Histórico de Saúde</div>
+      <div id="an-perguntas-abertas"></div>
+
+      <div class="sec-title">Informações Complementares</div>
+      <div class="check-grid" id="an-checks"></div>
+
+      <div class="sec-title">Anotações e Outras Perguntas</div>
+      <textarea id="an-obs" rows="3" placeholder="Observações adicionais..."></textarea>
+
+      <div class="sec-title">Assinaturas</div>
+      <p style="font-size:13px;color:var(--ct);margin-bottom:1rem">Eu estou ciente e de acordo com todas as informações respondidas acima e declaro-as verdadeiras.</p>
+      <div class="sig-row">
+        <div>
+          <label>Assinatura do(a) Paciente</label>
+          <div class="sig-area"><canvas id="sig-an-pac" width="340" height="120"></canvas><span class="sig-label">Assine aqui</span></div>
+          <button class="btn" style="margin-top:6px;font-size:12px" onclick="limparSig('sig-an-pac')">Limpar</button>
+        </div>
+        <div>
+          <label>Assinatura do(a) Profissional</label>
+          <div class="sig-area"><canvas id="sig-an-pro" width="340" height="120"></canvas><span class="sig-label">Assine aqui</span></div>
+          <button class="btn" style="margin-top:6px;font-size:12px" onclick="limparSig('sig-an-pro')">Limpar</button>
+        </div>
+      </div>
+      <div class="br no-print">
+        <button class="btn" onclick="voltarDocs()">← Voltar</button>
+        <button class="btn" onclick="window.print()">🖨️ Imprimir</button>
+        <button class="btn pri" onclick="salvarDoc('anamnese')">✓ Salvar documento</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAINEL: TERMOS DE CONSENTIMENTO -->
+  <div id="panel-termo-botox" class="panel"><div id="conteudo-termo-botox"></div></div>
+  <div id="panel-termo-preenchimento" class="panel"><div id="conteudo-termo-preenchimento"></div></div>
+  <div id="panel-termo-bioestimulador" class="panel"><div id="conteudo-termo-bioestimulador"></div></div>
+
+  <!-- PAINEL: AUTORIZAÇÃO DE IMAGEM -->
+  <div id="panel-autorizacao-imagem" class="panel">
+    <div class="card">
+      <div style="text-align:center;margin-bottom:1rem">
+        <div style="font-family:'DM Serif Display',serif;font-size:20px">Dra. Anna Carolina</div>
+        <div style="font-size:12px;color:var(--ct)">HARMONIZAÇÃO OROFACIAL · CRO 82281 · Tel: (17) 98211-3940</div>
+        <div style="font-size:15px;font-weight:600;margin-top:12px;padding:6px;background:var(--verde-c);border-radius:8px;color:var(--verde-e)">Autorização de Uso de Imagem</div>
+      </div>
+      <div id="imagem-pac-info" class="pac-info"></div>
+      <div class="fg" style="margin-bottom:1rem">
+        <div class="fgr"><label>RG</label><input type="text" id="img-rg"/></div>
+        <div class="fgr"><label>CPF</label><input type="text" id="img-cpf"/></div>
+      </div>
+      <div class="termo-texto">
+        <p>Eu, <strong id="img-nome-display">___</strong>, portador(a) do RG e CPF acima, autorizo expressamente o uso de minha imagem para fins relacionados à clínica e profissional onde estou realizando meus procedimentos.</p>
+        <ul>
+          <li>Autorizo a utilização da minha imagem em fotografias e vídeos para fins de publicidade do(a) profissional incluindo a divulgação em materiais impressos, eletrônicos e digitais, tais como folhetos, panfletos, banners, websites, redes sociais, entre outros meios de divulgação.</li>
+          <li>Autorizo a divulgação das imagens em redes sociais, tais como Facebook, Instagram, Twitter, YouTube, LinkedIn, entre outras, com o objetivo de promover os serviços prestados pelo(a) profissional, compartilhar informações educativas relacionadas à saúde e destacar casos clínicos exemplares.</li>
+          <li>Autorizo a utilização da minha imagem em apresentações, palestras e participações em congressos, seminários e eventos científicos relacionados ao procedimento no qual estou realizando onde o(a) profissional responsável esteja representando e divulgando seus serviços.</li>
+          <li>Entendo que o(a) profissional responsável se compromete a utilizar as imagens de forma ética e profissional, preservando minha privacidade e confidencialidade, e não divulgando informações pessoais ou confidenciais.</li>
+          <li>Compreendo que minha imagem poderá ser visualizada por um público amplo, incluindo pacientes atuais e potenciais, profissionais de saúde, estudantes e demais interessados na área.</li>
+          <li>Estou ciente de que esta autorização é voluntária e posso revogá-la a qualquer momento, mediante solicitação por escrito ao(a) profissional responsável.</li>
+          <li>Concordo que o(a) profissional responsável não serão responsáveis por qualquer uso indevido, alteração ou divulgação não autorizada das imagens por terceiros.</li>
+        </ul>
+        <p>Declaro ter lido e compreendido os termos desta autorização antes de assinar este documento.</p>
+      </div>
+      <div class="sec-title">Assinaturas</div>
+      <div class="sig-row">
+        <div>
+          <label>Assinatura do(a) Paciente</label>
+          <div class="sig-area"><canvas id="sig-img-pac" width="340" height="120"></canvas><span class="sig-label">Assine aqui</span></div>
+          <button class="btn" style="margin-top:6px;font-size:12px" onclick="limparSig('sig-img-pac')">Limpar</button>
+        </div>
+        <div>
+          <label>Assinatura do(a) Profissional</label>
+          <div class="sig-area"><canvas id="sig-img-pro" width="340" height="120"></canvas><span class="sig-label">Assine aqui</span></div>
+          <button class="btn" style="margin-top:6px;font-size:12px" onclick="limparSig('sig-img-pro')">Limpar</button>
+        </div>
+      </div>
+      <div class="br no-print">
+        <button class="btn" onclick="voltarDocs()">← Voltar</button>
+        <button class="btn" onclick="window.print()">🖨️ Imprimir</button>
+        <button class="btn pri" onclick="salvarDoc('autorizacao-imagem')">✓ Salvar documento</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAINEL: ORÇAMENTO -->
+  <div id="panel-orcamento" class="panel">
+    <div class="card">
+      <div style="text-align:center;margin-bottom:1rem">
+        <div style="font-family:'DM Serif Display',serif;font-size:20px">Dra. Anna Carolina</div>
+        <div style="font-size:12px;color:var(--ct)">HARMONIZAÇÃO OROFACIAL · CRO 82281 · Tel: (17) 98211-3940</div>
+        <div style="font-size:15px;font-weight:600;margin-top:12px;padding:6px;background:var(--verde-c);border-radius:8px;color:var(--verde-e)">Ficha de Orçamento</div>
+      </div>
+      <div id="orc-pac-info" class="pac-info"></div>
+      <div class="sec-title">Tratamentos Sugeridos</div>
+      <div id="orc-itens"></div>
+      <button class="btn" style="margin-bottom:1rem" onclick="addItemOrc()">+ Adicionar tratamento</button>
+      <div style="display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:10px 14px;background:var(--verde-c);border-radius:8px">
+        <span style="font-weight:600;color:var(--verde-e)">TOTAL:</span>
+        <span style="font-size:18px;font-weight:600;color:var(--verde-e)" id="orc-total">R$ 0,00</span>
+      </div>
+      <div class="sec-title">Condições de Pagamento</div>
+      <textarea id="orc-pagamento" rows="3" placeholder="Ex: À vista com 10% de desconto. Parcelado em até 6x sem juros no cartão."></textarea>
+      <div class="sec-title">Outras Informações</div>
+      <textarea id="orc-obs" rows="3" placeholder="Observações importantes..."></textarea>
+      <div class="fgr" style="margin-top:1rem">
+        <label>Validade do Orçamento</label>
+        <input type="date" id="orc-validade"/>
+      </div>
+      <div class="br no-print">
+        <button class="btn" onclick="voltarDocs()">← Voltar</button>
+        <button class="btn" onclick="window.print()">🖨️ Imprimir</button>
+        <button class="btn pri" onclick="salvarDoc('orcamento')">✓ Salvar orçamento</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL='https://nathaeuqbeqlvkftbmes.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hdGhhZXVxYmVxbHZrZnRibWVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4OTc4MzYsImV4cCI6MjA5NTQ3MzgzNn0.9t3q5C_h1pRb11gqRtpGGVpOUGey5TBzvMgal8h6wtg';
+const {createClient}=supabase;
+const db=createClient(SB_URL,SB_KEY);
+
+let pacs=[], pacSelecionada=null;
+const HOJE=new Date().toISOString().split('T')[0];
+
+// UTILS
+function toast(m,t=''){const el=document.getElementById('toast');el.textContent=m;el.className='toast show '+t;setTimeout(()=>el.className='toast',3000);}
+function fDt(s){if(!s)return'—';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`;}
+function fmtBRL(v){return'R$ '+parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2});}
+
+// CARREGAR PACIENTES
+async function carregar(){
+  const{data}=await db.from('pacientes').select('*').order('nome');
+  pacs=data||[];
+}
+
+// BUSCA PACIENTE
+function sugPac(){
+  const q=document.getElementById('busca-pac').value.toLowerCase().trim();
+  const box=document.getElementById('sug-pac');
+  if(q.length<2){box.innerHTML='';return;}
+  const r=pacs.filter(p=>p.nome.toLowerCase().includes(q)||(p.apelido&&p.apelido.toLowerCase().includes(q))).slice(0,6);
+  if(!r.length){box.innerHTML='';return;}
+  box.innerHTML=`<div class="sug">${r.map(p=>`<div class="sug-item" onclick='selPac(${JSON.stringify(p).replace(/'/g,"&#39;")})'><strong>${p.nome}</strong>${p.apelido?` (${p.apelido})`:''}<br><span style="font-size:12px;color:var(--ct)">${p.telefone}</span></div>`).join('')}</div>`;
+}
+
+function selPac(p){
+  pacSelecionada=p;
+  document.getElementById('busca-pac').value=p.nome;
+  document.getElementById('sug-pac').innerHTML='';
+  document.getElementById('pac-selecionada').style.display='block';
+  document.getElementById('pac-selecionada').innerHTML=`<div class="pac-info"><div><div class="pac-info-nome">${p.nome}${p.apelido?` (${p.apelido})`:''}</div><div class="pac-info-sub">${p.telefone}${p.data_nascimento?' · Nasc: '+fDt(p.data_nascimento):''}</div></div></div>`;
+  document.getElementById('hdr-pac').textContent=p.nome;
+  document.getElementById('sec-docs').style.display='block';
+  carregarDocsSalvos();
+}
+
+document.addEventListener('click',e=>{if(!e.target.closest('#busca-pac')&&!e.target.closest('#sug-pac'))document.getElementById('sug-pac').innerHTML='';});
+
+// DOCUMENTOS SALVOS
+async function carregarDocsSalvos(){
+  if(!pacSelecionada)return;
+  const{data}=await db.from('documentos').select('*').eq('paciente_id',pacSelecionada.id).order('criado_em',{ascending:false});
+  const el=document.getElementById('docs-salvos');
+  if(!data||!data.length){el.innerHTML='<div style="color:var(--ct);font-size:13px">Nenhum documento salvo ainda.</div>';return;}
+  const nomes={anamnese:'📋 Ficha de Anamnese','termo-botox':'💉 Termo - Toxina Botulínica','termo-preenchimento':'💉 Termo - Preenchimento Facial','termo-bioestimulador':'💉 Termo - Bioestimuladores','autorizacao-imagem':'📸 Autorização de Imagem',orcamento:'💰 Ficha de Orçamento'};
+  el.innerHTML=data.map(d=>`<div class="doc-salvo"><div><div class="doc-salvo-info">${nomes[d.tipo]||d.tipo}</div><div class="doc-salvo-sub">Salvo em ${fDt(d.data_assinatura||d.criado_em?.split('T')[0])}</div></div><div style="display:flex;gap:6px"><button class="btn" style="padding:6px 10px;font-size:12px" onclick="verDoc('${d.id}','${d.tipo}')">👁 Ver</button><button class="btn dan" style="padding:6px 10px;font-size:12px" onclick="excluirDoc('${d.id}')">🗑</button></div></div>`).join('');
+}
+
+async function excluirDoc(id){
+  if(!confirm('Excluir este documento?'))return;
+  await db.from('documentos').delete().eq('id',id);
+  toast('Documento excluído');carregarDocsSalvos();
+}
+
+// ABRIR DOCUMENTO
+function abrirDoc(tipo){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('sec-docs').style.display='none';
+  document.getElementById('sec-busca').style.display='none';
+  if(tipo==='anamnese') abrirAnamnese();
+  else if(tipo==='autorizacao-imagem') abrirAutorizacaoImagem();
+  else if(tipo==='orcamento') abrirOrcamento();
+  else if(tipo.startsWith('termo-')) abrirTermo(tipo);
+  document.getElementById('panel-'+tipo).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function voltarDocs(){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('sec-docs').style.display='block';
+  document.getElementById('sec-busca').style.display='block';
+}
+
+// ── ANAMNESE ──
+const AN_PERGUNTAS=[
+  {id:'trat-estetico',label:'Já fez algum tipo de tratamento estético?',qual:true},
+  {id:'medicamento',label:'Faz uso de algum medicamento?',qual:true},
+  {id:'alergia',label:'Tem alguma alergia (medicamentos, anestesia, etc)?',qual:true},
+  {id:'acidos',label:'Usa ou já usou ácidos na pele?',qual:true},
+  {id:'cuidado-diario',label:'Faz algum tipo de cuidado diário estético facial ou corporal?',qual:true},
+  {id:'trat-medico',label:'Está sob algum tipo de tratamento médico?',qual:true},
+  {id:'cirurgia',label:'Já fez alguma cirurgia ou procedimento de harmonização?',qual:true},
+  {id:'patologia-derm',label:'Alguma patologia dermatológica?',qual:true},
+  {id:'alteracao-vasc',label:'Tem alguma alteração vascular? (petéquias, cianose, eritema, etc)',qual:true},
+];
+const AN_CHECKS=[
+  'É lactante?','Possui alergia a ovo?','Possui alergia a picada de abelha?',
+  'Já teve ou tem herpes?','É ou já foi fumante?','Possui muita exposição ao sol?',
+  'É gestante?','Pratica algum exercício físico?','Tem uma alimentação balanceada?',
+  'Método anticoncepcional?','Ciclo menstrual regular?','Reposição Hormonal?',
+  'Tem alguma prótese?','Hereditariedade de acne?','Tem hematomas com facilidade?',
+  'Tem varizes e/ou varicose?','Possui manchas na pele?','Tem alguma formação sólida na pele?',
+  'Tem alguma doença infectocontagiosa?','Tem alguma doença nos órgãos essenciais?',
+  'Já sofreu algum desmaio ou convulsão?','Já sofreu algum trauma na face?',
+  'Tem alguma doença cardiovascular?','Tem ou já teve algum distúrbio respiratório?',
+  'Faz uso de bebida alcoólica com frequência?','Perdeu ou ganhou peso ultimamente?',
+  'Tem diabetes?','Faz uso de roacutan?','Possui predisposição para queloides?',
+];
+
+function abrirAnamnese(){
+  const p=pacSelecionada;
+  document.getElementById('anamnese-pac-info').innerHTML=`<div><div class="pac-info-nome">${p.nome}${p.apelido?` (${p.apelido})`:''}</div><div class="pac-info-sub">${p.telefone}${p.data_nascimento?' · Nasc: '+fDt(p.data_nascimento):''}</div></div>`;
+  // Perguntas abertas
+  document.getElementById('an-perguntas-abertas').innerHTML=AN_PERGUNTAS.map(q=>`
+    <div class="resp-row">
+      <span class="resp-label">${q.label}</span>
+      <div class="resp-opts">
+        <label><input type="radio" name="${q.id}" value="sim"> Sim</label>
+        <label><input type="radio" name="${q.id}" value="nao" checked> Não</label>
+        ${q.qual?`<input type="text" class="qual-input" id="qual-${q.id}" placeholder="Qual?" style="display:none" oninput="this.style.display='block'">`:'' }
+      </div>
+    </div>`).join('');
+  AN_PERGUNTAS.forEach(q=>{
+    document.querySelectorAll(`input[name="${q.id}"]`).forEach(r=>r.addEventListener('change',()=>{
+      const qi=document.getElementById('qual-'+q.id);
+      if(qi)qi.style.display=r.value==='sim'?'block':'none';
+    }));
+  });
+  // Checks
+  document.getElementById('an-checks').innerHTML=AN_CHECKS.map((c,i)=>`<div class="check-item"><input type="checkbox" id="anck-${i}"><label for="anck-${i}">${c}</label></div>`).join('');
+  iniciarSig('sig-an-pac');iniciarSig('sig-an-pro');
+}
+
+// ── TERMOS DE CONSENTIMENTO ──
+const TERMOS={
+  'termo-botox':{
+    titulo:'Termo de Consentimento — Toxina Botulínica',
+    procedimento:'aplicação de Toxina Botulínica',
+    descricao:'a toxina botulínica é um medicamento injetável usado para tratar determinadas condições médicas, tais como rugas faciais, distúrbios neurológicos e hiperidrose, entre outras.',
+    riscos:['Reações alérgicas, como coceira, vermelhidão, inchaço ou erupções cutâneas','Hematomas, dor ou desconforto no local da injeção','Fraqueza muscular temporária na área tratada','Assimetria facial ou alterações na expressão facial','Infecção no local da injeção','Outras complicações possíveis, que serão explicadas pelo(a) profissional'],
+    beneficios:'os benefícios da aplicação de toxina botulínica podem incluir a redução das rugas e linhas de expressão, melhora dos sintomas de distúrbios neurológicos, redução da sudorese excessiva, entre outros tratamentos discutidos com o(a) profissional.',
+  },
+  'termo-preenchimento':{
+    titulo:'Termo de Consentimento — Preenchimento Facial',
+    procedimento:'Preenchimento Facial e Labial',
+    descricao:'o preenchimento facial e labial envolve a injeção de substâncias para melhorar o contorno, volume e aparência dos lábios e áreas faciais específicas.',
+    riscos:['Reações alérgicas, como coceira, vermelhidão, inchaço ou erupções cutâneas','Hematomas, dor ou desconforto no local da injeção','Infecção no local da injeção','Deslocamento do produto, resultando em assimetria ou alterações na aparência','Formação de nódulos ou granulomas','Necrose tecidual (raro, mas possível)','Outras complicações possíveis, que serão explicadas pelo profissional'],
+    beneficios:'os benefícios do preenchimento facial e labial podem incluir o aumento do volume e definição dos lábios, redução de rugas e sulcos faciais, e melhora da simetria facial.',
+  },
+  'termo-bioestimulador':{
+    titulo:'Termo de Consentimento — Bioestimuladores de Colágeno',
+    procedimento:'Bioestimuladores de Colágeno',
+    descricao:'os bioestimuladores de colágeno são substâncias injetáveis utilizadas para estimular a produção de colágeno na pele, visando melhorar a firmeza, elasticidade e qualidade da pele.',
+    riscos:['Dor, desconforto, inchaço e/ou hematoma no local da injeção','Reações alérgicas, irritação ou inflamação na área tratada','Infecção no local da injeção','Assimetria, irregularidades ou resultados insatisfatórios','Formação de nódulos, granulomas ou reação inflamatória crônica','Outras complicações possíveis, que serão explicadas pelo profissional'],
+    beneficios:'os benefícios da aplicação de bioestimuladores de colágeno podem incluir a melhora da firmeza e elasticidade da pele, redução de rugas e linhas finas, e aumento da luminosidade e qualidade geral da pele.',
+  },
+};
+
+function abrirTermo(tipo){
+  const t=TERMOS[tipo];const p=pacSelecionada;
+  const html=`<div class="card">
+    <div style="text-align:center;margin-bottom:1rem">
+      <div style="font-family:'DM Serif Display',serif;font-size:20px">Dra. Anna Carolina</div>
+      <div style="font-size:12px;color:var(--ct)">HARMONIZAÇÃO OROFACIAL · CRO 82281 · Tel: (17) 98211-3940</div>
+      <div style="font-size:15px;font-weight:600;margin-top:12px;padding:6px;background:var(--verde-c);border-radius:8px;color:var(--verde-e)">${t.titulo}</div>
+    </div>
+    <div class="pac-info"><div><div class="pac-info-nome">${p.nome}${p.apelido?` (${p.apelido})`:''}</div><div class="pac-info-sub">${p.telefone}</div></div></div>
+    <div class="fg" style="margin-bottom:1rem">
+      <div class="fgr"><label>CPF do Paciente</label><input type="text" id="${tipo}-cpf" placeholder="000.000.000-00"/></div>
+      <div class="fgr"><label>CPF do Profissional</label><input type="text" value="CPF da Dra. Anna Carolina"/></div>
+    </div>
+    <div class="termo-texto">
+      <p>Eu, <strong>${p.nome}</strong>, declaro estar ciente e concordo em realizar o procedimento de <strong>${t.procedimento}</strong>, conforme orientação e esclarecimentos prestados pela profissional responsável Dra. Anna Carolina Dias.</p>
+      <p>Declaro que recebi informações adequadas sobre o procedimento e suas possíveis complicações, riscos e benefícios. Entendo que ${t.descricao}</p>
+      <p><strong>Natureza do procedimento:</strong> Compreendo que o procedimento de ${t.procedimento} será realizado através de injeções nas áreas específicas acordadas com o(a) profissional responsável.</p>
+      <p><strong>Benefícios e resultados esperados:</strong> Fui informado(a) de que ${t.beneficios} No entanto, entendo que os resultados podem variar de pessoa para pessoa, e não há garantia de resultados completos ou permanentes.</p>
+      <p><strong>Riscos e complicações:</strong> Fui devidamente informado(a) sobre os riscos associados ao procedimento, que podem incluir, mas não se limitar a:</p>
+      <ul>${t.riscos.map(r=>`<li>${r};</li>`).join('')}</ul>
+      <p><strong>Cuidados pós-tratamento:</strong> Fui devidamente instruído(a) sobre os cuidados pós-tratamento. Estou ciente de que podem ser necessárias sessões de acompanhamento para avaliar os resultados e realizar ajustes, se necessário.</p>
+      <p><strong>Sigilo e privacidade:</strong> Concordo que todas as informações relacionadas ao meu tratamento serão mantidas em sigilo de acordo com as leis e regulamentos aplicáveis.</p>
+      <p>Confirmo que li e compreendi completamente este termo de consentimento livre e esclarecido e concordo em seguir as instruções do(a) profissional responsável antes, durante e após o procedimento.</p>
+    </div>
+    <div class="sec-title">Assinaturas</div>
+    <div class="sig-row">
+      <div><label>Assinatura do(a) Paciente</label><div class="sig-area"><canvas id="sig-${tipo}-pac" width="340" height="120"></canvas><span class="sig-label">Assine aqui</span></div><button class="btn" style="margin-top:6px;font-size:12px" onclick="limparSig('sig-${tipo}-pac')">Limpar</button></div>
+      <div><label>Assinatura do(a) Profissional</label><div class="sig-area"><canvas id="sig-${tipo}-pro" width="340" height="120"></canvas><span class="sig-label">Assine aqui</span></div><button class="btn" style="margin-top:6px;font-size:12px" onclick="limparSig('sig-${tipo}-pro')">Limpar</button></div>
+    </div>
+    <div class="br no-print">
+      <button class="btn" onclick="voltarDocs()">← Voltar</button>
+      <button class="btn" onclick="window.print()">🖨️ Imprimir</button>
+      <button class="btn pri" onclick="salvarDoc('${tipo}')">✓ Salvar documento</button>
+    </div>
+  </div>`;
+  document.getElementById('conteudo-'+tipo).innerHTML=html;
+  iniciarSig(`sig-${tipo}-pac`);iniciarSig(`sig-${tipo}-pro`);
+}
+
+// ── AUTORIZAÇÃO DE IMAGEM ──
+function abrirAutorizacaoImagem(){
+  const p=pacSelecionada;
+  document.getElementById('imagem-pac-info').innerHTML=`<div><div class="pac-info-nome">${p.nome}${p.apelido?` (${p.apelido})`:''}</div><div class="pac-info-sub">${p.telefone}</div></div>`;
+  document.getElementById('img-nome-display').textContent=p.nome;
+  iniciarSig('sig-img-pac');iniciarSig('sig-img-pro');
+}
+
+// ── ORÇAMENTO ──
+let orcItens=[];
+function abrirOrcamento(){
+  const p=pacSelecionada;
+  document.getElementById('orc-pac-info').innerHTML=`<div><div class="pac-info-nome">${p.nome}${p.apelido?` (${p.apelido})`:''}</div><div class="pac-info-sub">${p.telefone}</div></div>`;
+  orcItens=[];document.getElementById('orc-itens').innerHTML='';
+  document.getElementById('orc-validade').value='';
+  document.getElementById('orc-pagamento').value='';
+  document.getElementById('orc-obs').value='';
+  addItemOrc();addItemOrc();addItemOrc();
+  calcTotal();
+}
+
+function addItemOrc(){
+  const idx=orcItens.length;orcItens.push({trat:'',val:0});
+  const el=document.getElementById('orc-itens');
+  const d=document.createElement('div');
+  d.id=`orc-item-${idx}`;
+  d.style.cssText='display:grid;grid-template-columns:1fr 120px 32px;gap:8px;align-items:center;margin-bottom:7px';
+  d.innerHTML=`<input type="text" placeholder="Tratamento ${idx+1}..." oninput="orcItens[${idx}].trat=this.value"/>
+    <input type="number" placeholder="R$" min="0" step="0.01" oninput="orcItens[${idx}].val=parseFloat(this.value)||0;calcTotal()" style="text-align:right"/>
+    <button class="btn dan" style="padding:6px 8px" onclick="document.getElementById('orc-item-${idx}').remove();calcTotal()">✕</button>`;
+  el.appendChild(d);
+}
+
+function calcTotal(){
+  const t=orcItens.reduce((s,i)=>s+i.val,0);
+  document.getElementById('orc-total').textContent=fmtBRL(t);
+}
+
+// ── ASSINATURA DIGITAL ──
+const sigs={};
+function iniciarSig(id){
+  setTimeout(()=>{
+    const canvas=document.getElementById(id);if(!canvas)return;
+    const ctx=canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle='#1A1916';ctx.lineWidth=2;ctx.lineCap='round';ctx.lineJoin='round';
+    let drawing=false,lastX=0,lastY=0;
+    function getPos(e){
+      const r=canvas.getBoundingClientRect();
+      if(e.touches){return{x:e.touches[0].clientX-r.left,y:e.touches[0].clientY-r.top};}
+      return{x:e.clientX-r.left,y:e.clientY-r.top};
+    }
+    canvas.onmousedown=canvas.ontouchstart=(e)=>{e.preventDefault();drawing=true;const p=getPos(e);lastX=p.x;lastY=p.y;};
+    canvas.onmousemove=canvas.ontouchmove=(e)=>{e.preventDefault();if(!drawing)return;const p=getPos(e);ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(p.x,p.y);ctx.stroke();lastX=p.x;lastY=p.y;};
+    canvas.onmouseup=canvas.ontouchend=()=>{drawing=false;};
+    canvas.onmouseleave=()=>{drawing=false;};
+    sigs[id]=canvas;
+  },100);
+}
+
+function limparSig(id){const canvas=document.getElementById(id);if(canvas)canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);}
+
+function getSig(id){
+  const canvas=document.getElementById(id);
+  if(!canvas)return null;
+  const ctx=canvas.getContext('2d');
+  const data=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+  const hasContent=data.some((v,i)=>i%4===3&&v>0);
+  return hasContent?canvas.toDataURL():null;
+}
+
+// ── SALVAR DOCUMENTO ──
+async function salvarDoc(tipo){
+  if(!pacSelecionada){toast('Selecione um paciente primeiro!','vermelho');return;}
+  const sigPac=getSig(`sig-${tipo}-pac`)||getSig(`sig-an-pac`)||getSig(`sig-img-pac`);
+  const sigPro=getSig(`sig-${tipo}-pro`)||getSig(`sig-an-pro`)||getSig(`sig-img-pro`);
+  let dados={};
+  if(tipo==='anamnese'){
+    dados.respostas={};
+    AN_PERGUNTAS.forEach(q=>{
+      const v=document.querySelector(`input[name="${q.id}"]:checked`)?.value||'nao';
+      const qual=document.getElementById('qual-'+q.id)?.value||'';
+      dados.respostas[q.id]={v,qual};
+    });
+    dados.checks={};
+    AN_CHECKS.forEach((_,i)=>{dados.checks[i]=document.getElementById('anck-'+i)?.checked||false;});
+    dados.obs=document.getElementById('an-obs')?.value||'';
+    dados.endereco=document.getElementById('an-endereco')?.value||'';
+    dados.cpf=document.getElementById('an-cpf')?.value||'';
+    dados.rg=document.getElementById('an-rg')?.value||'';
+    dados.sexo=document.getElementById('an-sexo')?.value||'';
+  } else if(tipo==='orcamento'){
+    dados.itens=orcItens;dados.pagamento=document.getElementById('orc-pagamento')?.value||'';dados.obs=document.getElementById('orc-obs')?.value||'';dados.validade=document.getElementById('orc-validade')?.value||'';
+  } else if(tipo==='autorizacao-imagem'){
+    dados.rg=document.getElementById('img-rg')?.value||'';dados.cpf=document.getElementById('img-cpf')?.value||'';
+  } else {
+    dados.cpf=document.getElementById(`${tipo}-cpf`)?.value||'';
+  }
+  const{error}=await db.from('documentos').insert({
+    paciente_id:pacSelecionada.id,tipo,dados,
+    assinatura_paciente:sigPac,assinatura_profissional:sigPro,
+    data_assinatura:HOJE
+  });
+  if(error){toast('Erro ao salvar: '+error.message,'vermelho');return;}
+  toast('Documento salvo com sucesso! ✓','verde');
+  carregarDocsSalvos();
+  voltarDocs();
+}
+
+async function verDoc(id,tipo){
+  const{data}=await db.from('documentos').select('*').eq('id',id).single();
+  if(!data)return;
+  // Reabrir o documento preenchido (simplificado — abre vazio por ora)
+  abrirDoc(tipo);
+  toast('Documento carregado');
+}
+
+// INICIAR
+carregar();
+</script>
+</body>
+</html>
