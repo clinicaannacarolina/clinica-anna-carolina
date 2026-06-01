@@ -401,7 +401,25 @@ textarea{resize:vertical;min-height:70px}
   </div>
 </div>
 
-<!-- MODAL LEMBRETE -->
+<!-- MODAL DOCUMENTOS RÁPIDOS -->
+<div class="mb" id="m-docs">
+  <div class="mx" style="max-width:520px">
+    <h3>📄 Documentos</h3>
+    <div style="background:var(--verde-c);border-radius:8px;padding:10px 12px;margin-bottom:1rem">
+      <div style="font-size:13px;font-weight:600;color:var(--verde-e)" id="docs-pac-nome"></div>
+      <div style="font-size:12px;color:var(--ct);margin-top:1px" id="docs-pac-tel"></div>
+    </div>
+    <div style="font-size:12px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">📁 Documentos salvos</div>
+    <div id="docs-modal-lista" style="margin-bottom:1rem;max-height:200px;overflow-y:auto"></div>
+    <div style="font-size:12px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">➕ Criar novo documento</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px" id="docs-modal-btns"></div>
+    <div class="br">
+      <button class="btn" onclick="fchDocs()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+
 <div class="mb" id="m-lembr">
   <div class="mx" style="max-width:460px">
     <h3>📌 Novo lembrete</h3>
@@ -868,6 +886,7 @@ function renderPac(){
           ${!isPend?`<button class="btn" style="padding:6px 10px;color:var(--azul)" onclick="abrLembr('${p.id}')">📌</button>`:''}
           <button class="btn" style="padding:6px 10px" onclick='abrEdit(${J(p)})'>✏️</button>
           ${!isPend?`<button class="btn pri" style="padding:6px 10px;font-size:12px" onclick='abrAtend(${J(p)})'>🩺</button>`:''}
+        ${!isPend?`<button class="btn" style="padding:6px 10px;font-size:12px;color:var(--azul);border-color:var(--azul)" onclick='abrDocs(${J(p)})' title="Documentos">📄</button>`:''}
           <button class="btn dan" onclick="excluir('${p.id}','${p.nome.replace(/'/g,"\\'")}')">🗑</button>
         </div>
       </div>
@@ -1051,6 +1070,44 @@ async function salvarAtend(){
   document.getElementById('a-trats').innerHTML='';addTratComData('a-trats');document.getElementById('a-data').value=HOJE_STR;document.getElementById('a-ver-dias').value=15;atualizarVerLabel(HOJE_STR);
 }
 document.getElementById('m-atend').addEventListener('click',e=>{if(e.target===e.currentTarget)fchAtend();});
+
+// ── DOCUMENTOS RÁPIDOS ──
+const DOCS_TIPOS=[
+  {tipo:'anamnese',icon:'📋',label:'Anamnese'},
+  {tipo:'termo-botox',icon:'💉',label:'Termo Botox'},
+  {tipo:'termo-preenchimento',icon:'💉',label:'Preenchimento'},
+  {tipo:'termo-bioestimulador',icon:'💉',label:'Bioestimulador'},
+  {tipo:'autorizacao-imagem',icon:'📸',label:'Imagem'},
+  {tipo:'orcamento',icon:'💰',label:'Orçamento'},
+  {tipo:'planejamento',icon:'📐',label:'Planejamento'},
+  {tipo:'odontograma',icon:'🦷',label:'Odontograma'},
+  {tipo:'anamnese-odonto',icon:'📝',label:'Anamnese Odonto'},
+];
+
+async function abrDocs(p){
+  document.getElementById('docs-pac-nome').textContent=p.nome+(p.apelido?` (${p.apelido})`:'');
+  document.getElementById('docs-pac-tel').textContent=p.telefone;
+  document.getElementById('docs-modal-btns').innerHTML=DOCS_TIPOS.map(d=>`
+    <button class="btn" style="padding:8px 6px;font-size:11px;flex-direction:column;gap:3px;text-align:center;height:60px;justify-content:center"
+      onclick="abrirDocRapido('${d.tipo}','${p.id}')">
+      <span style="font-size:18px">${d.icon}</span>${d.label}
+    </button>`).join('');
+  const{data}=await db.from('documentos').select('*').eq('paciente_id',p.id).order('criado_em',{ascending:false});
+  const nomes={anamnese:'📋 Anamnese','termo-botox':'💉 Termo Botox','termo-preenchimento':'💉 Preenchimento Facial','termo-bioestimulador':'💉 Bioestimuladores','autorizacao-imagem':'📸 Autorização Imagem',orcamento:'💰 Orçamento',planejamento:'📐 Planejamento',odontograma:'🦷 Odontograma','anamnese-odonto':'📝 Anamnese Odonto'};
+  const el=document.getElementById('docs-modal-lista');
+  if(!data||!data.length){
+    el.innerHTML='<div style="font-size:13px;color:var(--ct);padding:8px 0">Nenhum documento salvo ainda.</div>';
+  } else {
+    el.innerHTML=data.map(d=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg);border-radius:8px;margin-bottom:5px;border:1px solid var(--borda)">
+      <div><div style="font-size:13px;font-weight:500">${nomes[d.tipo]||d.tipo}</div><div style="font-size:11px;color:var(--ct)">${d.data_assinatura||d.criado_em?.split('T')[0]||''}</div></div>
+      <a href="documentos.html?pac=${p.id}" class="btn" style="padding:5px 10px;font-size:12px">👁 Ver</a>
+    </div>`).join('');
+  }
+  document.getElementById('m-docs').classList.add('open');
+}
+function fchDocs(){document.getElementById('m-docs').classList.remove('open');}
+function abrirDocRapido(tipo,pacId){fchDocs();window.location.href=`documentos.html?pac=${pacId}&doc=${tipo}`;}
+document.getElementById('m-docs').addEventListener('click',e=>{if(e.target===e.currentTarget)fchDocs();});
 
 // LEMBRETE
 function abrLembr(pid){document.getElementById('l-pid').value=pid;document.getElementById('l-recado').value='';document.getElementById('l-prazo').value='90';document.getElementById('l-data-g').style.display='none';document.getElementById('m-lembr').classList.add('open');}

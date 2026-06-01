@@ -889,7 +889,19 @@ function abrirDoc(tipo){
 }
 
 // INICIAR
-carregar();
+carregar().then(()=>{
+  // Verificar parâmetros na URL
+  const params=new URLSearchParams(window.location.search);
+  const pacId=params.get('pac');
+  const docTipo=params.get('doc');
+  if(pacId){
+    const p=pacs.find(x=>x.id===pacId);
+    if(p){
+      selPac(p);
+      if(docTipo) setTimeout(()=>abrirDoc(docTipo),200);
+    }
+  }
+});
 </script>
 <div class="toast" id="toast"></div>
 </body>
