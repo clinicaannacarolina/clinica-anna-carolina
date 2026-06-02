@@ -394,8 +394,14 @@ textarea{resize:vertical;min-height:70px}
         </div>
       </div>
     </div>
+    <div id="atend-docs-section" style="display:none;border-top:1.5px solid var(--borda);margin-top:1rem;padding-top:1rem">
+      <div style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">📁 Documentos salvos</div>
+      <div id="atend-docs-lista" style="margin-bottom:10px;max-height:160px;overflow-y:auto"></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px" id="atend-docs-btns"></div>
+    </div>
     <div class="br">
       <button class="btn" onclick="fchAtend()">Fechar</button>
+      <button class="btn" onclick="toggleAtendDocs()" id="btn-atend-docs">📄 Documentos</button>
       <button class="btn pri" id="btn-atend-salvar" onclick="salvarAtend()">✓ Salvar atendimento</button>
     </div>
   </div>
@@ -1031,6 +1037,12 @@ async function excluirAtendData(data){
 
 function abrAtend(p){
   document.getElementById('a-id').value=p.id;
+  // Resetar aba documentos
+  _atendDocsOpen=false;
+  _atendDocsPacId=p.id;
+  document.getElementById('atend-docs-section').style.display='none';
+  const btnD=document.getElementById('btn-atend-docs');
+  if(btnD){btnD.style.background='';btnD.style.color='';}
   document.getElementById('a-pac-nome').textContent=p.nome+(p.apelido?` (${p.apelido})`:'');
   document.getElementById('a-pac-tel').textContent=p.telefone;
   document.getElementById('a-data').value=HOJE_STR;
@@ -1126,6 +1138,63 @@ function injetarBtnFicha(){
     btn.addEventListener('click',()=>abrAtend(p));
     ca.insertBefore(btn,ca.firstChild);
   });
+}
+
+
+// ── DOCUMENTOS NO MODAL DE ATENDIMENTO ──
+const DOCS_NOMES={anamnese:'📋 Anamnese','termo-botox':'💉 Termo Botox','termo-preenchimento':'💉 Preenchimento','termo-bioestimulador':'💉 Bioestimuladores','autorizacao-imagem':'📸 Autorização Imagem',orcamento:'💰 Orçamento',planejamento:'📐 Planejamento',odontograma:'🦷 Odontograma','anamnese-odonto':'📝 Anamnese Odonto'};
+
+let _atendDocsPacId=null;
+let _atendDocsOpen=false;
+
+function toggleAtendDocs(){
+  const sec=document.getElementById('atend-docs-section');
+  _atendDocsOpen=!_atendDocsOpen;
+  sec.style.display=_atendDocsOpen?'block':'none';
+  const btn=document.getElementById('btn-atend-docs');
+  btn.style.background=_atendDocsOpen?'var(--verde)':'';
+  btn.style.color=_atendDocsOpen?'white':'';
+  if(_atendDocsOpen&&_atendDocsPacId) carregarAtendDocs(_atendDocsPacId);
+}
+
+async function carregarAtendDocs(pacId){
+  _atendDocsPacId=pacId;
+  const DOCS_TIPOS2=[
+    {tipo:'anamnese',icon:'📋',label:'Anamnese'},
+    {tipo:'orcamento',icon:'💰',label:'Orçamento'},
+    {tipo:'termo-botox',icon:'💉',label:'Termo Botox'},
+    {tipo:'termo-preenchimento',icon:'💉',label:'Preenchimento'},
+    {tipo:'termo-bioestimulador',icon:'💉',label:'Bioestimuladores'},
+    {tipo:'autorizacao-imagem',icon:'📸',label:'Autorização'},
+    {tipo:'planejamento',icon:'📐',label:'Planejamento'},
+    {tipo:'odontograma',icon:'🦷',label:'Odontograma'},
+    {tipo:'anamnese-odonto',icon:'📝',label:'An. Odonto'},
+  ];
+  // Botões para criar documentos
+  document.getElementById('atend-docs-btns').innerHTML=DOCS_TIPOS2.map(d=>
+    `<button class="btn" style="padding:8px 6px;font-size:11px;flex-direction:column;gap:3px;text-align:center;height:60px;justify-content:center" onclick="abrirDocAtend('${d.tipo}','${pacId}')">
+      <span style="font-size:18px">${d.icon}</span>${d.label}
+    </button>`).join('');
+  // Documentos salvos
+  const lista=document.getElementById('atend-docs-lista');
+  lista.innerHTML='<div style="font-size:12px;color:var(--ct)">Carregando...</div>';
+  const{data}=await db.from('documentos').select('*').eq('paciente_id',pacId).order('criado_em',{ascending:false});
+  if(!data||!data.length){
+    lista.innerHTML='<div style="font-size:12px;color:var(--ct);padding:4px 0">Nenhum documento salvo ainda.</div>';
+    return;
+  }
+  lista.innerHTML=data.map(d=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border:1px solid var(--borda);border-radius:6px;margin-bottom:4px">
+      <div>
+        <div style="font-size:13px;font-weight:500">${DOCS_NOMES[d.tipo]||d.tipo}</div>
+        <div style="font-size:11px;color:var(--ct)">Salvo em ${fDt(d.data_assinatura||d.criado_em?.split('T')[0])}</div>
+      </div>
+      <a href="documentos.html?pac=${pacId}&doc=${d.tipo}" target="_blank" class="btn" style="padding:5px 10px;font-size:12px">👁 Ver</a>
+    </div>`).join('');
+}
+
+function abrirDocAtend(tipo,pacId){
+  window.open('documentos.html?pac='+pacId+'&doc='+tipo,'_blank');
 }
 
 async function abrDocs(p){
