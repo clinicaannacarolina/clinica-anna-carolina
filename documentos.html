@@ -741,7 +741,7 @@ async function salvarDoc(tipo){
     dados.rg=document.getElementById(`${tipo}-rg`)?.value||'';
   }
 
-  console.log('salvarDoc:', tipo, 'paciente:', pacSelecionada?.id, 'sigPac:', sigPac?'SIM':'NÃO', 'sigPro:', sigPro?'SIM':'NÃO', 'dados:', dados);
+
   const btnSalvar=document.querySelector(`[onclick="salvarDoc('${tipo}')"]`);
   if(btnSalvar){btnSalvar.disabled=true;btnSalvar.textContent='Salvando...';}
 
