@@ -732,9 +732,20 @@ async function salvarDoc(tipo){
     dados.preench=Array.from(document.querySelectorAll('#plan-preench tr')).map(tr=>Array.from(tr.querySelectorAll('input')).map(i=>i.value));
     dados.anotacoes=document.getElementById('plan-anotacoes')?.value||'';
   } else if(tipo==='odontograma'){
-    dados.estadoDentes=estadoDentes||{};
-    dados.obs=Array.from(document.querySelectorAll('#odonto-obs-body tr')).map(tr=>Array.from(tr.querySelectorAll('input,select')).map(i=>i.value));
-    dados.total=document.getElementById('odonto-total')?.value||'';
+    dados.estadoDentes=JSON.parse(JSON.stringify(estadoDentes||{}));
+    dados.trats=Array.from(document.querySelectorAll('#od-trats tr')).map(tr=>{
+      const inputs=tr.querySelectorAll('input');
+      return{dente:inputs[0]?.value||'',trat:inputs[1]?.value||'',val:inputs[2]?.value||''};
+    }).filter(r=>r.dente||r.trat||r.val);
+    dados.end=document.getElementById('od-end')?.value||'';
+    dados.bairro=document.getElementById('od-bairro')?.value||'';
+    dados.cidade=document.getElementById('od-cidade')?.value||'';
+    dados.rg=document.getElementById('od-rg')?.value||'';
+    dados.cpf=document.getElementById('od-cpf')?.value||'';
+    dados.resp=document.getElementById('od-resp')?.value||'';
+    dados.validade=document.getElementById('od-validade-dias')?.value||'';
+    dados.pagamento=document.getElementById('od-pagamento')?.value||'';
+    dados.obs=document.getElementById('od-obs')?.value||'';
   } else if(tipo==='anamnese-odonto'){
     dados.queixa=document.getElementById('ao-queixa')?.value||'';
     dados.historico=Array.from(document.querySelectorAll('#ao-historico tr')).map(tr=>Array.from(tr.querySelectorAll('input')).map(i=>i.value));
@@ -848,6 +859,33 @@ async function verDoc(id,tipo){
       document.querySelectorAll('#plan-procs input[type=checkbox]').forEach(cb=>{
         if(d.procs.includes(cb.nextElementSibling?.textContent)) cb.checked=true;
       });
+    }
+  } else if(tipo==='odontograma'){
+    if(d.end) document.getElementById('od-end').value=d.end;
+    if(d.bairro) document.getElementById('od-bairro').value=d.bairro;
+    if(d.cidade) document.getElementById('od-cidade').value=d.cidade;
+    if(d.rg) document.getElementById('od-rg').value=d.rg;
+    if(d.cpf) document.getElementById('od-cpf').value=d.cpf;
+    if(d.resp) document.getElementById('od-resp').value=d.resp;
+    if(d.validade) document.getElementById('od-validade-dias').value=d.validade;
+    if(d.pagamento) document.getElementById('od-pagamento').value=d.pagamento;
+    if(d.obs) document.getElementById('od-obs').value=d.obs;
+    if(d.estadoDentes&&Object.keys(d.estadoDentes).length>0){
+      estadoDentes=d.estadoDentes;
+      renderOdontograma();
+    }
+    if(d.trats&&d.trats.length>0){
+      document.getElementById('od-trats').innerHTML='';
+      d.trats.forEach(r=>{
+        addLinhaOdonto();
+        const trs=document.querySelectorAll('#od-trats tr');
+        const tr=trs[trs.length-1];
+        const inputs=tr.querySelectorAll('input');
+        if(inputs[0]) inputs[0].value=r.dente||'';
+        if(inputs[1]) inputs[1].value=r.trat||'';
+        if(inputs[2]) inputs[2].value=r.val||'';
+      });
+      calcTotalOdonto();
     }
   }
 
@@ -966,9 +1004,19 @@ function addLinhaOdonto(){
   const tb=document.getElementById('od-trats');
   const tr=document.createElement('tr');
   tr.innerHTML=`<td style="padding:6px;border:1px solid var(--borda)"><input type="text" placeholder="Ex: 16" style="width:60px;padding:4px;font-size:12px"/></td>
-    <td style="padding:6px;border:1px solid var(--borda)"><input type="text" placeholder="Tratamento..." style="width:100%;padding:4px;font-size:12px"/></td>
+    <td style="padding:6px;border:1px solid var(--borda)"><input type="text" list="lista-trats-odonto" placeholder="Tratamento..." style="width:100%;padding:4px;font-size:12px"/></td>
     <td style="padding:6px;border:1px solid var(--borda);text-align:right"><input type="number" placeholder="0,00" min="0" step="0.01" style="width:90px;padding:4px;font-size:12px;text-align:right" oninput="calcTotalOdonto()"/></td>`;
   tb.appendChild(tr);
+}
+
+// Lista pré-fixada de tratamentos odontológicos
+if(!document.getElementById('lista-trats-odonto')){
+  const dl=document.createElement('datalist');
+  dl.id='lista-trats-odonto';
+  ['Profilaxia (limpeza)','Restauração resina','Exodontia simples','Exodontia cirúrgica','Canal radicular','Clareamento dental','Faceta de porcelana','Coroa total','Prótese parcial removível','Prótese total','Implante','Raspagem periodontal','Aplicação de flúor','Selante','Radiografia periapical','Radiografia panorâmica','Gengivoplastia','Tratamento periodontal'].forEach(t=>{
+    const op=document.createElement('option');op.value=t;dl.appendChild(op);
+  });
+  document.body.appendChild(dl);
 }
 
 function calcTotalOdonto(){
