@@ -267,11 +267,43 @@ textarea{resize:vertical}
       <div class="br no-print">
         <button class="btn" onclick="voltarDocs()">← Voltar</button>
         <button class="btn" onclick="window.print()">🖨️ Imprimir</button>
+        <button class="btn" style="background:var(--verde);color:white;border-color:var(--verde)" onclick="abrirModalRealizado()">✅ Procedimento realizado</button>
         <button class="btn pri" onclick="salvarDoc('orcamento')">✓ Salvar orçamento</button>
       </div>
     </div>
   </div>
 </main>
+
+<!-- MODAL: CONFIRMAR PROCEDIMENTO REALIZADO -->
+<div id="modal-realizado" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:var(--card);border-radius:16px;padding:1.5rem;width:90%;max-width:480px;max-height:90vh;overflow-y:auto">
+    <div style="font-size:17px;font-weight:700;margin-bottom:4px">✅ Confirmar procedimento realizado</div>
+    <div style="font-size:13px;color:var(--ct);margin-bottom:1rem" id="modal-pac-nome"></div>
+    <div style="margin-bottom:1rem">
+      <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Data do atendimento</label>
+      <input type="date" id="modal-data" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px"/>
+    </div>
+    <div style="margin-bottom:1rem">
+      <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:8px">Tratamentos realizados</label>
+      <div id="modal-lista-trats"></div>
+    </div>
+    <div style="margin-bottom:1rem">
+      <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Verificação pós-procedimento</label>
+      <select id="modal-ver-dias" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px">
+        <option value="0">Sem verificação</option>
+        <option value="7">7 dias</option>
+        <option value="10">10 dias</option>
+        <option value="15" selected>15 dias</option>
+        <option value="21">21 dias</option>
+        <option value="30">30 dias</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="fecharModalRealizado()">Cancelar</button>
+      <button class="btn pri" id="btn-confirmar-realizado" onclick="confirmarRealizado()">✅ Confirmar atendimento</button>
+    </div>
+  </div>
+</div>
 
   <!-- PAINEL: PLANEJAMENTO -->
   <div id="panel-planejamento" class="panel">
@@ -1222,6 +1254,109 @@ function abrirDoc(tipo){
   if(panel)panel.classList.add('active');
   window.scrollTo(0,0);
 }
+
+// ── MODAL PROCEDIMENTO REALIZADO ──
+function abrirModalRealizado(){
+  if(!pacSelecionada){toast('Selecione um paciente primeiro!','vermelho');return;}
+  const itens=getOrcItens().filter(i=>i.trat);
+  if(!itens.length){toast('Adicione ao menos um tratamento no orçamento!','vermelho');return;}
+
+  document.getElementById('modal-pac-nome').textContent=pacSelecionada.nome+(pacSelecionada.apelido?` (${pacSelecionada.apelido})`:'');
+  document.getElementById('modal-data').value=HOJE;
+
+  // Montar lista de checkboxes com tratamentos e valores
+  document.getElementById('modal-lista-trats').innerHTML=itens.map((item,i)=>`
+    <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid var(--borda);border-radius:8px;margin-bottom:6px;cursor:pointer;background:var(--bg)">
+      <input type="checkbox" id="modal-trat-${i}" checked style="width:16px;height:16px;cursor:pointer"/>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:500">${item.trat}</div>
+        ${item.val?`<div style="font-size:12px;color:var(--ct)">${fmtBRL(item.val)}</div>`:''}
+      </div>
+    </label>`).join('');
+
+  const modal=document.getElementById('modal-realizado');
+  modal.style.display='flex';
+}
+
+function fecharModalRealizado(){
+  document.getElementById('modal-realizado').style.display='none';
+}
+
+async function confirmarRealizado(){
+  const dataAtend=document.getElementById('modal-data').value;
+  if(!dataAtend){toast('Informe a data do atendimento!','vermelho');return;}
+
+  // Pegar tratamentos marcados
+  const itens=getOrcItens().filter(i=>i.trat);
+  const selecionados=itens.filter((_,i)=>document.getElementById(`modal-trat-${i}`)?.checked);
+  if(!selecionados.length){toast('Marque ao menos um tratamento!','vermelho');return;}
+
+  const verDias=parseInt(document.getElementById('modal-ver-dias').value)||0;
+  let verificacaoData=null;
+  if(verDias>0){
+    const dt=new Date(dataAtend+'T12:00:00');
+    dt.setDate(dt.getDate()+verDias);
+    verificacaoData=dt.toISOString().split('T')[0];
+  }
+
+  // Montar tratamentos no formato do sistema
+  const PRAZOS={
+    'Botox (toxina botulínica)':6,'Botox para bruxismo (masseter)':6,'Botox para sorriso gengival':6,
+    'Preenchimento labial':12,'Preenchimento de bigode chinês':12,'Preenchimento de olheiras':12,
+    'Bioestimulador de colágeno':6,'Skinbooster':6,'Lifting com fios de PDO':12,
+    'Profilaxia (limpeza dental)':6,'Clareamento dental (consultório)':12,
+  };
+  const trats=selecionados.map(item=>{
+    const prazo=PRAZOS[item.trat]||6;
+    const dtRet=new Date(dataAtend+'T12:00:00');
+    dtRet.setMonth(dtRet.getMonth()+prazo);
+    return{
+      nome:item.trat,prazo,valor:item.val||0,
+      dataAtendimento:dataAtend,
+      dataRetorno:dtRet.toISOString().split('T')[0]
+    };
+  });
+
+  const valorTotal=selecionados.reduce((s,i)=>s+(parseFloat(i.val)||0),0);
+
+  // Buscar dados atuais do paciente
+  const{data:pacAtual}=await db.from('pacientes').select('*').eq('id',pacSelecionada.id).single();
+  if(!pacAtual){toast('Erro ao carregar paciente','vermelho');return;}
+
+  const tratsAntigos=(pacAtual.tratamentos_adicionais||[]).filter(t=>t.dataAtendimento!==dataAtend);
+  const tratsFinais=[...tratsAntigos,...trats];
+
+  const atends=(pacAtual.atendimentos||[]).filter(a=>a.data!==dataAtend);
+  atends.push({
+    data:dataAtend,
+    valor:valorTotal||null,
+    verificacaoDias:verDias,
+    verificacaoData,
+    trats:trats.map(t=>({nome:t.nome,prazo:t.prazo}))
+  });
+
+  const btn=document.getElementById('btn-confirmar-realizado');
+  btn.disabled=true;btn.textContent='Salvando...';
+
+  const{error}=await db.from('pacientes').update({
+    tratamentos_adicionais:tratsFinais,
+    tratamento:tratsFinais[tratsFinais.length-1]?.nome||null,
+    data_atendimento:dataAtend,
+    atendimentos:atends
+  }).eq('id',pacSelecionada.id);
+
+  btn.disabled=false;btn.textContent='✅ Confirmar atendimento';
+
+  if(error){toast('Erro: '+error.message,'vermelho');return;}
+
+  fecharModalRealizado();
+  toast('Atendimento registrado com sucesso! ✓','verde');
+}
+
+// Fechar modal clicando fora
+document.getElementById('modal-realizado').addEventListener('click',e=>{
+  if(e.target===e.currentTarget) fecharModalRealizado();
+});
 
 // INICIAR
 carregar().then(()=>{
