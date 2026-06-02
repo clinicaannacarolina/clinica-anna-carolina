@@ -569,8 +569,8 @@ function abrirTermo(tipo){
     </div>
     <div class="pac-info"><div><div class="pac-info-nome">${p.nome}${p.apelido?` (${p.apelido})`:''}</div><div class="pac-info-sub">${p.telefone}</div></div></div>
     <div class="fg" style="margin-bottom:1rem">
-      <div class="fgr"><label>CPF do Paciente</label><input type="text" id="${tipo}-cpf" placeholder="000.000.000-00"/></div>
-      <div class="fgr"><label>CPF do Profissional</label><input type="text" value="CPF da Dra. Anna Carolina"/></div>
+      <div class="fgr"><label>CPF do Paciente</label><input type="text" id="${tipo}-cpf" value="${p.cpf||''}" placeholder="000.000.000-00"/></div>
+      <div class="fgr"><label>CPF do Profissional</label><input type="text" value="296.114.268-79" readonly/></div>
     </div>
     <div class="termo-texto">
       <p>Eu, <strong>${p.nome}</strong>, declaro estar ciente e concordo em realizar o procedimento de <strong>${t.procedimento}</strong>, conforme orientação e esclarecimentos prestados pela profissional responsável Dra. Anna Carolina Dias.</p>
