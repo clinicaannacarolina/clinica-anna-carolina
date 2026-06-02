@@ -449,7 +449,7 @@ async function carregarDocsSalvos(){
   const{data}=await db.from('documentos').select('*').eq('paciente_id',pacSelecionada.id).order('criado_em',{ascending:false});
   const el=document.getElementById('docs-salvos');
   if(!data||!data.length){el.innerHTML='<div style="color:var(--ct);font-size:13px">Nenhum documento salvo ainda.</div>';return;}
-  const nomes={anamnese:'📋 Ficha de Anamnese','termo-botox':'💉 Termo - Toxina Botulínica','termo-preenchimento':'💉 Termo - Preenchimento Facial','termo-bioestimulador':'💉 Termo - Bioestimuladores','autorizacao-imagem':'📸 Autorização de Imagem',orcamento:'💰 Ficha de Orçamento'};
+  const nomes={anamnese:'📋 Ficha de Anamnese','termo-botox':'💉 Termo - Toxina Botulínica','termo-preenchimento':'💉 Termo - Preenchimento Facial','termo-bioestimulador':'💉 Termo - Bioestimuladores','autorizacao-imagem':'📸 Autorização de Imagem',orcamento:'💰 Ficha de Orçamento',planejamento:'📐 Planejamento de Procedimentos',odontograma:'🦷 Ficha Clínica / Odontograma','anamnese-odonto':'📋 Anamnese Odontológica'};
   el.innerHTML=data.map(d=>`<div class="doc-salvo"><div><div class="doc-salvo-info">${nomes[d.tipo]||d.tipo}</div><div class="doc-salvo-sub">Salvo em ${fDt(d.data_assinatura||d.criado_em?.split('T')[0])}</div></div><div style="display:flex;gap:6px"><button class="btn" style="padding:6px 10px;font-size:12px" onclick="verDoc('${d.id}','${d.tipo}')">👁 Ver</button><button class="btn dan" style="padding:6px 10px;font-size:12px" onclick="excluirDoc('${d.id}')">🗑</button></div></div>`).join('');
 }
 
@@ -608,12 +608,12 @@ function abrirAutorizacaoImagem(){
 }
 
 // ── ORÇAMENTO ──
-let orcItens=[];
+// ── ORÇAMENTO ──
 function abrirOrcamento(){
   const p=pacSelecionada;
   document.getElementById('orc-pac-info').innerHTML=`<div><div class="pac-info-nome">${p.nome}${p.apelido?` (${p.apelido})`:''}</div><div class="pac-info-sub">${p.telefone}</div></div>`;
-  orcItens=[];document.getElementById('orc-itens').innerHTML='';
-  document.getElementById('orc-validade').value='';
+  document.getElementById('orc-itens').innerHTML='';
+  document.getElementById('orc-validade').value=HOJE;
   document.getElementById('orc-pagamento').value='';
   document.getElementById('orc-obs').value='';
   addItemOrc();addItemOrc();addItemOrc();
@@ -621,20 +621,31 @@ function abrirOrcamento(){
 }
 
 function addItemOrc(){
-  const idx=orcItens.length;orcItens.push({trat:'',val:0});
   const el=document.getElementById('orc-itens');
+  const idx=Date.now(); // ID único para não colidir
   const d=document.createElement('div');
-  d.id=`orc-item-${idx}`;
+  d.className='orc-linha';
   d.style.cssText='display:grid;grid-template-columns:1fr 120px 32px;gap:8px;align-items:center;margin-bottom:7px';
-  d.innerHTML=`<input type="text" placeholder="Tratamento ${idx+1}..." oninput="orcItens[${idx}].trat=this.value"/>
-    <input type="number" placeholder="R$" min="0" step="0.01" oninput="orcItens[${idx}].val=parseFloat(this.value)||0;calcTotal()" style="text-align:right"/>
-    <button class="btn dan" style="padding:6px 8px" onclick="document.getElementById('orc-item-${idx}').remove();calcTotal()">✕</button>`;
+  d.innerHTML=`<input type="text" class="orc-trat" placeholder="Tratamento..."/>
+    <input type="number" class="orc-val" placeholder="R$" min="0" step="0.01" oninput="calcTotal()" style="text-align:right"/>
+    <button class="btn dan" style="padding:6px 8px" onclick="this.closest('.orc-linha').remove();calcTotal()">✕</button>`;
   el.appendChild(d);
 }
 
 function calcTotal(){
-  const t=orcItens.reduce((s,i)=>s+i.val,0);
+  let t=0;
+  document.querySelectorAll('#orc-itens .orc-val').forEach(i=>t+=parseFloat(i.value)||0);
   document.getElementById('orc-total').textContent=fmtBRL(t);
+}
+
+function getOrcItens(){
+  const itens=[];
+  document.querySelectorAll('#orc-itens .orc-linha').forEach(linha=>{
+    const trat=linha.querySelector('.orc-trat')?.value||'';
+    const val=parseFloat(linha.querySelector('.orc-val')?.value)||0;
+    if(trat||val) itens.push({trat,val});
+  });
+  return itens;
 }
 
 // ── ASSINATURA DIGITAL ──
@@ -673,8 +684,8 @@ function getSig(id){
 // ── SALVAR DOCUMENTO ──
 async function salvarDoc(tipo){
   if(!pacSelecionada){toast('Selecione um paciente primeiro!','vermelho');return;}
-  const sigPac=getSig(`sig-${tipo}-pac`)||getSig(`sig-an-pac`)||getSig(`sig-img-pac`);
-  const sigPro=getSig(`sig-${tipo}-pro`)||getSig(`sig-an-pro`)||getSig(`sig-img-pro`);
+  const sigPac=getSig(`sig-${tipo}-pac`)||getSig(`sig-an-pac`)||getSig(`sig-img-pac`)||null;
+  const sigPro=getSig(`sig-${tipo}-pro`)||getSig(`sig-an-pro`)||getSig(`sig-img-pro`)||null;
   let dados={};
   if(tipo==='anamnese'){
     dados.respostas={};
@@ -691,18 +702,58 @@ async function salvarDoc(tipo){
     dados.rg=document.getElementById('an-rg')?.value||'';
     dados.sexo=document.getElementById('an-sexo')?.value||'';
   } else if(tipo==='orcamento'){
-    dados.itens=orcItens;dados.pagamento=document.getElementById('orc-pagamento')?.value||'';dados.obs=document.getElementById('orc-obs')?.value||'';dados.validade=document.getElementById('orc-validade')?.value||'';
+    dados.itens=getOrcItens();
+    dados.pagamento=document.getElementById('orc-pagamento')?.value||'';
+    dados.obs=document.getElementById('orc-obs')?.value||'';
+    dados.validade=document.getElementById('orc-validade')?.value||'';
   } else if(tipo==='autorizacao-imagem'){
-    dados.rg=document.getElementById('img-rg')?.value||'';dados.cpf=document.getElementById('img-cpf')?.value||'';
-  } else {
+    dados.rg=document.getElementById('img-rg')?.value||'';
+    dados.cpf=document.getElementById('img-cpf')?.value||'';
+  } else if(tipo==='planejamento'){
+    dados.procs=Array.from(document.querySelectorAll('#plan-procs input:checked')).map(i=>i.nextElementSibling?.textContent||'');
+    dados.outros=[document.getElementById('plan-outros1')?.value||'',document.getElementById('plan-outros2')?.value||'',document.getElementById('plan-outros3')?.value||''];
+    dados.regioes={};
+    document.querySelectorAll('#plan-regioes input[type=number]').forEach((inp,i)=>{if(inp.value)dados.regioes[i]=inp.value;});
+    dados.validade=document.getElementById('plan-validade')?.value||'';
+    dados.lote=document.getElementById('plan-lote')?.value||'';
+    dados.diluicao=document.getElementById('plan-diluicao')?.value||'';
+    dados.preench=Array.from(document.querySelectorAll('#plan-preench tr')).map(tr=>Array.from(tr.querySelectorAll('input')).map(i=>i.value));
+    dados.anotacoes=document.getElementById('plan-anotacoes')?.value||'';
+  } else if(tipo==='odontograma'){
+    dados.estadoDentes=estadoDentes||{};
+    dados.obs=Array.from(document.querySelectorAll('#odonto-obs-body tr')).map(tr=>Array.from(tr.querySelectorAll('input,select')).map(i=>i.value));
+    dados.total=document.getElementById('odonto-total')?.value||'';
+  } else if(tipo==='anamnese-odonto'){
+    dados.queixa=document.getElementById('ao-queixa')?.value||'';
+    dados.historico=Array.from(document.querySelectorAll('#ao-historico tr')).map(tr=>Array.from(tr.querySelectorAll('input')).map(i=>i.value));
+    dados.respostas={};
+    document.querySelectorAll('#ao-form input[type=radio]:checked').forEach(r=>{dados.respostas[r.name]=r.value;});
+    document.querySelectorAll('#ao-form input[type=text],#ao-form textarea').forEach(i=>{if(i.id)dados[i.id]=i.value;});
+  } else if(tipo.startsWith('termo-')){
     dados.cpf=document.getElementById(`${tipo}-cpf`)?.value||'';
+    dados.rg=document.getElementById(`${tipo}-rg`)?.value||'';
   }
+
+  // Botão de loading
+  const btnSalvar=document.querySelector(`[onclick="salvarDoc('${tipo}')"]`);
+  if(btnSalvar){btnSalvar.disabled=true;btnSalvar.textContent='Salvando...';}
+
   const{error}=await db.from('documentos').insert({
-    paciente_id:pacSelecionada.id,tipo,dados,
-    assinatura_paciente:sigPac,assinatura_profissional:sigPro,
+    paciente_id:pacSelecionada.id,
+    tipo,
+    dados,
+    assinatura_paciente:sigPac,
+    assinatura_profissional:sigPro,
     data_assinatura:HOJE
   });
-  if(error){toast('Erro ao salvar: '+error.message,'vermelho');return;}
+
+  if(btnSalvar){btnSalvar.disabled=false;btnSalvar.textContent=tipo==='orcamento'?'✓ Salvar orçamento':'✓ Salvar documento';}
+
+  if(error){
+    console.error('Erro Supabase:', error);
+    alert('Erro ao salvar: ' + (error.message||JSON.stringify(error)));
+    return;
+  }
   toast('Documento salvo com sucesso! ✓','verde');
   carregarDocsSalvos();
   voltarDocs();
