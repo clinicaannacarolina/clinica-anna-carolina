@@ -760,11 +760,96 @@ async function salvarDoc(tipo){
 }
 
 async function verDoc(id,tipo){
-  const{data}=await db.from('documentos').select('*').eq('id',id).single();
-  if(!data)return;
-  // Reabrir o documento preenchido (simplificado — abre vazio por ora)
+  const{data,error}=await db.from('documentos').select('*').eq('id',id).single();
+  if(!data){toast('Erro ao carregar documento','vermelho');return;}
+  const d=data.dados||{};
+
+  // Abre o painel (já preenche os campos base via abrirDoc)
   abrirDoc(tipo);
-  toast('Documento carregado');
+
+  // Aguarda o DOM renderizar antes de preencher
+  await new Promise(r=>setTimeout(r,120));
+
+  if(tipo==='orcamento'){
+    // Limpar linhas padrão e recriar com dados salvos
+    document.getElementById('orc-itens').innerHTML='';
+    const itens=d.itens||[];
+    if(itens.length===0){addItemOrc();addItemOrc();addItemOrc();}
+    else{
+      itens.forEach(item=>{
+        addItemOrc();
+        const linhas=document.querySelectorAll('#orc-itens .orc-linha');
+        const ultima=linhas[linhas.length-1];
+        if(ultima){
+          ultima.querySelector('.orc-trat').value=item.trat||'';
+          ultima.querySelector('.orc-val').value=item.val||'';
+        }
+      });
+    }
+    calcTotal();
+    if(d.pagamento) document.getElementById('orc-pagamento').value=d.pagamento;
+    if(d.obs) document.getElementById('orc-obs').value=d.obs;
+    if(d.validade) document.getElementById('orc-validade').value=d.validade;
+
+  } else if(tipo==='autorizacao-imagem'){
+    if(d.rg) document.getElementById('img-rg').value=d.rg;
+    if(d.cpf) document.getElementById('img-cpf').value=d.cpf;
+
+  } else if(tipo==='anamnese'){
+    if(d.endereco) document.getElementById('an-endereco').value=d.endereco;
+    if(d.cpf) document.getElementById('an-cpf').value=d.cpf;
+    if(d.rg) document.getElementById('an-rg').value=d.rg;
+    if(d.sexo) document.getElementById('an-sexo').value=d.sexo;
+    if(d.obs) document.getElementById('an-obs').value=d.obs;
+    if(d.respostas){
+      Object.entries(d.respostas).forEach(([qid,resp])=>{
+        const radio=document.querySelector(`input[name="${qid}"][value="${resp.v}"]`);
+        if(radio) radio.checked=true;
+        const qual=document.getElementById('qual-'+qid);
+        if(qual) qual.value=resp.qual||'';
+      });
+    }
+    if(d.checks){
+      Object.entries(d.checks).forEach(([i,v])=>{
+        const el=document.getElementById('anck-'+i);
+        if(el) el.checked=v;
+      });
+    }
+
+  } else if(tipo.startsWith('termo-')){
+    if(d.cpf) document.getElementById(`${tipo}-cpf`).value=d.cpf;
+    if(d.rg) { const rg=document.getElementById(`${tipo}-rg`); if(rg) rg.value=d.rg; }
+
+  } else if(tipo==='planejamento'){
+    if(d.validade) document.getElementById('plan-validade').value=d.validade;
+    if(d.lote) document.getElementById('plan-lote').value=d.lote;
+    if(d.diluicao) document.getElementById('plan-diluicao').value=d.diluicao;
+    if(d.anotacoes) document.getElementById('plan-anotacoes').value=d.anotacoes;
+    if(d.outros){
+      ['plan-outros1','plan-outros2','plan-outros3'].forEach((id,i)=>{
+        const el=document.getElementById(id); if(el) el.value=d.outros[i]||'';
+      });
+    }
+    if(d.procs){
+      document.querySelectorAll('#plan-procs input[type=checkbox]').forEach(cb=>{
+        if(d.procs.includes(cb.nextElementSibling?.textContent)) cb.checked=true;
+      });
+    }
+  }
+
+  // Restaurar assinaturas se existirem
+  if(data.assinatura_paciente) restaurarSig(`sig-${tipo}-pac`,data.assinatura_paciente);
+  if(data.assinatura_profissional) restaurarSig(`sig-${tipo}-pro`,data.assinatura_profissional);
+
+  toast('Documento carregado ✓','verde');
+}
+
+function restaurarSig(id,dataUrl){
+  const canvas=document.getElementById(id);
+  if(!canvas||!dataUrl)return;
+  const img=new Image();
+  img.onload=()=>canvas.getContext('2d').drawImage(img,0,0);
+  img.src=dataUrl;
 }
 
 // ── PLANEJAMENTO ──
