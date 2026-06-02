@@ -748,7 +748,7 @@ function renderHoje(){
   const ch=consultas.filter(c=>c.data===HOJE_STR&&c.status!=='cancelado').sort((a,b)=>a.hora.localeCompare(b.hora));
   document.getElementById('l-cons-hoje').innerHTML=ch.length===0
     ?`<div class="empty" style="padding:1rem"><div class="empty-icon">📋</div><p>Nenhuma consulta hoje.</p></div>`
-    :ch.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';return`<div class="ci"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${c.nome}</div><div class="cd">${c.procedimento||''}${c.telefone?' · '+c.telefone:''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬</a>`:''}</div></div>`;}).join('');
+    :ch.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';return`<div class="ci"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${c.nome}</div><div class="cd">${c.procedimento||''}${c.telefone?' · '+c.telefone:''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬</a>`:''} ${c.paciente_id?`<button class="btn" title="Abrir ficha" style="padding:5px 8px;font-size:13px" onclick="abrFichaDaAgenda('`+c.paciente_id+`')">👤</button>`:''}</div></div>`;}).join('');
 
   // Consultas amanhã
   const ca=consultas.filter(c=>c.data===AMANHA_STR&&c.status!=='cancelado').sort((a,b)=>a.hora.localeCompare(b.hora));
@@ -1084,6 +1084,14 @@ const DOCS_TIPOS=[
   {tipo:'anamnese-odonto',icon:'📝',label:'Anamnese Odonto'},
 ];
 
+
+// ── ABRIR FICHA DO PACIENTE PELA AGENDA ──
+function abrFichaDaAgenda(pacId){
+  const p=pacs.find(x=>x.id===pacId);
+  if(!p){toast('Paciente não encontrado','vermelho');return;}
+  abrAtend(p);
+}
+
 async function abrDocs(p){
   document.getElementById('docs-pac-nome').textContent=p.nome+(p.apelido?` (${p.apelido})`:'');
   document.getElementById('docs-pac-tel').textContent=p.telefone;
@@ -1173,7 +1181,7 @@ function renderConsDia(ds){
   const el=document.getElementById('ag-cons');
   const cs=consultas.filter(c=>c.data===ds).sort((a,b)=>a.hora.localeCompare(b.hora));
   if(!cs.length){el.innerHTML=`<div class="empty" style="padding:1.5rem"><div class="empty-icon">📋</div><p>Nenhuma consulta. Clique em "+ Agendar".</p></div>`;renderConsMes();return;}
-  el.innerHTML=cs.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';const cls=c.status==='cancelado'?'can':c.status==='pendente'?'pen':'';return`<div class="ci ${cls}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${c.nome}${c.status==='cancelado'?' <span style="font-size:11px;color:var(--vermelho)">(cancelado)</span>':''}</div><div class="cd">${c.procedimento||'Sem procedimento'}${c.telefone?' · '+c.telefone:''}${c.observacao?' · '+c.observacao:''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬</a>`:''}<a href="${urlGcal(c)}" target="_blank" class="btn gcal">📆</a><button class="btn" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})'>✏️</button></div></div>`;}).join('');
+  el.innerHTML=cs.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';const cls=c.status==='cancelado'?'can':c.status==='pendente'?'pen':'';return`<div class="ci ${cls}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${c.nome}${c.status==='cancelado'?' <span style="font-size:11px;color:var(--vermelho)">(cancelado)</span>':''}</div><div class="cd">${c.procedimento||'Sem procedimento'}${c.telefone?' · '+c.telefone:''}${c.observacao?' · '+c.observacao:''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬</a>`:''}<a href="${urlGcal(c)}" target="_blank" class="btn gcal">📆</a>${c.paciente_id?`<button class="btn" title="Abrir ficha" style="padding:6px 9px;font-size:13px" onclick="abrFichaDaAgenda('`+c.paciente_id+`')">👤</button>`:''}<button class="btn" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})'>✏️</button></div></div>`;}).join('');
   renderConsMes();
 }
 
