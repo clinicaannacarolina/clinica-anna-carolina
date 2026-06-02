@@ -767,12 +767,20 @@ async function salvarDoc(tipo){
   } else if(tipo==='planejamento'){
     dados.procs=Array.from(document.querySelectorAll('#plan-procs input:checked')).map(i=>i.nextElementSibling?.textContent||'');
     dados.outros=[document.getElementById('plan-outros1')?.value||'',document.getElementById('plan-outros2')?.value||'',document.getElementById('plan-outros3')?.value||''];
+    // Regiões toxina - capturar label + valor
     dados.regioes={};
-    document.querySelectorAll('#plan-regioes input[type=number]').forEach((inp,i)=>{if(inp.value)dados.regioes[i]=inp.value;});
+    document.querySelectorAll('#plan-regioes > div').forEach((div,i)=>{
+      const inp=div.querySelector('input[type=number]');
+      const lbl=div.querySelector('label');
+      if(inp&&inp.value) dados.regioes[lbl?lbl.textContent:i]=inp.value;
+    });
     dados.validade=document.getElementById('plan-validade')?.value||'';
     dados.lote=document.getElementById('plan-lote')?.value||'';
     dados.diluicao=document.getElementById('plan-diluicao')?.value||'';
-    dados.preench=Array.from(document.querySelectorAll('#plan-preench tr')).map(tr=>Array.from(tr.querySelectorAll('input')).map(i=>i.value));
+    // Preenchimentos - cada div tem 3 inputs (região, volume, produto)
+    dados.preench=Array.from(document.querySelectorAll('#plan-preench > div')).map(div=>
+      Array.from(div.querySelectorAll('input')).map(i=>i.value)
+    ).filter(row=>row.some(v=>v));
     dados.anotacoes=document.getElementById('plan-anotacoes')?.value||'';
   } else if(tipo==='odontograma'){
     dados.estadoDentes=JSON.parse(JSON.stringify(estadoDentes||{}));
@@ -918,6 +926,31 @@ async function verDoc(id,tipo){
       document.querySelectorAll('#plan-procs input[type=checkbox]').forEach(cb=>{
         if(d.procs.includes(cb.nextElementSibling?.textContent)) cb.checked=true;
       });
+    }
+    // Restaurar regiões toxina botulínica
+    if(d.regioes){
+      document.querySelectorAll('#plan-regioes > div').forEach(div=>{
+        const inp=div.querySelector('input[type=number]');
+        const lbl=div.querySelector('label');
+        if(inp&&lbl){
+          const val=d.regioes[lbl.textContent];
+          if(val) inp.value=val;
+        }
+      });
+    }
+    // Restaurar preenchimentos
+    if(d.preench&&d.preench.length>0){
+      document.getElementById('plan-preench').innerHTML='';
+      d.preench.forEach(row=>{
+        addLinhaPreench();
+        const divs=document.querySelectorAll('#plan-preench > div');
+        const div=divs[divs.length-1];
+        const inputs=div.querySelectorAll('input');
+        row.forEach((v,i)=>{if(inputs[i])inputs[i].value=v;});
+      });
+      // Completar com linhas vazias até 4
+      const atual=document.querySelectorAll('#plan-preench > div').length;
+      for(let i=atual;i<4;i++) addLinhaPreench();
     }
   } else if(tipo==='odontograma'){
     if(d.end) document.getElementById('od-end').value=d.end;
