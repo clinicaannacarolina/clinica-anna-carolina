@@ -415,6 +415,7 @@ textarea{resize:vertical;min-height:70px}
     <div class="br">
       <button class="btn" onclick="fchAtend()">Fechar</button>
       <button class="btn" onclick="toggleAtendDocs()" id="btn-atend-docs">📄 Documentos</button>
+      <button class="btn" id="btn-atend-inf" onclick="abrirInformativosAtend()" title="Enviar informativo pós-procedimento">📲</button>
       <button class="btn pri" id="btn-atend-salvar" onclick="salvarAtend()">✓ Salvar atendimento</button>
     </div>
   </div>
@@ -1175,13 +1176,19 @@ function injetarBtnFicha(){
     let p=pacs.find(x=>x.nome===nome||(x.apelido&&x.apelido===nome));
     if(!p&&tel) p=pacs.find(x=>(x.telefone||'').replace(/\D/g,'').endsWith(tel));
     if(!p) return;
+    // Botão ficha
     const btn=document.createElement('button');
-    btn.className='btn';
-    btn.style.cssText='padding:5px 8px;font-size:13px;flex-shrink:0';
-    btn.title='Abrir ficha - '+p.nome;
-    btn.textContent='\u{1F464}';
+    btn.className='btn';btn.style.cssText='padding:5px 8px;font-size:13px;flex-shrink:0';
+    btn.title='Abrir ficha';btn.textContent='\u{1F464}';
     btn.addEventListener('click',()=>abrAtend(p));
     ca.insertBefore(btn,ca.firstChild);
+    // Botão informativo
+    const btnInf=document.createElement('button');
+    btnInf.className='btn';btnInf.style.cssText='padding:5px 8px;font-size:13px;flex-shrink:0';
+    btnInf.title='Enviar informativo pós-procedimento';btnInf.textContent='\u{1F4F2}';
+    const tratamento=(ci.querySelector('.cd')||{}).textContent?.split('·')[0]?.trim()||'';
+    btnInf.addEventListener('click',()=>abrirInformativosConsulta(p.nome,p.telefone,tratamento));
+    ca.insertBefore(btnInf,ca.firstChild);
   });
 }
 
@@ -1240,6 +1247,66 @@ async function carregarAtendDocs(pacId){
 
 function abrirDocAtend(tipo,pacId){
   window.open('documentos.html?pac='+pacId+'&doc='+tipo,'_blank');
+}
+
+
+// ── INFORMATIVOS PÓS-PROCEDIMENTO ──
+const INFORMATIVOS={"botox": {"titulo": "💉 Toxina Botulínica", "texto": "Olá! 😊 Aqui estão os cuidados após sua aplicação de *Toxina Botulínica*:\n\n✅ *Nas primeiras 4 horas:*\n• Não deite nem incline a cabeça para baixo\n• Não toque, massageie nem pressione a área tratada\n• Não use capacete, chapéu ou faixas na cabeça\n\n✅ *Nas primeiras 24 horas:*\n• Evite atividades físicas intensas\n• Evite sauna, banho quente e exposição ao sol\n• Evite álcool em excesso\n• Não faça procedimentos faciais (limpeza, peeling, laser)\n\n✅ *Nos primeiros 7 a 14 dias:*\n• O efeito completo aparece gradualmente — aguarde para avaliar o resultado final\n• Use protetor solar diariamente\n\n⚠️ *Em caso de inchaço excessivo, vermelhidão intensa, dor persistente ou sintomas incomuns — entre em contato imediatamente.*\n\nQualquer dúvida, estou à disposição! 💚\n*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*"}, "preenchimento": {"titulo": "💧 Preenchimento Facial", "texto": "Olá! 😊 Aqui estão os cuidados após seu *Preenchimento Facial*:\n\n✅ *Nas primeiras 24 horas:*\n• Evite tocar, pressionar ou massagear a área tratada\n• Evite exposição ao sol e camas de bronzeamento\n• Evite alimentos e bebidas quentes e muito condimentados\n• Compressas frias (envoltas em toalha) ajudam a reduzir o inchaço\n\n✅ *Nas primeiras 48 horas:*\n• Evite atividades físicas vigorosas\n• Use apenas produtos indicados pelo profissional\n\n✅ *Cuidados gerais:*\n• Use protetor solar diariamente\n• Mantenha boa hidratação\n\n⚠️ *Em caso de inchaço excessivo, vermelhidão intensa, dor persistente, calor excessivo ou sintomas incomuns — entre em contato imediatamente.*\n\nQualquer dúvida, estou à disposição! 💚\n*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*"}, "bioestimulador": {"titulo": "✨ Bioestimuladores de Colágeno", "texto": "Olá! 😊 Aqui estão os cuidados após *Bioestimuladores de Colágeno*:\n\n✅ *Massagem essencial:*\n• Massageie a área tratada *5x ao dia, por 5 minutos, durante 5 dias* — fundamental!\n\n✅ *Nas primeiras 48 horas:*\n• Evite atividades físicas vigorosas\n• Não deite de bruços nas primeiras noites\n\n✅ *Nas primeiras 2 semanas:*\n• Evite exposição solar excessiva nas áreas tratadas\n• Use protetor solar de amplo espectro\n\n✅ *Nas primeiras 4 semanas:*\n• Evite peelings, microagulhamento ou laser nas áreas tratadas\n\n✅ *Cuidados gerais:*\n• Beba bastante água — potencializa os resultados\n\n⚠️ *Em caso de inchaço excessivo, vermelhidão intensa ou dor persistente — entre em contato.*\n\nQualquer dúvida, estou à disposição! 💚\n*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*"}, "skinbooster": {"titulo": "💦 Skinbooster", "texto": "Olá! 😊 Aqui estão os cuidados após seu *Skinbooster*:\n\n✅ *Nas primeiras 24 horas:*\n• Não toque nem massageie a área tratada\n• Evite maquiagem e cosméticos\n• Evite sol, sauna e banhos muito quentes\n• Evite atividades físicas intensas\n\n✅ *Nos primeiros dias:*\n• Pequenas marcas e inchaço leve são normais e somem em poucos dias\n• Use protetor solar diariamente\n• Beba bastante água\n\n✅ *Resultado esperado:*\n• Pele progressivamente mais hidratada, luminosa e firme nas semanas seguintes\n\n⚠️ *Em caso de inchaço persistente, vermelhidão intensa ou nódulos — entre em contato.*\n\nQualquer dúvida, estou à disposição! 💚\n*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*"}, "prp": {"titulo": "🩸 PRP / PRF", "texto": "Olá! 😊 Aqui estão os cuidados após *PRP/PRF (Plasma Rico em Plaquetas)*:\n\n✅ *Nas primeiras 24 horas:*\n• Não lave o rosto nem aplique cosméticos\n• Evite toque, pressão ou massagem\n• Evite sol, sauna e calor\n• Não use maquiagem\n\n✅ *Nos primeiros 3 dias:*\n• Higiene suave com sabonete neutro e água fria\n• Evite atividades físicas intensas\n• Não use retinol, ácidos ou esfoliantes\n\n✅ *Na primeira semana:*\n• Use apenas hidratante e protetor solar indicados\n• Vermelhidão e pequenos hematomas são normais\n\n⚠️ *Em caso de dor intensa, febre ou inchaço excessivo — entre em contato imediatamente.*\n\nQualquer dúvida, estou à disposição! 💚\n*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*"}, "fios-pdo": {"titulo": "🪡 Fios de PDO (Lifting)", "texto": "Olá! 😊 Aqui estão os cuidados após *Lifting com Fios de PDO*:\n\n✅ *Nas primeiras 48 horas:*\n• Não toque nem massageie a área tratada\n• Evite expressões faciais exageradas\n• Durma de barriga para cima com a cabeça levemente elevada\n• Compressas frias ajudam a reduzir o inchaço\n• Evite atividades físicas intensas\n\n✅ *Na primeira semana:*\n• Evite maquiagem pesada e sauna\n• Alimentos macios nos primeiros dias\n• Use protetor solar diariamente\n\n✅ *No primeiro mês:*\n• Evite massagens faciais intensas e laser na área\n• O efeito final se desenvolve em 2 a 3 meses\n\n⚠️ *Em caso de assimetria intensa, dor crescente ou nódulos visíveis — entre em contato.*\n\nQualquer dúvida, estou à disposição! 💚\n*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*"}, "rinomodelacao": {"titulo": "👃 Rinomodelação", "texto": "Olá! 😊 Aqui estão os cuidados após sua *Rinomodelação*:\n\n✅ *Nos primeiros 3 dias:*\n• Não toque, aperte nem massageie o nariz\n• Evite óculos apoiados no nariz (prefira lentes de contato)\n• Não pratique atividades físicas intensas\n• Evite exposição ao sol\n\n✅ *Na primeira semana:*\n• Não aplique cosméticos diretamente sobre o nariz\n• Evite ambientes quentes como sauna\n• Use protetor solar nas áreas tratadas\n\n✅ *Resultado:*\n• Pequeno inchaço e hematomas são normais\n• O resultado final aparece após a reabsorção completa do inchaço\n\n⚠️ *Sinal de alerta — entre em contato IMEDIATAMENTE se:*\nDor intensa e crescente, palidez ou roxidão na ponta do nariz, febre ou inchaço excessivo.\n\nQualquer dúvida, estou à disposição! 💚\n*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*"}, "lipo-papada": {"titulo": "✂️ Lipo de Papada Enzimática", "texto": "Olá! 😊 Aqui estão os cuidados após *Lipo de Papada Enzimática*:\n\n✅ *Nas primeiras 48 horas:*\n• Evite tocar, apertar ou massagear a papada sem orientação\n• Durma com a cabeça levemente elevada\n• Compressas frias aliviam o inchaço\n• Evite exercícios intensos\n\n✅ *Nos primeiros 7 dias:*\n• ⚠️ *Não use anti-inflamatórios* sem orientação (interferem no resultado)\n• Evite exposição solar direta — use protetor solar\n• Siga apenas produtos e medicações indicados\n\n✅ *A partir do 4º dia:*\n• Use a faixa compressora conforme orientado\n• Drenagem linfática ajuda a reduzir o inchaço mais rápido\n\n✅ *Resultado:*\n• Inchaço e sensibilidade são normais na primeira semana\n• Resultado definitivo em 4 a 8 semanas\n\n⚠️ *Em caso de dor intensa, febre ou inchaço crescente após 48h — entre em contato imediatamente.*\n\nQualquer dúvida, estou à disposição! 💚\n*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*"}, "microagulhamento": {"titulo": "🔬 Microagulhamento", "texto": "Olá! 😊 Aqui estão os cuidados após *Microagulhamento*:\n\n✅ *Nas primeiras 24 horas:*\n• Lave o rosto com água fria e sabonete neutro — movimentos suaves\n• Não use maquiagem, perfume nem cosméticos comuns\n• Evite sol, sauna e atividades físicas intensas\n• Não toque o rosto desnecessariamente\n\n✅ *Nos primeiros 3 a 5 dias:*\n• Use apenas produtos indicados (hidratante e protetor solar)\n• Evite retinol, ácidos e esfoliantes\n• Protetor solar é obrigatório — reaplicar a cada 2h se exposta ao sol\n\n✅ *Resultado:*\n• Vermelhidão e sensação de calor são normais e passam em 24-48h\n• Resultados progressivos com a renovação do colágeno\n\n⚠️ *Em caso de bolhas, dor crescente ou febre — entre em contato.*\n\nQualquer dúvida, estou à disposição! 💚\n*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*"}, "peeling": {"titulo": "🧴 Peeling Químico", "texto": "Olá! 😊 Aqui estão os cuidados após *Peeling Químico*:\n\n✅ *Nas primeiras 24 horas:*\n• Não lave o rosto até orientação\n• Não toque, coce nem descasque a pele manualmente\n• Evite sol completamente e não use maquiagem\n\n✅ *Durante a descamação (3 a 7 dias):*\n• Deixe a pele descamar naturalmente — nunca arranque a pele solta\n• Use apenas hidratante e protetor solar indicados\n• Beba bastante água\n• Evite calor (sauna, exercícios, banho quente)\n\n✅ *Proteção solar:*\n• Protetor solar todos os dias por pelo menos 30 dias\n• Evite exposição solar prolongada no primeiro mês\n\n⚠️ *Em caso de queimação intensa ou bolhas — entre em contato.*\n\nQualquer dúvida, estou à disposição! 💚\n*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*"}, "clareamento": {"titulo": "🦷 Clareamento Dental", "texto": "Olá! 😊 Aqui estão os cuidados após seu *Clareamento Dental*:\n\n✅ *Nas primeiras 48 horas — dieta branca:*\nEvite alimentos e bebidas que mancham:\n• ☕ Café, chá preto, chá mate\n• 🍷 Vinho tinto e refrigerantes escuros\n• 🍋 Sucos ácidos e frutas muito coloridas\n• 🍝 Molho de tomate, curry, açafrão\n• 🚬 Cigarro\n\n✅ *Sensibilidade:*\n• Sensibilidade nos dentes é normal e passa em 24 a 72h\n• Use o gel dessensibilizante indicado se necessário\n• Evite alimentos muito quentes ou muito frios\n\n✅ *Manutenção:*\n• Escove regularmente e mantenha higiene rigorosa\n• Retorne para avaliação conforme agendado\n\n⚠️ *Em caso de sensibilidade intensa por mais de 3 dias — entre em contato.*\n\nQualquer dúvida, estou à disposição! 💚\n*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*"}, "extracao": {"titulo": "🦷 Extração Dentária", "texto": "Olá! 😊 Aqui estão os cuidados após sua *Extração Dentária*:\n\n✅ *Nas primeiras 2 horas:*\n• Morda o chumaço de gaze firmemente por 30 a 60 minutos\n• Não cuspa com força nem enxágue a boca\n• Aguarde a anestesia passar para comer\n\n✅ *No primeiro dia:*\n• Não fume — prejudica a cicatrização e pode causar alveolite\n• Não beba com canudinho\n• Gelo por fora do rosto: 20 min com, 20 min sem\n• Alimentos frios, macios e pastosos\n• Evite atividades físicas\n\n✅ *Nos primeiros 7 dias:*\n• Escove normalmente os outros dentes, com cuidado na região\n• Bochecho suave com água morna e sal (a partir do 2º dia)\n• Tome os medicamentos prescritos corretamente\n• Evite álcool e alimentos duros\n\n⚠️ *Entre em contato se:*\nSangramento intenso que não para, dor que aumenta após 3 dias, febre ou mau cheiro no local.\n\nQualquer dúvida, estou à disposição! 💚\n*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*"}, "canal": {"titulo": "🦷 Tratamento de Canal", "texto": "Olá! 😊 Aqui estão os cuidados após seu *Tratamento de Canal*:\n\n✅ *Nas primeiras 24 a 48 horas:*\n• Evite mastigar do lado do dente tratado\n• Tome os medicamentos prescritos nos horários indicados\n• Gelo por fora do rosto se houver inchaço (20 min com, 20 min sem)\n• Prefira alimentos macios\n\n✅ *Higiene:*\n• Continue escovando normalmente\n• Use fio dental com cuidado na região\n\n✅ *Importante:*\n• Sensibilidade por alguns dias é normal\n• Retorne na data marcada para continuação\n\n⚠️ *Entre em contato se:*\nDor intensa que não passa, inchaço crescente, febre ou o provisório cair.\n\nQualquer dúvida, estou à disposição! 💚\n*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*"}, "implante": {"titulo": "🔩 Implante Dentário", "texto": "Olá! 😊 Aqui estão os cuidados após seu *Implante Dentário*:\n\n✅ *Nas primeiras 24 horas:*\n• Morda a gaze por 1 hora\n• Gelo por fora: 20 min com, 20 min sem, por 4 horas\n• Não cuspa com força nem enxágue vigorosamente\n• Repouse\n\n✅ *Na primeira semana:*\n• Tome os medicamentos rigorosamente\n• Alimentos macios do lado oposto\n• ⚠️ Não fume — maior risco para a osseointegração\n• Higiene suave na região\n\n✅ *No primeiro mês:*\n• Evite pressão direta sobre o implante\n• Compareça às consultas de acompanhamento\n\n⚠️ *Entre em contato imediatamente se:*\nSangramento intenso, febre, inchaço crescente após 48h, dor crescente ou mobilidade do implante.\n\nQualquer dúvida, estou à disposição! 💚\n*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*"}, "restauracao": {"titulo": "🦷 Restauração Dental", "texto": "Olá! 😊 Aqui estão os cuidados após sua *Restauração Dental*:\n\n✅ *Nas primeiras horas:*\n• Aguarde a anestesia passar antes de comer\n• Evite alimentos muito quentes ou muito frios\n\n✅ *Nos primeiros dias:*\n• Pode haver leve sensibilidade — é normal e passa\n• Mastigue com cuidado no lado restaurado\n• Evite alimentos duros e pegajosos (balas, gelo, caldo de cana)\n\n✅ *Manutenção:*\n• Escove normalmente incluindo a restauração\n• Use fio dental diariamente\n• Se a mordida parecer alta, retorne para ajuste\n\n⚠️ *Entre em contato se:*\nSensibilidade que não melhora em 1 semana ou restauração que lascou.\n\nQualquer dúvida, estou à disposição! 💚\n*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*"}, "profilaxia": {"titulo": "✨ Limpeza Dental (Profilaxia)", "texto": "Olá! 😊 Aqui estão os cuidados após sua *Limpeza Dental*:\n\n✅ *Nas primeiras 24 horas:*\n• Leve sensibilidade ou sangramento gengival é normal\n• Evite alimentos muito quentes, frios ou ácidos se houver sensibilidade\n\n✅ *Manutenção do resultado:*\n• Escove pelo menos 2x ao dia com creme dental com flúor\n• Use fio dental diariamente\n• Retorne para manutenção a cada 6 meses\n\n✅ *Dica:*\n• Uma boa higiene em casa é fundamental para manter o resultado por mais tempo!\n\nQualquer dúvida, estou à disposição! 💚\n*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*"}, "facetas": {"titulo": "😁 Facetas / Lentes de Contato Dental", "texto": "Olá! 😊 Aqui estão os cuidados com suas *Facetas / Lentes de Contato Dental*:\n\n✅ *Alimentação:*\n• Evite morder alimentos duros com os dentes da frente\n• Nas primeiras 48h evite café, chá, vinho e açafrão\n• Não morda unhas, canetas nem objetos duros\n\n✅ *Higiene:*\n• Escova macia e creme dental sem abrasivos\n• Fio dental com cuidado nas margens\n\n✅ *Hábitos a evitar:*\n• Ranger ou apertar os dentes (bruxismo) — informe para indicarmos placa protetora\n• Usar os dentes para abrir embalagens\n\n✅ *Com os devidos cuidados, as facetas duram muitos anos!*\n\n⚠️ *Entre em contato se:*\nFaceta lascar, soltar ou irregularidade ao passar a língua.\n\nQualquer dúvida, estou à disposição! 💚\n*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*"}, "harmonizacao-sorriso": {"titulo": "😊 Harmonização do Sorriso", "texto": "Olá! 😊 Aqui estão os cuidados após sua *Harmonização do Sorriso*:\n\n✅ *Nas primeiras 48 horas:*\n• Evite café, vinho tinto, refrigerante escuro e molho de tomate\n• Prefira alimentos macios\n• Não fume\n\n✅ *Higiene oral:*\n• Escova macia pelo menos 3x ao dia\n• Fio dental e enxaguante conforme indicado\n• Hidrate os lábios com vaselina se necessário\n\n✅ *Manutenção:*\n• Retorne nas datas agendadas\n• Use a placa de bruxismo se indicada\n\n⚠️ *Entre em contato se:*\nDor persistente, sensibilidade intensa, sangramento ou irregularidade.\n\nQualquer dúvida, estou à disposição! 💚\n*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*"}};
+const MAPA_INFORMATIVO={"Botox (toxina botulínica)": "botox", "Botox para bruxismo (masseter)": "botox", "Botox para sorriso gengival": "botox", "Preenchimento labial": "preenchimento", "Preenchimento de bigode chinês": "preenchimento", "Preenchimento de olheiras": "preenchimento", "Preenchimento de mandíbula": "preenchimento", "Preenchimento de mento (queixo)": "preenchimento", "Preenchimento de têmporas": "preenchimento", "Preenchimento de maçãs do rosto": "preenchimento", "Radiesse (hidroxiapatita de cálcio)": "preenchimento", "Enzima hialuronidase (dissolução)": "preenchimento", "Bioestimulador de colágeno": "bioestimulador", "Skinbooster": "skinbooster", "PRP / PRF (plasma rico em plaquetas)": "prp", "Lifting com fios de PDO": "fios-pdo", "Rinomodelação": "rinomodelacao", "Lipo de papada (Deoxicolato)": "lipo-papada", "Microagulhamento": "microagulhamento", "Peeling Químico": "peeling", "Clareamento dental (consultório)": "clareamento", "Clareamento dental (caseiro)": "clareamento", "Extração simples": "extracao", "Extração de siso (terceiro molar)": "extracao", "Frenectomia": "extracao", "Tratamento de canal (unirradicular)": "canal", "Tratamento de canal (birradicular)": "canal", "Tratamento de canal (multirradicular)": "canal", "Retratamento de canal": "canal", "Implante dentário": "implante", "Coroa sobre implante": "implante", "Enxerto ósseo": "implante", "Restauração estética (resina)": "restauracao", "Restauração (resina composta)": "restauracao", "Facetas de porcelana": "facetas", "Facetas de resina": "facetas", "Lentes de contato dental": "facetas", "Profilaxia (limpeza dental)": "profilaxia", "Raspagem e alisamento radicular": "profilaxia", "Harmonização do sorriso": "harmonizacao-sorriso"};
+
+function getInformativosSugeridos(trats){
+  const vistos=new Set();const res=[];
+  trats.forEach(nome=>{const k=MAPA_INFORMATIVO[nome];if(k&&!vistos.has(k)&&INFORMATIVOS[k]){vistos.add(k);res.push(k);}});
+  return res;
+}
+
+function abrirInformativosAtend(){
+  const p=pacs.find(x=>x.id===document.getElementById('a-id').value);
+  if(!p)return;
+  const trats=getTrats('a-trats').map(t=>t.nome);
+  abrirModalInformativos(p.nome,p.telefone,trats);
+}
+
+function abrirInformativosConsulta(nomePac,tel,tratamento){
+  abrirModalInformativos(nomePac,tel,[tratamento]);
+}
+
+function abrirModalInformativos(nomePac,tel,trats){
+  const sugeridosKeys=getInformativosSugeridos(trats);
+  const sugeridosSet=new Set(sugeridosKeys);
+  const modal=document.getElementById('modal-inf');
+  document.getElementById('modal-inf-pac').textContent=nomePac+' · '+tel;
+  let html='';
+  if(sugeridosKeys.length>0){
+    html+='<div style="font-size:11px;font-weight:700;color:var(--verde-e);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">✅ Sugeridos para o atendimento de hoje</div>';
+    sugeridosKeys.forEach(k=>{
+      const info=INFORMATIVOS[k];
+      html+=`<button onclick="enviarInformativo('${encodeURIComponent(tel)}','${k}')" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:1.5px solid var(--verde);border-radius:8px;background:var(--verde-c);margin-bottom:6px;cursor:pointer;text-align:left"><span style="font-size:22px">📲</span><span style="font-size:13px;font-weight:600;color:var(--verde-e)">${info.titulo}</span></button>`;
+    });
+  }
+  const outros=Object.keys(INFORMATIVOS).filter(k=>!sugeridosSet.has(k));
+  if(outros.length>0){
+    html+='<div style="font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.04em;margin:'+(sugeridosKeys.length>0?'12px':'0')+'px 0 8px">📋 Todos os informativos</div>';
+    outros.forEach(k=>{
+      const info=INFORMATIVOS[k];
+      html+=`<button onclick="enviarInformativo('${encodeURIComponent(tel)}','${k}')" style="display:flex;align-items:center;gap:10px;width:100%;padding:8px 12px;border:1.5px solid var(--borda);border-radius:8px;background:var(--bg);margin-bottom:5px;cursor:pointer;text-align:left"><span style="font-size:18px">📄</span><span style="font-size:12px;font-weight:500">${info.titulo}</span></button>`;
+    });
+  }
+  document.getElementById('modal-inf-lista').innerHTML=html;
+  modal.style.display='flex';
+}
+
+function fecharModalInformativos(){
+  document.getElementById('modal-inf').style.display='none';
+}
+
+function enviarInformativo(telEnc,chave){
+  const tel=decodeURIComponent(telEnc);
+  const info=INFORMATIVOS[chave];
+  if(!info||!tel)return;
+  const num='55'+tel.replace(/\D/g,'');
+  window.open('https://wa.me/'+num+'?text='+encodeURIComponent(info.texto),'_blank');
+  fecharModalInformativos();
 }
 
 async function abrDocs(p){
@@ -1397,6 +1464,21 @@ if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.ser
 addTrat('f-trats');
 carregar();
 carregarAgenda();
+</script>
+
+<!-- MODAL INFORMATIVOS PÓS-PROCEDIMENTO -->
+<div id="modal-inf" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2000;align-items:center;justify-content:center">
+  <div style="background:var(--card);border-radius:16px;padding:1.5rem;width:92%;max-width:480px;max-height:85vh;display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-shrink:0">
+      <div style="font-size:16px;font-weight:700">📲 Informativo pós-procedimento</div>
+      <button onclick="fecharModalInformativos()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--ct);line-height:1">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--ct);margin-bottom:1rem;flex-shrink:0" id="modal-inf-pac"></div>
+    <div id="modal-inf-lista" style="overflow-y:auto;flex:1"></div>
+  </div>
+</div>
+<script>
+document.getElementById('modal-inf').addEventListener('click',function(e){if(e.target===this)fecharModalInformativos();});
 </script>
 </body>
 </html>
