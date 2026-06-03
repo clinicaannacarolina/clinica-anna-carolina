@@ -174,6 +174,16 @@ textarea{resize:vertical;min-height:70px}
   .ti{grid-template-columns:1fr 85px 70px 30px}
   .rel-grid{grid-template-columns:repeat(2,1fr)}
 }
+
+@media print {
+  .hdr, .stats, .tb, .filtro-row, .filtro-btn,
+  #m-cons, #m-atend, #m-docs, #m-lembr, #m-edit,
+  #modal-inf, #modal-realizado, #modal-fin,
+  .btn, button:not(.no-print-hide) { display: none !important; }
+  .panel:not(.active) { display: none !important; }
+  body { background: white !important; }
+  .card { box-shadow: none !important; }
+}
 </style>
 </head>
 <body>
@@ -220,6 +230,7 @@ textarea{resize:vertical;min-height:70px}
       <select id="fin-ano" style="padding:7px 10px;font-size:13px;border:1.5px solid var(--borda);border-radius:8px" onchange="carregarFinanceiro()">
       </select>
       <button class="btn pri" onclick="abrirLancamento('receita')" style="margin-left:auto">+ Receita</button>
+      <button class="btn" onclick="importarHistorico()" title="Importar atendimentos do cadastro para o financeiro" style="font-size:12px">📥 Importar histórico</button>
       <button class="btn" onclick="abrirLancamento('despesa')" style="background:var(--vermelho-c);border-color:var(--vermelho);color:var(--vermelho)">− Despesa</button>
       <button class="btn" onclick="exportarFinanceiro()" title="Exportar Excel">📥 Excel</button>
     </div>
@@ -342,10 +353,14 @@ textarea{resize:vertical;min-height:70px}
         <div class="fgr"><label>CPF</label><input type="text" id="f-cpf" placeholder="000.000.000-00"/></div>
         <div class="fgr"><label>RG</label><input type="text" id="f-rg" placeholder="00.000.000-0"/></div>
         <div class="fgr"><label>Sexo</label><select id="f-sexo"><option value="">Selecione</option><option>Feminino</option><option>Masculino</option></select></div>
-        <div class="fgr full"><label>Endereço completo</label><input type="text" id="f-end" placeholder="Rua, número, bairro, cidade"/></div>
+        <div class="fgr full"><label>Rua / Logradouro</label><input type="text" id="f-rua" placeholder="Ex: Rua das Flores, 123"/></div>
+        <div class="fgr"><label>Bairro</label><input type="text" id="f-bairro" placeholder="Ex: Centro"/></div>
+        <div class="fgr"><label>Cidade</label><input type="text" id="f-cidade" placeholder="Ex: Tanabi"/></div>
+        <div class="fgr"><label>CEP</label><input type="text" id="f-cep" placeholder="00000-000" oninput="buscarCep(this)"/></div>
         <div class="fgr"><label>Data do atendimento</label><input type="date" id="f-data"/></div>
         <div class="fgr"><label>📁 Link Google Drive</label><input type="url" id="f-drive" placeholder="Cole o link..."/></div>
         <div class="fgr"><label>Indicação (quem indicou)</label><input type="text" id="f-indic" placeholder="Ex: Ana Piffer"/></div>
+        <div class="fgr"><label>Como conheceu a clínica</label><select id="f-conheceu"><option value="">Selecione...</option><option>Indicação de paciente</option><option>Instagram</option><option>Facebook</option><option>Google</option><option>WhatsApp</option><option>Panfleto / Material impresso</option><option>Evento / Feira</option><option>Já era paciente</option><option>Outro</option></select></div>
         <div class="fgr full"><label>Observações</label><textarea id="f-obs" placeholder="Anotações..."></textarea></div>
       </div>
       <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--borda)">
@@ -890,7 +905,8 @@ function renderHoje(){
     :rets.map(p=>cardAlerta(p,p._d,p._t.nome)).join('');
 }
 
-setTimeout(injetarBtnFicha,80);
+setTimeout(injetarBtnFicha,300);
+  setTimeout(injetarBtnFicha,1200);
   renderAlertasFinHoje();
 
 // ── ALERTAS FINANCEIROS NA TELA HOJE ──
@@ -1093,7 +1109,7 @@ async function renderRel(){
     <div class="rel-card"><div class="rel-num">${totalAtend}</div><div class="rel-label">Atendimentos</div></div>
     <div class="rel-card"><div class="rel-num">${pacAtivos}</div><div class="rel-label">Pacientes atendidos</div></div>
     <div class="rel-card"><div class="rel-num" style="font-size:20px">${totalAtend>0?fmtBRL(totalFatReal/totalAtend):"—"}</div><div class="rel-label">Ticket médio</div></div>
-    <div class="rel-card"><div class="rel-num" style="font-size:20px">${totalFatReal>0?fmtBRL(totalFatReal):totalFat>0?fmtBRL(totalFat):"—"}</div><div class="rel-label">Faturamento ${totalFatReal>0?"real (financeiro)":"estimado"}</div></div>`;
+    <div class="rel-card"><div class="rel-num" style="font-size:20px">${totalFatReal>0?fmtBRL(totalFatReal):totalFat>0?fmtBRL(totalFat):'—'}</div><div class="rel-label">Faturamento ${totalFatReal>0?'real (financeiro)':totalFat>0?'estimado':'—'}</div></div>`;
 
   // Procedimentos
   const procs={};
@@ -1288,7 +1304,8 @@ function injetarBtnFicha(){
     const telMatch=cd.match(/1[5-9]\d{8}/);
     const tel=telMatch?telMatch[0]:'';
     let p=pacs.find(x=>x.nome===nome||(x.apelido&&x.apelido===nome));
-    if(!p&&tel) p=pacs.find(x=>(x.telefone||'').replace(/\D/g,'').endsWith(tel));
+    if(!p&&tel){const tl=tel.replace(/\D/g,'');p=pacs.find(x=>(x.telefone||'').replace(/\D/g,'').endsWith(tl)||tl.endsWith((x.telefone||'').replace(/\D/g,'')));}
+    if(!p&&nome){const nl=nome.toLowerCase().trim();p=pacs.find(x=>x.nome.toLowerCase().trim()===nl||(x.apelido&&x.apelido.toLowerCase().trim()===nl));}
     if(!p) return;
     // Botão ficha
     const btn=document.createElement('button');
@@ -1505,6 +1522,55 @@ async function marcarRecebidoFin(id){
   toast('Marcado como recebido ✓','verde');
   carregarFinanceiro();
   carregarAlertasFin();
+}
+
+
+// ── IMPORTAR HISTÓRICO DE ATENDIMENTOS ──
+async function importarHistorico(){
+  const mes=parseInt(document.getElementById('fin-mes')?.value||new Date().getMonth()+1);
+  const ano=parseInt(document.getElementById('fin-ano')?.value||new Date().getFullYear());
+  const ini=`${ano}-${String(mes).padStart(2,'0')}-01`;
+  const fim=`${ano}-${String(mes).padStart(2,'0')}-${new Date(ano,mes,0).getDate()}`;
+  
+  if(!confirm(`Importar atendimentos de ${MESES[mes-1]}/${ano} para o financeiro?\nSó serão importados atendimentos que ainda não existem no financeiro.`)) return;
+  
+  // Buscar lançamentos já existentes para evitar duplicatas
+  const{data:existentes}=await db.from('financeiro').select('descricao,data').eq('tipo','receita').gte('data',ini).lte('data',fim);
+  const chaves=new Set((existentes||[]).map(l=>l.data+'|'+l.descricao));
+  
+  const inserir=[];
+  pacs.forEach(p=>{
+    (p.atendimentos||[]).forEach(a=>{
+      if(!a.data||a.data<ini||a.data>fim) return;
+      const valor=(a.trats||[]).reduce((s,t)=>s+(parseFloat(t.valor)||0),0)||(a.valor||0);
+      if(!valor) return;
+      const desc=(a.trats||[]).map(t=>t.nome).join(' + ')+' — '+p.nome;
+      const chave=a.data+'|'+desc;
+      if(chaves.has(chave)) return;
+      inserir.push({tipo:'receita',data:a.data,descricao:desc,categoria:'Harmonização Orofacial',valor,forma_pagamento:'pix',status:'recebido',obs:'Importado do histórico de atendimentos'});
+    });
+    // Também verificar tratamentos_adicionais
+    const datasUnicas=[...new Set((p.tratamentos_adicionais||[]).map(t=>t.dataAtendimento).filter(Boolean))];
+    datasUnicas.forEach(data=>{
+      if(!data||data<ini||data>fim) return;
+      const jaTemAtend=(p.atendimentos||[]).find(a=>a.data===data);
+      if(jaTemAtend) return; // Já foi processado acima
+      const trats=(p.tratamentos_adicionais||[]).filter(t=>t.dataAtendimento===data);
+      const valor=trats.reduce((s,t)=>s+(parseFloat(t.valor)||0),0);
+      if(!valor) return;
+      const desc=trats.map(t=>t.nome).join(' + ')+' — '+p.nome;
+      const chave=data+'|'+desc;
+      if(chaves.has(chave)) return;
+      inserir.push({tipo:'receita',data,descricao:desc,categoria:'Harmonização Orofacial',valor,forma_pagamento:'pix',status:'recebido',obs:'Importado do histórico de atendimentos'});
+    });
+  });
+  
+  if(!inserir.length){toast('Nenhum atendimento novo para importar neste mês','verde');return;}
+  
+  const{error}=await db.from('financeiro').insert(inserir);
+  if(error){toast('Erro ao importar: '+error.message,'vermelho');return;}
+  toast(`${inserir.length} atendimento${inserir.length>1?'s':''} importado${inserir.length>1?'s':''}! ✓`,'verde');
+  carregarFinanceiro();
 }
 
 // ── Inicializar selects de mês/ano ──
@@ -1898,12 +1964,30 @@ function limpar(){
   document.getElementById('f-sexo').value='';
   document.getElementById('f-data').value=HOJE_STR;document.getElementById('f-trats').innerHTML='';addTrat('f-trats');
 }
+
+// ── BUSCA CEP ──
+async function buscarCep(input){
+  const cep=input.value.replace(/\D/g,'');
+  if(cep.length!==8) return;
+  try{
+    const r=await fetch('https://viacep.com.br/ws/'+cep+'/json/');
+    const d=await r.json();
+    if(d.erro) return;
+    const rua=document.getElementById('f-rua');
+    const bairro=document.getElementById('f-bairro');
+    const cidade=document.getElementById('f-cidade');
+    if(rua&&!rua.value) rua.value=d.logradouro||'';
+    if(bairro&&!bairro.value) bairro.value=d.bairro||'';
+    if(cidade&&!cidade.value) cidade.value=d.localidade||'';
+  }catch(e){}
+}
+
 async function salvar(){
   const nome=document.getElementById('f-nome').value.trim();const tel=document.getElementById('f-tel').value.trim();const trats=getTrats('f-trats');
   if(!nome||!tel||!trats.length){toast('Preencha nome, telefone e ao menos um tratamento!','vermelho');return;}
   const dataAtend=document.getElementById('f-data').value;const tc=tratsComDatas(trats,dataAtend);
   const btn=document.getElementById('btn-salvar');btn.disabled=true;btn.textContent='Salvando...';
-  const{error}=await db.from('pacientes').insert({nome,telefone:tel,apelido:document.getElementById('f-apelido').value.trim()||null,data_nascimento:document.getElementById('f-nasc').value||null,cpf:document.getElementById('f-cpf').value.trim()||null,rg:document.getElementById('f-rg').value.trim()||null,sexo:document.getElementById('f-sexo').value||null,endereco:document.getElementById('f-end').value.trim()||null,data_atendimento:dataAtend||null,observacoes:document.getElementById('f-obs').value.trim()||null,link_drive:document.getElementById('f-drive').value.trim()||null,indicacao:document.getElementById('f-indic').value.trim()||null,tratamentos_adicionais:tc,tratamento:tc[0]?.nome||null});
+  const{error}=await db.from('pacientes').insert({nome,telefone:tel,apelido:document.getElementById('f-apelido').value.trim()||null,data_nascimento:document.getElementById('f-nasc').value||null,cpf:document.getElementById('f-cpf').value.trim()||null,rg:document.getElementById('f-rg').value.trim()||null,sexo:document.getElementById('f-sexo').value||null,endereco:[document.getElementById('f-rua').value.trim(),document.getElementById('f-bairro').value.trim(),document.getElementById('f-cidade').value.trim()].filter(Boolean).join(', ')||null,rua:document.getElementById('f-rua').value.trim()||null,bairro:document.getElementById('f-bairro').value.trim()||null,cidade:document.getElementById('f-cidade').value.trim()||null,cep:document.getElementById('f-cep').value.trim()||null,data_atendimento:dataAtend||null,observacoes:document.getElementById('f-obs').value.trim()||null,link_drive:document.getElementById('f-drive').value.trim()||null,indicacao:document.getElementById('f-indic').value.trim()||null,como_conheceu:document.getElementById('f-conheceu').value||null,tratamentos_adicionais:tc,tratamento:tc[0]?.nome||null});
   btn.disabled=false;btn.innerHTML='✓ Salvar paciente';
   if(error){toast('Erro: '+error.message,'vermelho');return;}
   toast(`${nome} cadastrado!`,'verde');limpar();await carregar();aba('hoje',document.querySelector('.tb'));
@@ -1939,7 +2023,8 @@ function renderConsDia(ds){
   if(!cs.length){el.innerHTML=`<div class="empty" style="padding:1.5rem"><div class="empty-icon">📋</div><p>Nenhuma consulta. Clique em "+ Agendar".</p></div>`;renderConsMes();return;}
   el.innerHTML=cs.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';const cls=c.status==='cancelado'?'can':c.status==='pendente'?'pen':'';return`<div class="ci ${cls}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${c.nome}${c.status==='cancelado'?' <span style="font-size:11px;color:var(--vermelho)">(cancelado)</span>':''}</div><div class="cd">${c.procedimento||'Sem procedimento'}${c.telefone?' · '+c.telefone:''}${c.observacao?' · '+c.observacao:''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬</a>`:''}<a href="${urlGcal(c)}" target="_blank" class="btn gcal">📆</a><button class="btn" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})'>✏️</button></div></div>`;}).join('');
   renderConsMes();
-  setTimeout(injetarBtnFicha,80);
+  setTimeout(injetarBtnFicha,300);
+  setTimeout(injetarBtnFicha,1200);
 }
 
 function renderConsMes(){

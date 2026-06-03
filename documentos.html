@@ -96,6 +96,16 @@ textarea{resize:vertical}
   .check-grid{grid-template-columns:1fr}
   .sig-row{grid-template-columns:1fr}
 }
+
+@media print {
+  .hdr, #sec-busca, #sec-docs, .br.no-print, 
+  #modal-realizado, button:not([data-print]) { display: none !important; }
+  .panel { display: block !important; }
+  .panel:not(.active) { display: none !important; }
+  body { background: white !important; font-size: 12px; }
+  .card { box-shadow: none !important; border: 1px solid #ddd; page-break-inside: avoid; }
+  .sig-area { border: 1px solid #ccc !important; }
+}
 </style>
 </head>
 <body>
