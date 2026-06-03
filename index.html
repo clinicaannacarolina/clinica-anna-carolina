@@ -382,18 +382,27 @@ textarea{resize:vertical;min-height:70px}
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--borda)">
         <label style="display:block;margin-bottom:6px">🔬 Verificação pós-procedimento (opcional)</label>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <div style="display:grid;grid-template-columns:100px 1fr;gap:8px;align-items:center;width:100%">
-            <div style="position:relative">
-              <input type="number" id="a-ver-dias" min="0" max="90" value="15" placeholder="Dias"
-                style="width:100%;padding:7px 10px;font-size:13px;border:1.5px solid var(--borda);border-radius:8px"
-                oninput="calcVerData()"/>
-              <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--ct);pointer-events:none">dias</span>
-            </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="a-ver-dias" style="width:auto;padding:7px 10px;font-size:13px" onchange="calcVerData()">
+              <option value="0">Sem verificação</option>
+              <option value="7">7 dias</option>
+              <option value="10">10 dias</option>
+              <option value="15" selected>15 dias</option>
+              <option value="21">21 dias</option>
+              <option value="30">30 dias</option>
+              <option value="45">45 dias</option>
+              <option value="60">60 dias</option>
+              <option value="75">75 dias</option>
+              <option value="90">90 dias</option>
+              <option value="120">120 dias</option>
+              <option value="150">150 dias</option>
+              <option value="180">180 dias</option>
+              <option value="210">210 dias</option>
+            </select>
             <input type="date" id="a-ver-data-input"
-              style="width:100%;padding:7px 10px;font-size:13px;border:1.5px solid var(--borda);border-radius:8px"
-              oninput="sincVerDias()"/>
+              style="padding:7px 10px;font-size:13px;border:1.5px solid var(--borda);border-radius:8px"
+              oninput="sincVerDias()" title="Ou escolha a data diretamente"/>
           </div>
-          <div style="font-size:11px;color:var(--ct);margin-top:4px">← Digite os dias ou escolha a data · 0 dias = sem verificação</div>
         </div>
       </div>
     </div>
@@ -705,14 +714,8 @@ function calcVerData(){
 }
 
 function sincVerDias(){
-  const dataVer=document.getElementById('a-ver-data-input').value;
-  const dataAtend=document.getElementById('a-data').value;
-  if(dataVer&&dataAtend){
-    const d1=new Date(dataAtend+'T12:00:00');
-    const d2=new Date(dataVer+'T12:00:00');
-    const diff=Math.round((d2-d1)/(1000*60*60*24));
-    document.getElementById('a-ver-dias').value=diff>0?diff:0;
-  }
+  // Quando a data é editada manualmente, não muda o select
+  // O valor do select fica como referência de prazo, mas a data salva é a do input
 }
 
 function atualizarVerLabel(data){
