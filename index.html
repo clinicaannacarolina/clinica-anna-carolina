@@ -208,6 +208,8 @@ textarea{resize:vertical;min-height:70px}
 
   <!-- FINANCEIRO -->
   <div id="p-financeiro" class="panel">
+    <!-- Alertas financeiros -->
+    <div id="fin-alertas" style="margin-bottom:8px"></div>
     <!-- Dashboard -->
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:1rem" id="fin-cards"></div>
 
@@ -867,10 +869,10 @@ function renderHoje(){
     :anivs.map(p=>`<div class="ai anv"><div><div class="an">🎂 ${p.nome}</div><div class="ad">${p.telefone}</div></div><div class="aa"><span class="ab">Aniversário hoje!</span><button class="btn anv" onclick='abrAniv(${J(p)})'>🎉 Parabenizar</button></div></div>`).join('');
 
   // Lembretes
-  const lems=[];pacs.forEach(p=>(p.lembretes||[]).forEach(l=>{const d=dias(l.data);if(d!==null&&d<=15)lems.push({...l,_p:p,_d:d});}));lems.sort((a,b)=>a._d-b._d);
+  const lems=[];pacs.forEach(p=>(p.lembretes||[]).forEach(l=>{const d=dias(l.data);if(d!==null&&d<=15&&(l.recado||l.texto))lems.push({...l,_p:p,_d:d});}));lems.sort((a,b)=>a._d-b._d);
   document.getElementById('l-lembr').innerHTML=lems.length===0
     ?`<div class="empty" style="padding:1rem"><div class="empty-icon">📌</div><p>Nenhum lembrete nos próximos 15 dias.</p></div>`
-    :lems.map(l=>{const cls=l._d<=0?'urg':'lem';const txt=l._d<0?`${Math.abs(l._d)}d atrasado`:l._d===0?'Hoje!':`em ${l._d}d`;return`<div class="ai ${cls}"><div style="flex:1"><div class="an">📌 ${l._p.nome}</div><div class="ad">${l.recado}</div></div><div class="aa"><span class="ab">${txt}</span><button class="btn wpp" onclick='abrRet(${J(l._p)})'>💬</button><button class="btn" style="font-size:12px;padding:7px 10px;color:var(--vermelho)" onclick="delLembr('${l._p.id}','${l.id}')">✓ Feito</button></div></div>`;}).join('');
+    :lems.map(l=>{const cls=l._d<=0?'urg':'lem';const txt=l._d<0?`${Math.abs(l._d)}d atrasado`:l._d===0?'Hoje!':`em ${l._d}d`;const icone=l.tipo==='cobranca'?'💰':'📌';const recadoTxt=l.recado||l.texto||'';return`<div class="ai ${cls}"><div style="flex:1"><div class="an">${icone} ${l._p.nome}</div><div class="ad">${recadoTxt}</div></div><div class="aa"><span class="ab">${txt}</span>${l.tipo==='cobranca'?`<button class="btn" style="font-size:12px;padding:7px 10px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde)" onclick="abrAtend(${J(l._p)})">💰 Ver</button>`:''}<button class="btn" style="font-size:12px;padding:7px 10px;color:var(--vermelho)" onclick="delLembr('${l._p.id}','${l.id}')">✓ Feito</button></div></div>`;}).join('');
 
   // Retornos
   const rets=[];pacs.forEach(p=>(p.tratamentos_adicionais||[]).forEach(t=>{const d=dias(t.dataRetorno);if(d!==null&&d<=15)rets.push({...p,_t:t,_d:d});}));rets.sort((a,b)=>a._d-b._d);
@@ -1377,6 +1379,59 @@ const META_MENSAL = 15000; // padrão - editável futuramente
 let _finTab = 'receitas';
 let _finLancs = [];
 
+
+// ── ALERTAS FINANCEIROS ──
+async function carregarAlertasFin(){
+  const hoje = new Date();
+  const ini = hoje.toISOString().split('T')[0];
+  const fim7 = new Date(hoje);fim7.setDate(fim7.getDate()+7);
+  const fim7str = fim7.toISOString().split('T')[0];
+  
+  const{data} = await db.from('financeiro').select('*')
+    .eq('tipo','receita').eq('status','pendente')
+    .lte('data', fim7str).order('data',{ascending:true});
+  
+  if(!data||!data.length) return;
+  
+  // Mostrar alerta no dashboard
+  const vencidos = data.filter(l=>l.data < ini);
+  const vencendo = data.filter(l=>l.data >= ini);
+  
+  const el = document.getElementById('fin-alertas');
+  if(!el) return;
+  
+  let html = '';
+  if(vencidos.length){
+    html += `<div style="background:#fff0f0;border:1.5px solid var(--vermelho,#e24b4a);border-radius:10px;padding:12px;margin-bottom:8px">
+      <div style="font-size:12px;font-weight:700;color:var(--vermelho,#e24b4a);margin-bottom:8px">⚠️ ${vencidos.length} pagamento${vencidos.length>1?'s':''} em atraso</div>
+      ${vencidos.map(l=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(0,0,0,.05)">
+        <div><div style="font-size:13px;font-weight:500">${l.descricao}</div><div style="font-size:11px;color:var(--ct)">Venceu em ${fDt(l.data)}</div></div>
+        <span style="font-weight:700;color:var(--vermelho,#e24b4a)">${fmtBRL(l.valor)}</span>
+      </div>`).join('')}
+    </div>`;
+  }
+  if(vencendo.length){
+    html += `<div style="background:var(--amarelo-c,#fffbea);border:1.5px solid var(--amarelo,#ef9f27);border-radius:10px;padding:12px;margin-bottom:8px">
+      <div style="font-size:12px;font-weight:700;color:#8a6000;margin-bottom:8px">📅 ${vencendo.length} pagamento${vencendo.length>1?'s':''} vencendo em até 7 dias</div>
+      ${vencendo.map(l=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(0,0,0,.05)">
+        <div><div style="font-size:13px;font-weight:500">${l.descricao}</div><div style="font-size:11px;color:var(--ct)">${fDt(l.data)}</div></div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-weight:700;color:#8a6000">${fmtBRL(l.valor)}</span>
+          <button class="btn" style="padding:4px 8px;font-size:11px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde)" onclick="marcarRecebidoFin('${l.id}')">✓ Recebido</button>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+async function marcarRecebidoFin(id){
+  await db.from('financeiro').update({status:'recebido'}).eq('id',id);
+  toast('Marcado como recebido ✓','verde');
+  carregarFinanceiro();
+  carregarAlertasFin();
+}
+
 // ── Inicializar selects de mês/ano ──
 function initFinFiltros(){
   const hoje = new Date();
@@ -1860,7 +1915,7 @@ function aba(id,btn){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   btn.classList.add('active');document.getElementById('p-'+id).classList.add('active');
   if(id==='hoje')renderHoje();
-  if(id==='financeiro'){initFinFiltros();carregarFinanceiro();}
+  if(id==='financeiro'){initFinFiltros();carregarFinanceiro();carregarAlertasFin();}
   if(id==='agenda')carregarAgenda();
   if(id==='alertas')renderAlertas();
   if(id==='pacientes')renderPac();

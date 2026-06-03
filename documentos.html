@@ -345,10 +345,56 @@ textarea{resize:vertical}
       </div>
     </div>
 
-    <!-- Observação financeira -->
+    <!-- Pagamento parcial -->
+    <div>
+      <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Pagamento parcial?</label>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+        <input type="checkbox" id="modal-parcial-check" style="width:16px;height:16px;cursor:pointer" onchange="toggleParcial()"/>
+        <label for="modal-parcial-check" style="font-size:13px;cursor:pointer;color:var(--ct)">Paciente pagou uma parte agora e ficou restante</label>
+      </div>
+      <div id="modal-parcial-box" style="display:none;margin-top:10px;background:var(--amarelo-c,#fffbea);border:1.5px solid var(--amarelo,#ef9f27);border-radius:10px;padding:12px;display:none;flex-direction:column;gap:10px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <label style="font-size:11px;font-weight:600;color:#8a6000;text-transform:uppercase;letter-spacing:.04em">Valor pago agora (R$)</label>
+            <input type="number" id="modal-entrada" min="0" step="0.01" placeholder="0,00"
+              style="width:100%;padding:8px 10px;border:1.5px solid var(--amarelo,#ef9f27);border-radius:8px;font-size:14px;margin-top:4px"
+              oninput="calcRestante()"/>
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:600;color:#8a6000;text-transform:uppercase;letter-spacing:.04em">Restante (R$)</label>
+            <input type="number" id="modal-restante" min="0" step="0.01" placeholder="0,00" readonly
+              style="width:100%;padding:8px 10px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px;background:var(--bg);color:var(--ct)"/>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <label style="font-size:11px;font-weight:600;color:#8a6000;text-transform:uppercase;letter-spacing:.04em">Cobrar restante em</label>
+            <div style="display:flex;gap:6px;margin-top:4px;align-items:center">
+              <input type="number" id="modal-lembrete-dias" min="1" max="365" value="30" placeholder="dias"
+                style="width:70px;padding:8px 10px;border:1.5px solid var(--amarelo,#ef9f27);border-radius:8px;font-size:14px"
+                oninput="calcLembreteData()"/>
+              <span style="font-size:13px;color:#8a6000">dias</span>
+            </div>
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:600;color:#8a6000;text-transform:uppercase;letter-spacing:.04em">Data de cobrança</label>
+            <input type="date" id="modal-lembrete-data"
+              style="width:100%;padding:8px 10px;border:1.5px solid var(--amarelo,#ef9f27);border-radius:8px;font-size:14px;margin-top:4px"
+              oninput="calcLembreteDias()"/>
+          </div>
+        </div>
+        <div id="modal-lembrete-diasem" style="font-size:12px;color:#8a6000;font-weight:600"></div>
+        <div style="font-size:11px;color:#8a6000">
+          📌 Um lembrete será criado automaticamente para cobrar o restante na data escolhida.<br>
+          ⏳ O valor restante será lançado no financeiro como <strong>pendente</strong>.
+        </div>
+      </div>
+    </div>
+
+    <!-- Observação -->
     <div>
       <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Observação (opcional)</label>
-      <input type="text" id="modal-obs-fin" placeholder="Ex: 50% entrada, restante em 30 dias" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px"/>
+      <input type="text" id="modal-obs-fin" placeholder="Ex: combinou pagar na próxima consulta" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px"/>
     </div>
 
     <!-- Divider -->
@@ -1372,6 +1418,11 @@ function abrirModalRealizado(){
   document.getElementById('modal-data').oninput=calcDataVerificacao;
   document.getElementById('modal-ver-dias').value=15;
   document.getElementById('modal-obs-fin').value='';
+  document.getElementById('modal-parcial-check').checked=false;
+  document.getElementById('modal-parcial-box').style.display='none';
+  document.getElementById('modal-entrada').value='';
+  document.getElementById('modal-restante').value='';
+  document.getElementById('modal-lembrete-dias').value=30;
   document.getElementById('modal-pgto').value='pix';
   document.querySelector('input[name="modal-status"][value="recebido"]').checked=true;
   atualizarInfoParcelasModal();
@@ -1391,6 +1442,49 @@ function abrirModalRealizado(){
   document.getElementById('modal-realizado').style.display='flex';
 }
 
+
+// ── PAGAMENTO PARCIAL ──
+function toggleParcial(){
+  const check = document.getElementById('modal-parcial-check').checked;
+  const box = document.getElementById('modal-parcial-box');
+  box.style.display = check ? 'flex' : 'none';
+  if(check){
+    calcRestante();
+    calcLembreteData();
+  }
+}
+
+function calcRestante(){
+  const total = parseFloat(document.getElementById('modal-total-sel')?.textContent?.replace(/[^0-9,]/g,'').replace(',','.')) || 0;
+  const entrada = parseFloat(document.getElementById('modal-entrada')?.value) || 0;
+  const restante = Math.max(0, total - entrada);
+  document.getElementById('modal-restante').value = restante > 0 ? restante.toFixed(2) : '';
+}
+
+function calcLembreteData(){
+  const dias = parseInt(document.getElementById('modal-lembrete-dias')?.value) || 30;
+  const dataAtend = document.getElementById('modal-data')?.value;
+  if(!dataAtend) return;
+  const dt = new Date(dataAtend + 'T12:00:00');
+  dt.setDate(dt.getDate() + dias);
+  const iso = dt.toISOString().split('T')[0];
+  document.getElementById('modal-lembrete-data').value = iso;
+  const DIAS_SEM = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+  document.getElementById('modal-lembrete-diasem').textContent = '📅 ' + DIAS_SEM[dt.getDay()] + ', ' + fDt(iso);
+}
+
+function calcLembreteDias(){
+  const dataVenc = document.getElementById('modal-lembrete-data')?.value;
+  const dataAtend = document.getElementById('modal-data')?.value;
+  if(!dataVenc || !dataAtend) return;
+  const d1 = new Date(dataAtend + 'T12:00:00');
+  const d2 = new Date(dataVenc + 'T12:00:00');
+  const diff = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+  document.getElementById('modal-lembrete-dias').value = diff > 0 ? diff : 1;
+  const DIAS_SEM = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+  document.getElementById('modal-lembrete-diasem').textContent = '📅 ' + DIAS_SEM[d2.getDay()] + ', ' + fDt(dataVenc);
+}
+
 function atualizarTotalSelecionado(){
   const itens=getOrcItens().filter(i=>i.trat);
   const total=itens.reduce((s,item,i)=>{
@@ -1398,6 +1492,7 @@ function atualizarTotalSelecionado(){
     return s+(cb?.checked?(parseFloat(item.val)||0):0);
   },0);
   document.getElementById('modal-total-sel').textContent=fmtBRL(total);
+  if(document.getElementById('modal-parcial-check')?.checked) calcRestante();
 }
 
 function atualizarInfoParcelasModal(){
@@ -1463,28 +1558,60 @@ async function confirmarRealizado(){
   // 2. Lançar no financeiro
   if(valorTotal>0){
     const descFin=selecionados.map(s=>s.trat).join(' + ')+' — '+pacSelecionada.nome;
-    const objFin={
-      tipo:'receita',data:dataAtend,
-      descricao:descFin,
-      categoria:'Harmonização Orofacial',
-      valor:valorTotal,
-      forma_pagamento:pgto,
-      status,obs
-    };
-    const{error:errFin}=await db.from('financeiro').insert(objFin);
+    const parcialCheck=document.getElementById('modal-parcial-check')?.checked;
+    const entrada=parseFloat(document.getElementById('modal-entrada')?.value)||0;
+    const restante=parseFloat(document.getElementById('modal-restante')?.value)||0;
+    const lembretaData=document.getElementById('modal-lembrete-data')?.value||null;
+    const lembreteDias=parseInt(document.getElementById('modal-lembrete-dias')?.value)||30;
 
-    // Se parcelado, criar parcelas futuras como pendentes
-    if(!errFin&&pgto.startsWith('credito-')&&pgto!=='credito-1x'){
-      const parcelas=parseInt(pgto.split('-')[1]);
-      const valorParc=Math.round((valorTotal/parcelas)*100)/100;
-      const extras=[];
-      for(let i=1;i<parcelas;i++){
-        const dt=new Date(dataAtend+'T12:00:00');
-        dt.setMonth(dt.getMonth()+i);
-        extras.push({...objFin,data:dt.toISOString().split('T')[0],valor:valorParc,
-          descricao:`${descFin} (${i+1}/${parcelas})`,status:'pendente'});
+    if(parcialCheck && entrada > 0 && restante > 0){
+      // Lançar entrada como pago
+      await db.from('financeiro').insert({
+        tipo:'receita', data:dataAtend, descricao:descFin+' (entrada)',
+        categoria:'Harmonização Orofacial', valor:entrada,
+        forma_pagamento:pgto, status:'recebido', obs:obs||null
+      });
+      // Lançar restante como pendente
+      await db.from('financeiro').insert({
+        tipo:'receita', data:lembretaData||dataAtend,
+        descricao:descFin+' (restante)',
+        categoria:'Harmonização Orofacial', valor:restante,
+        forma_pagamento:pgto, status:'pendente',
+        obs:`Vencimento em ${lembreteDias} dias`
+      });
+      // Criar lembrete no sistema
+      if(lembretaData){
+        const pacAtual2=pacs.find(p=>p.id===pacSelecionada.id);
+        const lembretes=pacAtual2?.lembretes||[];
+        lembretes.push({
+          texto:`💰 Cobrar restante: ${fmtBRL(restante)} — ${descFin}`,
+          data:lembretaData,
+          tipo:'cobranca',
+          criado_em:dataAtend
+        });
+        await db.from('pacientes').update({lembretes}).eq('id',pacSelecionada.id);
       }
-      if(extras.length) await db.from('financeiro').insert(extras);
+    } else {
+      // Pagamento normal
+      const objFin={
+        tipo:'receita', data:dataAtend, descricao:descFin,
+        categoria:'Harmonização Orofacial', valor:valorTotal,
+        forma_pagamento:pgto, status, obs:obs||null
+      };
+      const{error:errFin}=await db.from('financeiro').insert(objFin);
+      // Se crédito parcelado, criar parcelas futuras
+      if(!errFin&&pgto.startsWith('credito-')&&pgto!=='credito-1x'){
+        const parcelas=parseInt(pgto.split('-')[1]);
+        const valorParc=Math.round((valorTotal/parcelas)*100)/100;
+        const extras=[];
+        for(let i=1;i<parcelas;i++){
+          const dt=new Date(dataAtend+'T12:00:00');
+          dt.setMonth(dt.getMonth()+i);
+          extras.push({...objFin,data:dt.toISOString().split('T')[0],valor:valorParc,
+            descricao:`${descFin} (${i+1}/${parcelas})`,status:'pendente'});
+        }
+        if(extras.length) await db.from('financeiro').insert(extras);
+      }
     }
   }
 
