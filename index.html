@@ -201,7 +201,38 @@ textarea{resize:vertical;min-height:70px}
     <button class="tb" onclick="aba('alertas',this)">🔔 Alertas</button>
     <button class="tb" onclick="aba('pacientes',this)">👥 Pacientes</button>
     <button class="tb" onclick="aba('relatorio',this)">📊 Relatório</button>
+    <button class="tb" onclick="aba('financeiro',this)">💰 Financeiro</button>
     <button class="tb" onclick="aba('cadastro',this)">➕ Cadastrar</button>
+  </div>
+
+
+  <!-- FINANCEIRO -->
+  <div id="p-financeiro" class="panel">
+    <!-- Dashboard -->
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:1rem" id="fin-cards"></div>
+
+    <!-- Filtro período -->
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+      <select id="fin-mes" style="padding:7px 10px;font-size:13px;border:1.5px solid var(--borda);border-radius:8px" onchange="carregarFinanceiro()">
+      </select>
+      <select id="fin-ano" style="padding:7px 10px;font-size:13px;border:1.5px solid var(--borda);border-radius:8px" onchange="carregarFinanceiro()">
+      </select>
+      <button class="btn pri" onclick="abrirLancamento('receita')" style="margin-left:auto">+ Receita</button>
+      <button class="btn" onclick="abrirLancamento('despesa')" style="background:var(--vermelho-c);border-color:var(--vermelho);color:var(--vermelho)">− Despesa</button>
+      <button class="btn" onclick="exportarFinanceiro()" title="Exportar Excel">📥 Excel</button>
+    </div>
+
+    <!-- Tabs receitas/despesas/fluxo -->
+    <div style="display:flex;gap:4px;margin-bottom:1rem;border-bottom:2px solid var(--borda)">
+      <button class="fin-tab active" onclick="finTab('receitas',this)" style="padding:8px 16px;border:none;background:none;font-weight:600;color:var(--verde-e);border-bottom:2px solid var(--verde);margin-bottom:-2px;cursor:pointer">💚 Receitas</button>
+      <button class="fin-tab" onclick="finTab('despesas',this)" style="padding:8px 16px;border:none;background:none;font-weight:500;color:var(--ct);cursor:pointer">🔴 Despesas</button>
+      <button class="fin-tab" onclick="finTab('fluxo',this)" style="padding:8px 16px;border:none;background:none;font-weight:500;color:var(--ct);cursor:pointer">📊 Fluxo de Caixa</button>
+    </div>
+
+    <!-- Conteúdo das tabs -->
+    <div id="fin-receitas"></div>
+    <div id="fin-despesas" style="display:none"></div>
+    <div id="fin-fluxo" style="display:none"></div>
   </div>
 
   <!-- HOJE -->
@@ -771,6 +802,22 @@ function msgVerificacao(p,trat){return`Olá, ${chamada(p)}! 😊\n\nPassaram alg
 function urlGcal(c){const ini2=c.data.replace(/-/g,'')+`T${c.hora.replace(':','')}00`;const[h,mi]=c.hora.split(':');const fim=c.data.replace(/-/g,'')+`T${String(parseInt(h)+1).padStart(2,'0')}${mi}00`;return`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(c.nome+' - '+(c.procedimento||'Consulta'))}&dates=${ini2}/${fim}&details=${encodeURIComponent(`Paciente: ${c.nome}\nTel: ${c.telefone||''}\n${c.procedimento||''}\n${c.observacao||''}`)}`;}
 
 // CARREGAR
+// SQL para criar tabela financeiro no Supabase (executar uma vez):
+// CREATE TABLE IF NOT EXISTS financeiro (
+//   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+//   tipo TEXT NOT NULL CHECK (tipo IN ('receita','despesa')),
+//   data DATE NOT NULL,
+//   descricao TEXT NOT NULL,
+//   categoria TEXT,
+//   valor NUMERIC(10,2) NOT NULL,
+//   forma_pagamento TEXT,
+//   status TEXT DEFAULT 'recebido',
+//   obs TEXT,
+//   criado_em TIMESTAMPTZ DEFAULT NOW()
+// );
+// ALTER TABLE financeiro ENABLE ROW LEVEL SECURITY;
+// CREATE POLICY "acesso_total" ON financeiro FOR ALL USING (true) WITH CHECK (true);
+
 async function carregar(){
   const{data,error}=await db.from('pacientes').select('*').order('nome');
   if(error){toast('Erro ao carregar','vermelho');return;}
@@ -1309,6 +1356,368 @@ function enviarInformativo(telEnc,chave){
   fecharModalInformativos();
 }
 
+
+// ══════════════════════════════════════════
+// MÓDULO FINANCEIRO
+// ══════════════════════════════════════════
+
+const CAT_RECEITA = [
+  'Harmonização Orofacial','Odontologia','Consulta / Avaliação',
+  'Pacote de Tratamento','Produto Vendido','Outros Recebimentos'
+];
+const CAT_DESPESA = [
+  'Produtos / Insumos','Aluguel / Espaço','Equipamentos',
+  'Cursos / Capacitação','Marketing / Publicidade','Impostos / Taxas',
+  'Salários / Honorários','Manutenção','Softwares / Assinaturas','Outros'
+];
+const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+               'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const META_MENSAL = 15000; // padrão - editável futuramente
+
+let _finTab = 'receitas';
+let _finLancs = [];
+
+// ── Inicializar selects de mês/ano ──
+function initFinFiltros(){
+  const hoje = new Date();
+  const mes = document.getElementById('fin-mes');
+  const ano = document.getElementById('fin-ano');
+  if(!mes||!ano) return;
+  mes.innerHTML = MESES.map((m,i)=>`<option value="${i+1}" ${i===hoje.getMonth()?'selected':''}>${m}</option>`).join('');
+  const anoAtual = hoje.getFullYear();
+  ano.innerHTML = [anoAtual-1,anoAtual,anoAtual+1].map(a=>`<option value="${a}" ${a===anoAtual?'selected':''}>${a}</option>`).join('');
+}
+
+// ── Trocar tab ──
+function finTab(tab, btn){
+  _finTab = tab;
+  document.querySelectorAll('.fin-tab').forEach(b=>{
+    b.style.color='var(--ct)';b.style.borderBottom='none';b.style.fontWeight='500';
+  });
+  btn.style.color='var(--verde-e)';btn.style.borderBottom='2px solid var(--verde)';btn.style.fontWeight='600';
+  document.getElementById('fin-receitas').style.display=tab==='receitas'?'':'none';
+  document.getElementById('fin-despesas').style.display=tab==='despesas'?'':'none';
+  document.getElementById('fin-fluxo').style.display=tab==='fluxo'?'':'none';
+  renderFinAtual();
+}
+
+// ── Carregar lançamentos do Supabase ──
+async function carregarFinanceiro(){
+  const mes = parseInt(document.getElementById('fin-mes')?.value||new Date().getMonth()+1);
+  const ano = parseInt(document.getElementById('fin-ano')?.value||new Date().getFullYear());
+  const ini = `${ano}-${String(mes).padStart(2,'0')}-01`;
+  const fim = `${ano}-${String(mes).padStart(2,'0')}-${new Date(ano,mes,0).getDate()}`;
+  const {data,error} = await db.from('financeiro').select('*')
+    .gte('data',ini).lte('data',fim).order('data',{ascending:false});
+  if(error){console.error('Financeiro:',error);return;}
+  _finLancs = data||[];
+  renderFinDashboard();
+  renderFinAtual();
+}
+
+// ── Dashboard cards ──
+function renderFinDashboard(){
+  const receitas = _finLancs.filter(l=>l.tipo==='receita');
+  const despesas = _finLancs.filter(l=>l.tipo==='despesa');
+  const totalRec = receitas.reduce((s,l)=>s+(l.valor||0),0);
+  const totalDes = despesas.reduce((s,l)=>s+(l.valor||0),0);
+  const saldo = totalRec - totalDes;
+  const recPend = receitas.filter(l=>l.status==='pendente').reduce((s,l)=>s+(l.valor||0),0);
+  const pct = META_MENSAL>0?Math.min(100,Math.round(totalRec/META_MENSAL*100)):0;
+  
+  document.getElementById('fin-cards').innerHTML = `
+    <div style="background:var(--verde-c);border-radius:12px;padding:14px;border:1.5px solid var(--verde)">
+      <div style="font-size:11px;color:var(--verde-e);font-weight:600;text-transform:uppercase;letter-spacing:.04em">💚 Receitas do Mês</div>
+      <div style="font-size:22px;font-weight:700;color:var(--verde-e);margin:4px 0">${fmtBRL(totalRec)}</div>
+      <div style="font-size:11px;color:var(--verde-e)">Meta: ${fmtBRL(META_MENSAL)} · ${pct}%</div>
+      <div style="background:rgba(0,0,0,.1);border-radius:99px;height:6px;margin-top:6px">
+        <div style="background:var(--verde);height:6px;border-radius:99px;width:${pct}%;transition:.3s"></div>
+      </div>
+    </div>
+    <div style="background:var(--vermelho-c,#fff0f0);border-radius:12px;padding:14px;border:1.5px solid var(--vermelho,#e24b4a)">
+      <div style="font-size:11px;color:var(--vermelho,#e24b4a);font-weight:600;text-transform:uppercase;letter-spacing:.04em">🔴 Despesas do Mês</div>
+      <div style="font-size:22px;font-weight:700;color:var(--vermelho,#e24b4a);margin:4px 0">${fmtBRL(totalDes)}</div>
+      <div style="font-size:11px;color:var(--ct)">${despesas.length} lançamento${despesas.length!==1?'s':''}</div>
+    </div>
+    <div style="background:${saldo>=0?'var(--verde-c)':'var(--vermelho-c,#fff0f0)'};border-radius:12px;padding:14px;border:1.5px solid ${saldo>=0?'var(--verde)':'var(--vermelho,#e24b4a)'}">
+      <div style="font-size:11px;color:var(--ct);font-weight:600;text-transform:uppercase;letter-spacing:.04em">💰 Saldo do Mês</div>
+      <div style="font-size:22px;font-weight:700;color:${saldo>=0?'var(--verde-e)':'var(--vermelho,#e24b4a)'};margin:4px 0">${fmtBRL(saldo)}</div>
+      <div style="font-size:11px;color:var(--ct)">Receitas − Despesas</div>
+    </div>
+    <div style="background:var(--amarelo-c,#fffbea);border-radius:12px;padding:14px;border:1.5px solid var(--amarelo,#ef9f27)">
+      <div style="font-size:11px;color:#8a6000;font-weight:600;text-transform:uppercase;letter-spacing:.04em">⏳ A Receber</div>
+      <div style="font-size:22px;font-weight:700;color:#8a6000;margin:4px 0">${fmtBRL(recPend)}</div>
+      <div style="font-size:11px;color:var(--ct)">${receitas.filter(l=>l.status==='pendente').length} pagamento${receitas.filter(l=>l.status==='pendente').length!==1?'s':''} pendente${receitas.filter(l=>l.status==='pendente').length!==1?'s':''}</div>
+    </div>`;
+}
+
+// ── Renderizar lista atual ──
+function renderFinAtual(){
+  if(_finTab==='receitas') renderFinLista('receita','fin-receitas');
+  else if(_finTab==='despesas') renderFinLista('despesa','fin-despesas');
+  else renderFluxo();
+}
+
+function renderFinLista(tipo, elId){
+  const el = document.getElementById(elId);
+  const lista = _finLancs.filter(l=>l.tipo===tipo);
+  if(!lista.length){
+    el.innerHTML=`<div class="empty"><div class="empty-icon">${tipo==='receita'?'💚':'🔴'}</div><p>Nenhum${tipo==='receita'?'a':''} ${tipo==='receita'?'receita':'despesa'} lançad${tipo==='receita'?'a':'a'} neste mês.</p></div>`;
+    return;
+  }
+  // Agrupar por data
+  const grupos = {};
+  lista.forEach(l=>{if(!grupos[l.data])grupos[l.data]=[];grupos[l.data].push(l);});
+  const pgtos = {pix:'💠 Pix',dinheiro:'💵 Dinheiro',debito:'💳 Débito',
+    'credito-1x':'💳 Crédito 1x','credito-2x':'💳 2x','credito-3x':'💳 3x',
+    'credito-4x':'💳 4x','credito-5x':'💳 5x','credito-6x':'💳 6x',
+    'credito-10x':'💳 10x','credito-12x':'💳 12x',
+    transferencia:'🏦 Transferência',cheque:'📄 Cheque',outro:'Outro'};
+  
+  el.innerHTML = Object.entries(grupos)
+    .sort((a,b)=>b[0].localeCompare(a[0]))
+    .map(([data, items])=>`
+      <div style="margin-bottom:1rem">
+        <div style="font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.04em;padding:4px 0;border-bottom:1px solid var(--borda);margin-bottom:6px">${fDt(data)}</div>
+        ${items.map(l=>`
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid var(--borda);border-radius:10px;margin-bottom:6px;background:var(--card)">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.descricao}</div>
+              <div style="font-size:11px;color:var(--ct);margin-top:2px">${l.categoria||''}${l.forma_pagamento?' · '+(pgtos[l.forma_pagamento]||l.forma_pagamento):''}${l.obs?' · '+l.obs:''}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-size:15px;font-weight:700;color:${tipo==='receita'?'var(--verde-e)':'var(--vermelho,#e24b4a)'}">${fmtBRL(l.valor)}</div>
+              <div style="font-size:11px;margin-top:2px">
+                <span style="background:${l.status==='recebido'?'var(--verde-c)':'var(--amarelo-c,#fffbea)'};color:${l.status==='recebido'?'var(--verde-e)':'#8a6000'};padding:2px 7px;border-radius:99px;font-weight:600">${l.status==='recebido'?'✅ Recebido':'⏳ Pendente'}</span>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+              ${l.status==='pendente'?`<button class="btn" style="padding:4px 8px;font-size:11px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde)" onclick="marcarRecebido('${l.id}')">✓ Recebido</button>`:''}
+              <button class="btn" style="padding:4px 8px;font-size:11px" onclick="editarLancamento('${l.id}')">✏️</button>
+              <button class="btn dan" style="padding:4px 8px;font-size:11px" onclick="excluirLancamento('${l.id}')">🗑</button>
+            </div>
+          </div>`).join('')}
+      </div>`).join('');
+  
+  // Total no rodapé
+  const total = lista.reduce((s,l)=>s+(l.valor||0),0);
+  const totalRecebido = lista.filter(l=>l.status==='recebido').reduce((s,l)=>s+(l.valor||0),0);
+  el.innerHTML += `<div style="display:flex;justify-content:space-between;padding:12px;background:var(--card);border:2px solid var(--borda);border-radius:10px;font-weight:700">
+    <span>Total ${tipo==='receita'?'Recebido':'Pago'}</span>
+    <span style="color:${tipo==='receita'?'var(--verde-e)':'var(--vermelho,#e24b4a)'}">${fmtBRL(tipo==='receita'?totalRecebido:total)}${tipo==='receita'&&totalRecebido<total?' <span style="font-size:12px;color:var(--ct)">(+'+fmtBRL(total-totalRecebido)+' pendente)</span>':''}</span>
+  </div>`;
+}
+
+// ── Fluxo de Caixa ──
+function renderFluxo(){
+  const el = document.getElementById('fin-fluxo');
+  const mes = parseInt(document.getElementById('fin-mes')?.value||new Date().getMonth()+1);
+  const ano = parseInt(document.getElementById('fin-ano')?.value||new Date().getFullYear());
+  const diasMes = new Date(ano,mes,0).getDate();
+  
+  // Agrupar por dia
+  const porDia = {};
+  for(let d=1;d<=diasMes;d++) porDia[d]={rec:0,des:0};
+  _finLancs.forEach(l=>{
+    const dia = parseInt(l.data.split('-')[2]);
+    if(l.tipo==='receita') porDia[dia].rec+=l.valor||0;
+    else porDia[dia].des+=l.valor||0;
+  });
+  
+  // Calcular saldo acumulado
+  let acum = 0;
+  const linhas = Object.entries(porDia)
+    .filter(([,v])=>v.rec>0||v.des>0)
+    .map(([dia,v])=>{
+      acum += v.rec - v.des;
+      return {dia,rec:v.rec,des:v.des,acum};
+    });
+  
+  if(!linhas.length){
+    el.innerHTML='<div class="empty"><div class="empty-icon">📊</div><p>Nenhum lançamento neste mês.</p></div>';
+    return;
+  }
+  
+  el.innerHTML = `
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--bg)">
+            <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--borda)">Data</th>
+            <th style="padding:8px 12px;text-align:right;border-bottom:2px solid var(--borda);color:var(--verde-e)">💚 Receitas</th>
+            <th style="padding:8px 12px;text-align:right;border-bottom:2px solid var(--borda);color:var(--vermelho,#e24b4a)">🔴 Despesas</th>
+            <th style="padding:8px 12px;text-align:right;border-bottom:2px solid var(--borda)">Saldo do Dia</th>
+            <th style="padding:8px 12px;text-align:right;border-bottom:2px solid var(--borda)">Acumulado</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${linhas.map(l=>`
+            <tr style="border-bottom:1px solid var(--borda)">
+              <td style="padding:8px 12px">${String(l.dia).padStart(2,'0')}/${String(mes).padStart(2,'0')}</td>
+              <td style="padding:8px 12px;text-align:right;color:var(--verde-e)">${l.rec>0?fmtBRL(l.rec):'-'}</td>
+              <td style="padding:8px 12px;text-align:right;color:var(--vermelho,#e24b4a)">${l.des>0?fmtBRL(l.des):'-'}</td>
+              <td style="padding:8px 12px;text-align:right;font-weight:500;color:${(l.rec-l.des)>=0?'var(--verde-e)':'var(--vermelho,#e24b4a)'}">${fmtBRL(l.rec-l.des)}</td>
+              <td style="padding:8px 12px;text-align:right;font-weight:700;color:${l.acum>=0?'var(--verde-e)':'var(--vermelho,#e24b4a)'}">${fmtBRL(l.acum)}</td>
+            </tr>`).join('')}
+        </tbody>
+        <tfoot>
+          <tr style="background:var(--bg);font-weight:700">
+            <td style="padding:10px 12px">TOTAL</td>
+            <td style="padding:10px 12px;text-align:right;color:var(--verde-e)">${fmtBRL(linhas.reduce((s,l)=>s+l.rec,0))}</td>
+            <td style="padding:10px 12px;text-align:right;color:var(--vermelho,#e24b4a)">${fmtBRL(linhas.reduce((s,l)=>s+l.des,0))}</td>
+            <td style="padding:10px 12px;text-align:right"></td>
+            <td style="padding:10px 12px;text-align:right;color:${linhas[linhas.length-1]?.acum>=0?'var(--verde-e)':'var(--vermelho,#e24b4a)'}">${fmtBRL(linhas[linhas.length-1]?.acum||0)}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>`;
+}
+
+// ── Modal lançamento ──
+function abrirLancamento(tipo, dados=null){
+  document.getElementById('fin-edit-id').value = dados?.id||'';
+  document.getElementById('fin-tipo').value = tipo;
+  document.getElementById('fin-modal-titulo').textContent = dados ? '✏️ Editar lançamento' : (tipo==='receita'?'+ Nova Receita':'− Nova Despesa');
+  document.getElementById('fin-data').value = dados?.data||HOJE_STR;
+  document.getElementById('fin-desc').value = dados?.descricao||'';
+  document.getElementById('fin-valor').value = dados?.valor||'';
+  document.getElementById('fin-obs').value = dados?.obs||'';
+  document.getElementById('fin-status').value = dados?.status||'recebido';
+  
+  // Categorias
+  const cats = tipo==='receita'?CAT_RECEITA:CAT_DESPESA;
+  document.getElementById('fin-cat').innerHTML = cats.map(c=>`<option value="${c}" ${c===(dados?.categoria||'')?'selected':''}>${c}</option>`).join('');
+  
+  // Descrições sugeridas (procedimentos)
+  const sugs = tipo==='receita' ? [...new Set(_finLancs.filter(l=>l.tipo==='receita').map(l=>l.descricao))] : [];
+  document.getElementById('fin-desc-list').innerHTML = sugs.map(s=>`<option value="${s}">`).join('');
+  
+  document.getElementById('fin-pgto').value = dados?.forma_pagamento||'pix';
+  atualizarInfoParcelas();
+  
+  document.getElementById('modal-fin').style.display='flex';
+}
+
+function fecharModalFin(){
+  document.getElementById('modal-fin').style.display='none';
+}
+
+function atualizarInfoParcelas(){
+  const pgto = document.getElementById('fin-pgto')?.value||'';
+  const info = document.getElementById('fin-parcelas-info');
+  if(info) info.style.display = pgto.startsWith('credito-') && pgto!=='credito-1x' ? '' : 'none';
+}
+
+async function salvarLancamento(){
+  const id = document.getElementById('fin-edit-id').value;
+  const tipo = document.getElementById('fin-tipo').value;
+  const data = document.getElementById('fin-data').value;
+  const desc = document.getElementById('fin-desc').value.trim();
+  const valor = parseFloat(document.getElementById('fin-valor').value)||0;
+  if(!data||!desc||!valor){toast('Preencha data, descrição e valor!','vermelho');return;}
+  
+  const pgto = document.getElementById('fin-pgto').value;
+  const obj = {
+    tipo, data, descricao:desc,
+    categoria: document.getElementById('fin-cat').value,
+    valor, forma_pagamento: pgto,
+    status: document.getElementById('fin-status').value,
+    obs: document.getElementById('fin-obs').value.trim()||null,
+  };
+  
+  const btn = document.getElementById('fin-btn-salvar');
+  btn.disabled=true; btn.textContent='Salvando...';
+  
+  let error;
+  if(id){
+    ({error} = await db.from('financeiro').update(obj).eq('id',id));
+  } else {
+    ({error} = await db.from('financeiro').insert(obj));
+    // Se parcelado, criar parcelas futuras
+    if(!error && pgto.startsWith('credito-') && pgto!=='credito-1x'){
+      const parcelas = parseInt(pgto.split('-')[1]);
+      const valorParc = Math.round((valor/parcelas)*100)/100;
+      const extras = [];
+      for(let i=1;i<parcelas;i++){
+        const dt = new Date(data+'T12:00:00');
+        dt.setMonth(dt.getMonth()+i);
+        extras.push({...obj,data:dt.toISOString().split('T')[0],valor:valorParc,
+          descricao:`${desc} (${i+1}/${parcelas})`,status:'pendente'});
+      }
+      if(extras.length) await db.from('financeiro').insert(extras);
+    }
+  }
+  
+  btn.disabled=false; btn.textContent='✓ Salvar';
+  if(error){toast('Erro: '+error.message,'vermelho');return;}
+  fecharModalFin();
+  toast(id?'Atualizado! ✓':'Lançamento salvo! ✓','verde');
+  carregarFinanceiro();
+}
+
+async function marcarRecebido(id){
+  await db.from('financeiro').update({status:'recebido'}).eq('id',id);
+  toast('Marcado como recebido ✓','verde');
+  carregarFinanceiro();
+}
+
+async function editarLancamento(id){
+  const lanc = _finLancs.find(l=>l.id===id);
+  if(lanc) abrirLancamento(lanc.tipo,lanc);
+}
+
+async function excluirLancamento(id){
+  if(!confirm('Excluir este lançamento?')) return;
+  await db.from('financeiro').delete().eq('id',id);
+  toast('Excluído ✓','verde');
+  carregarFinanceiro();
+}
+
+// ── Exportar Excel ──
+async function exportarFinanceiro(){
+  const mes = parseInt(document.getElementById('fin-mes')?.value||new Date().getMonth()+1);
+  const ano = parseInt(document.getElementById('fin-ano')?.value||new Date().getFullYear());
+  const nomeMes = MESES[mes-1];
+  
+  const linhas = [['Data','Tipo','Descrição','Categoria','Valor','Forma de Pagamento','Status','Observações']];
+  _finLancs.sort((a,b)=>a.data.localeCompare(b.data)).forEach(l=>{
+    linhas.push([fDt(l.data),l.tipo==='receita'?'Receita':'Despesa',l.descricao,l.categoria||'',
+      l.valor,l.forma_pagamento||'',l.status==='recebido'?'Recebido':'Pendente',l.obs||'']);
+  });
+  
+  // Totais
+  const totalRec = _finLancs.filter(l=>l.tipo==='receita').reduce((s,l)=>s+(l.valor||0),0);
+  const totalDes = _finLancs.filter(l=>l.tipo==='despesa').reduce((s,l)=>s+(l.valor||0),0);
+  linhas.push([]);
+  linhas.push(['','','','TOTAL RECEITAS',totalRec,'','','']);
+  linhas.push(['','','','TOTAL DESPESAS',totalDes,'','','']);
+  linhas.push(['','','','SALDO',totalRec-totalDes,'','','']);
+  
+  // Converter para CSV
+  const csv = linhas.map(row=>row.map(cell=>`"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=`Financeiro_${nomeMes}_${ano}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  toast('Excel exportado! ✓','verde');
+}
+
+// ── Lançamento automático ao salvar atendimento ──
+async function lancarReceitaAtendimento(pacNome, trats, dataAtend){
+  const valorTotal = trats.reduce((s,t)=>s+(parseFloat(t.valor)||0),0);
+  if(!valorTotal) return;
+  const desc = trats.map(t=>t.nome).join(' + ');
+  await db.from('financeiro').insert({
+    tipo:'receita', data:dataAtend,
+    descricao:`${desc} - ${pacNome}`,
+    categoria:'Harmonização Orofacial',
+    valor:valorTotal, forma_pagamento:'pix',
+    status:'pendente', obs:'Lançado automaticamente ao registrar atendimento'
+  });
+}
+
+
 async function abrDocs(p){
   document.getElementById('docs-pac-nome').textContent=p.nome+(p.apelido?` (${p.apelido})`:'');
   document.getElementById('docs-pac-tel').textContent=p.telefone;
@@ -1451,6 +1860,7 @@ function aba(id,btn){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   btn.classList.add('active');document.getElementById('p-'+id).classList.add('active');
   if(id==='hoje')renderHoje();
+  if(id==='financeiro'){initFinFiltros();carregarFinanceiro();}
   if(id==='agenda')carregarAgenda();
   if(id==='alertas')renderAlertas();
   if(id==='pacientes')renderPac();
@@ -1480,5 +1890,77 @@ carregarAgenda();
 <script>
 document.getElementById('modal-inf').addEventListener('click',function(e){if(e.target===this)fecharModalInformativos();});
 </script>
+
+<!-- MODAL LANÇAMENTO FINANCEIRO -->
+<div id="modal-fin" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;align-items:center;justify-content:center">
+  <div style="background:var(--card);border-radius:16px;padding:1.5rem;width:92%;max-width:480px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div style="font-size:16px;font-weight:700" id="fin-modal-titulo">+ Nova Receita</div>
+      <button onclick="fecharModalFin()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--ct)">✕</button>
+    </div>
+    <input type="hidden" id="fin-edit-id"/>
+    <input type="hidden" id="fin-tipo"/>
+
+    <div style="display:grid;gap:12px">
+      <div>
+        <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Data *</label>
+        <input type="date" id="fin-data" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px"/>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Descrição *</label>
+        <input type="text" id="fin-desc" placeholder="Ex: Botox - Maria Silva" list="fin-desc-list" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px"/>
+        <datalist id="fin-desc-list"></datalist>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Categoria</label>
+        <select id="fin-cat" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px">
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Valor R$ *</label>
+        <input type="number" id="fin-valor" min="0" step="0.01" placeholder="0,00" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px"/>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Forma de Pagamento</label>
+        <select id="fin-pgto" onchange="atualizarInfoParcelas()" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px">
+          <option value="pix">💠 Pix</option>
+          <option value="dinheiro">💵 Dinheiro</option>
+          <option value="debito">💳 Débito</option>
+          <option value="credito-1x">💳 Crédito 1x</option>
+          <option value="credito-2x">💳 Crédito 2x</option>
+          <option value="credito-3x">💳 Crédito 3x</option>
+          <option value="credito-4x">💳 Crédito 4x</option>
+          <option value="credito-5x">💳 Crédito 5x</option>
+          <option value="credito-6x">💳 Crédito 6x</option>
+          <option value="credito-10x">💳 Crédito 10x</option>
+          <option value="credito-12x">💳 Crédito 12x</option>
+          <option value="transferencia">🏦 Transferência</option>
+          <option value="cheque">📄 Cheque</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+      <div id="fin-parcelas-info" style="display:none;background:var(--amarelo-c);border-radius:8px;padding:10px;font-size:13px;color:#8a6000">
+        📅 Parcelado: as parcelas serão lançadas automaticamente nos meses seguintes.
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Status</label>
+        <select id="fin-status" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px">
+          <option value="recebido">✅ Recebido / Pago</option>
+          <option value="pendente">⏳ Pendente</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Observações</label>
+        <textarea id="fin-obs" rows="2" placeholder="Observações..." style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px;resize:vertical"></textarea>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
+      <button class="btn" onclick="fecharModalFin()">Cancelar</button>
+      <button class="btn pri" id="fin-btn-salvar" onclick="salvarLancamento()">✓ Salvar</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
