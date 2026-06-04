@@ -676,6 +676,23 @@ function renderHistorico(){
         <div class="tl-trats">
           ${ts.map(t=>`<span class="trat-chip">${t.nome}</span>`).join('')}
         </div>
+        ${(()=>{
+          const pgto=ts.find(t=>t.formaPagamento)?.formaPagamento||atend?.formaPagamento||'';
+          const sts=ts.find(t=>t.statusPagamento)?.statusPagamento||atend?.statusPagamento||'';
+          const obs=ts.find(t=>t.obsFinanceiro)?.obsFinanceiro||atend?.obsFinanceiro||'';
+          let html='';
+          if(pgto||sts){
+            const stsLabel=sts==='recebido'?'✅ Pago':'⏳ Pendente';
+            const stsCor=sts==='recebido'?'var(--verde)':'var(--amarelo)';
+            const pgtoLabel=pgto?pgto.replace('pix','Pix').replace('dinheiro','Dinheiro').replace('debito','Débito').replace('transferencia','Transferência').replace('credito-','Crédito '):'';
+            html+=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">`;
+            if(pgto) html+=`<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--azul-c);color:var(--azul);font-weight:500">💳 ${pgtoLabel}</span>`;
+            if(sts) html+=`<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${sts==='recebido'?'var(--verde-c)':'var(--amarelo-c)'};color:${stsCor};font-weight:500">${stsLabel}</span>`;
+            html+='</div>';
+          }
+          if(obs) html+=`<div style="font-size:12px;color:var(--ct);margin-top:3px;font-style:italic">💬 ${obs}</div>`;
+          return html;
+        })()}
         ${ts.filter(t=>t.dataRetorno).map(t=>`<div class="tl-retorno">🔔 Retorno ${t.nome}: ${fDt(t.dataRetorno)}</div>`).join('')}
         ${verif ? renderVerificacao(verif, dv) : ''}
       </div>
