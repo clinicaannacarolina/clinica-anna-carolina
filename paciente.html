@@ -628,6 +628,12 @@ function renderResumo(){
   }
 }
 
+
+function renderVerificacao(verif, dv) {
+  const cor = dv !== null && dv <= 3 ? 'var(--vermelho)' : 'var(--ct)';
+  const info = dv !== null ? ' (' + Math.abs(dv) + 'd' + (dv < 0 ? ' atrás' : '') + ')' : '';
+  return '<div class="tl-retorno" style="color:' + cor + '">🔬 Verificação: ' + fDt(verif) + info + '</div>';
+}
 // ─── HISTÓRICO ───
 function renderHistorico(){
   const el=document.getElementById('hist-timeline');
@@ -671,7 +677,7 @@ function renderHistorico(){
           ${ts.map(t=>`<span class="trat-chip">${t.nome}</span>`).join('')}
         </div>
         ${ts.filter(t=>t.dataRetorno).map(t=>`<div class="tl-retorno">🔔 Retorno ${t.nome}: ${fDt(t.dataRetorno)}</div>`).join('')}
-        ${verif?`<div class="tl-retorno" style="color:${dv!==null&&dv<=3?"var(--vermelho)":"var(--ct)"}">🔬 Verificação: ${fDt(verif)}${dv!==null?" ("+Math.abs(dv)+"d"+(dv<0?" atrás":"")+")"":""}</div>`:""}
+        ${verif ? renderVerificacao(verif, dv) : ''}
       </div>
     </div>`;
   }).join('');
