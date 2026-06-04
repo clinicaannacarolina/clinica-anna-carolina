@@ -466,6 +466,89 @@ textarea{resize:vertical;min-height:70px}
   </div>
 </div>
 
+
+<!-- ═══════ MODAL DETALHES DO ATENDIMENTO ═══════ -->
+<div class="mb" id="m-atend-det">
+  <div class="mx" style="max-width:520px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <h3 style="margin:0">🩺 Detalhes do Atendimento</h3>
+      <button class="btn sm dan" onclick="document.getElementById('m-atend-det').classList.remove('open')" style="border:none">✕</button>
+    </div>
+
+    <!-- Data -->
+    <div style="font-size:13px;color:var(--ct);margin-bottom:12px" id="det-data"></div>
+
+    <!-- Procedimentos -->
+    <div class="sec-title" style="margin-top:0">💉 Procedimentos</div>
+    <div id="det-procs" style="margin-bottom:12px"></div>
+
+    <!-- Financeiro -->
+    <div class="sec-title">💰 Financeiro</div>
+    <div id="det-fin" style="margin-bottom:12px"></div>
+
+    <!-- Verificação -->
+    <div id="det-verif-wrap" style="display:none">
+      <div class="sec-title">🔬 Verificação pós-procedimento</div>
+      <div id="det-verif" style="margin-bottom:12px"></div>
+    </div>
+
+    <!-- Observações -->
+    <div id="det-obs-wrap" style="display:none">
+      <div class="sec-title">💬 Observações</div>
+      <div id="det-obs" style="font-size:14px;color:var(--txt);margin-bottom:12px"></div>
+    </div>
+
+    <!-- Edição inline -->
+    <div id="det-edit-wrap" style="display:none;border-top:1px solid var(--borda);padding-top:1rem;margin-top:.5rem">
+      <div class="sec-title" style="margin-top:0">✏️ Editar atendimento</div>
+      <div class="fg">
+        <div class="fgr">
+          <label>Forma de pagamento</label>
+          <select id="det-pgto">
+            <option value="pix">💠 Pix</option>
+            <option value="dinheiro">💵 Dinheiro</option>
+            <option value="debito">💳 Débito</option>
+            <option value="credito-1x">💳 Crédito 1x</option>
+            <option value="credito-2x">💳 Crédito 2x</option>
+            <option value="credito-3x">💳 Crédito 3x</option>
+            <option value="credito-4x">💳 Crédito 4x</option>
+            <option value="credito-5x">💳 Crédito 5x</option>
+            <option value="credito-6x">💳 Crédito 6x</option>
+            <option value="credito-10x">💳 Crédito 10x</option>
+            <option value="credito-12x">💳 Crédito 12x</option>
+            <option value="transferencia">🏦 Transferência</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+        <div class="fgr">
+          <label>Status</label>
+          <select id="det-status">
+            <option value="recebido">✅ Pago</option>
+            <option value="pendente">⏳ Pendente</option>
+          </select>
+        </div>
+        <div class="fgr">
+          <label>Data de verificação</label>
+          <input type="date" id="det-verif-data"/>
+        </div>
+        <div class="fgr full">
+          <label>Observações</label>
+          <input type="text" id="det-obs-edit" placeholder="Observações do atendimento..."/>
+        </div>
+      </div>
+      <div class="br" style="padding-top:.75rem">
+        <button class="btn" onclick="toggleEditAtend()">Cancelar</button>
+        <button class="btn pri" onclick="salvarEditAtend()">✓ Salvar alterações</button>
+      </div>
+    </div>
+
+    <!-- Botões principais -->
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem" id="det-btns">
+      <button class="btn" onclick="document.getElementById('m-atend-det').classList.remove('open')">Fechar</button>
+      <button class="btn" onclick="toggleEditAtend()">✏️ Editar</button>
+    </div>
+  </div>
+</div>
 <!-- LIGHTBOX -->
 <div class="lightbox" id="lightbox" onclick="this.classList.remove('open')">
   <button class="lightbox-close" onclick="document.getElementById('lightbox').classList.remove('open')">✕</button>
@@ -669,9 +752,12 @@ function renderHistorico(){
     return `<div class="tl-item">
       <div class="tl-dot"></div>
       <div class="tl-card">
-        <div class="tl-header">
+        <div class="tl-header" onclick="abrirDetAtend(data, porData[data])" style="cursor:pointer">
           <span class="tl-data">📅 ${fDt(data)}</span>
-          ${valor?`<span class="tl-badge" style="background:var(--verde-c);color:var(--verde-e)">${fmtBRL(valor)}</span>`:''}
+          <div style="display:flex;align-items:center;gap:6px">
+            ${valor?`<span class="tl-badge" style="background:var(--verde-c);color:var(--verde-e)">${fmtBRL(valor)}</span>`:''}
+            <span style="font-size:11px;color:var(--ct);padding:2px 8px;border-radius:20px;border:1px solid var(--borda)">Ver detalhes</span>
+          </div>
         </div>
         <div class="tl-trats">
           ${ts.map(t=>`<span class="trat-chip">${t.nome}</span>`).join('')}
@@ -1091,6 +1177,112 @@ function novoAtendimento(){
 document.addEventListener('click',e=>{
   if(e.target.classList.contains('mb')) e.target.classList.remove('open');
 });
+
+
+// ─── MODAL DETALHES DO ATENDIMENTO ───
+let atendAtual = null; // {data, trats, idx}
+
+function abrirDetAtend(data, trats) {
+  atendAtual = { data, trats };
+
+  document.getElementById('det-data').textContent = '📅 ' + fDt(data);
+
+  // Procedimentos
+  const procsEl = document.getElementById('det-procs');
+  const total = trats.reduce((s,t)=>s+(parseFloat(t.valor)||0),0);
+  procsEl.innerHTML = trats.map(t=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg);border-radius:8px;margin-bottom:5px">
+      <span style="font-size:14px">${t.nome}</span>
+      ${t.valor?`<span style="font-size:13px;font-weight:600;color:var(--verde-e)">${fmtBRL(t.valor)}</span>`:''}
+    </div>
+  `).join('') + (total ? `<div style="display:flex;justify-content:space-between;padding:8px 12px;background:var(--verde-c);border-radius:8px;font-weight:600;color:var(--verde-e)"><span>Total</span><span>${fmtBRL(total)}</span></div>` : '');
+
+  // Financeiro
+  const pgto = trats.find(t=>t.formaPagamento)?.formaPagamento || '';
+  const status = trats.find(t=>t.statusPagamento)?.statusPagamento || '';
+  const obs = trats.find(t=>t.obsFinanceiro)?.obsFinanceiro || '';
+  const verif = trats.find(t=>t.verificacaoData)?.verificacaoData || '';
+
+  const pgtoLabel = pgto ? pgto.replace('pix','Pix').replace('dinheiro','Dinheiro').replace('debito','Débito').replace('transferencia','Transferência').replace('credito-','Crédito ') : '—';
+  const statusLabel = status === 'recebido' ? '✅ Pago' : status === 'pendente' ? '⏳ Pendente' : '—';
+  const statusCor = status === 'recebido' ? 'var(--verde)' : status === 'pendente' ? 'var(--amarelo)' : 'var(--ct)';
+
+  document.getElementById('det-fin').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div style="background:var(--bg);border-radius:8px;padding:10px 12px">
+        <div style="font-size:11px;color:var(--ct);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Forma de pagamento</div>
+        <div style="font-size:14px;font-weight:500">💳 ${pgtoLabel}</div>
+      </div>
+      <div style="background:var(--bg);border-radius:8px;padding:10px 12px">
+        <div style="font-size:11px;color:var(--ct);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Status</div>
+        <div style="font-size:14px;font-weight:600;color:${statusCor}">${statusLabel}</div>
+      </div>
+    </div>
+  `;
+
+  // Verificação
+  if (verif) {
+    const dv = dias(verif);
+    const txt = dv < 0 ? Math.abs(dv)+'d atrás' : dv === 0 ? 'Hoje' : 'em '+dv+'d';
+    document.getElementById('det-verif-wrap').style.display = 'block';
+    document.getElementById('det-verif').innerHTML = `
+      <div style="background:var(--roxo-c);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:14px">📅 ${fDt(verif)}</span>
+        <span style="font-size:12px;font-weight:600;color:var(--roxo)">${txt}</span>
+      </div>
+    `;
+  } else {
+    document.getElementById('det-verif-wrap').style.display = 'none';
+  }
+
+  // Obs
+  if (obs) {
+    document.getElementById('det-obs-wrap').style.display = 'block';
+    document.getElementById('det-obs').textContent = obs;
+  } else {
+    document.getElementById('det-obs-wrap').style.display = 'none';
+  }
+
+  // Preencher campos de edição
+  document.getElementById('det-pgto').value = pgto || 'pix';
+  document.getElementById('det-status').value = status || 'recebido';
+  document.getElementById('det-verif-data').value = verif || '';
+  document.getElementById('det-obs-edit').value = obs || '';
+  document.getElementById('det-edit-wrap').style.display = 'none';
+
+  document.getElementById('m-atend-det').classList.add('open');
+}
+
+function toggleEditAtend() {
+  const wrap = document.getElementById('det-edit-wrap');
+  wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
+}
+
+async function salvarEditAtend() {
+  if (!atendAtual || !pac) return;
+
+  const pgto   = document.getElementById('det-pgto').value;
+  const status = document.getElementById('det-status').value;
+  const verif  = document.getElementById('det-verif-data').value;
+  const obs    = document.getElementById('det-obs-edit').value;
+
+  // Atualizar os tratamentos_adicionais do paciente
+  const trats = (pac.tratamentos_adicionais || []).map(t => {
+    if (t.dataAtendimento === atendAtual.data) {
+      return { ...t, formaPagamento: pgto, statusPagamento: status, verificacaoData: verif||t.verificacaoData, obsFinanceiro: obs };
+    }
+    return t;
+  });
+
+  const { error } = await db.from('pacientes').update({ tratamentos_adicionais: trats }).eq('id', pac.id);
+  if (error) { toast('Erro ao salvar', 'vermelho'); return; }
+
+  pac.tratamentos_adicionais = trats;
+  toast('Atendimento atualizado ✅', 'verde');
+  document.getElementById('m-atend-det').classList.remove('open');
+  renderHistorico();
+  renderResumo();
+}
 
 // ─── INICIAR ───
 iniciar();
