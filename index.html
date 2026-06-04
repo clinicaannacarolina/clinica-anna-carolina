@@ -2181,16 +2181,10 @@ document.getElementById('modal-inf').addEventListener('click',function(e){if(e.t
   </div>
 </div>
 <script>
+<script>
 (function injetarBotaoFicha() {
-  const INTERVAL_MS = 800;
-  const MAX_ATTEMPTS = 40;
-  let attempts = 0;
-
-  function injetar() {
-    attempts++;
-
-    // Lista de pacientes
-    document.querySelectorAll('.pr:not([data-ficha])').forEach(row => {
+  function injetar(root) {
+    (root || document).querySelectorAll('.pr:not([data-ficha])').forEach(row => {
       let pacId = row.dataset.id;
       if (!pacId) {
         row.querySelectorAll('[onclick]').forEach(btn => {
@@ -2213,9 +2207,7 @@ document.getElementById('modal-inf').addEventListener('click',function(e){if(e.t
         row.setAttribute('data-ficha', '1');
       }
     });
-
-    // Cards de alertas
-    document.querySelectorAll('.ai:not([data-ficha])').forEach(ai => {
+    (root || document).querySelectorAll('.ai:not([data-ficha])').forEach(ai => {
       const aa = ai.querySelector('.aa');
       if (!aa) return;
       let pacId = ai.dataset.id;
@@ -2237,11 +2229,15 @@ document.getElementById('modal-inf').addEventListener('click',function(e){if(e.t
         ai.setAttribute('data-ficha', '1');
       }
     });
-
-    if (attempts < MAX_ATTEMPTS) setTimeout(injetar, INTERVAL_MS);
   }
 
-  setTimeout(injetar, 1200);
+  // Roda na primeira vez após carregar
+  setTimeout(injetar, 1000);
+  setTimeout(injetar, 2500);
+
+  // Observa mudanças no DOM (quando renderPac() renderiza os pacientes)
+  const observer = new MutationObserver(() => injetar());
+  observer.observe(document.body, { childList: true, subtree: true });
 })();
 </script>
 </body>
