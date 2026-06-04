@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ficha do Paciente — Clínica Dra. Anna Carolina</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --verde:#1D9E75;--verde-e:#0F6E56;--verde-c:#E1F5EE;
+  --amarelo:#EF9F27;--amarelo-c:#FAEEDA;
+  --vermelho:#E24B4A;--vermelho-c:#FCEBEB;
+  --rosa:#D4537E;--rosa-c:#FBEAF0;
+  --azul:#185FA5;--azul-c:#E6F1FB;
+  --roxo:#7C3AED;--roxo-c:#EDE9FE;
+  --bg:#F7F6F3;--card:#FFFFFF;--borda:#E8E6E1;--ct:#6B6860;--txt:#1A1916;
+  --s:0 1px 3px rgba(0,0,0,.06);--sm:0 4px 16px rgba(0,0,0,.1);
+}
+[data-theme="dark"] {
+  --bg:#1A1916;--card:#242220;--borda:#3A3835;--ct:#9A9690;--txt:#F0EDE8;
+  --verde-c:#0F3D2E;--amarelo-c:#3D2E0A;--vermelho-c:#3D1515;
+  --rosa-c:#3D1A28;--azul-c:#0F2540;--roxo-c:#2D1A5E;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:15px;transition:background .2s,color .2s}
+
+/* HEADER */
+.hdr{background:var(--verde-e);color:white;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:50;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.btn-back{color:white;text-decoration:none;opacity:.8;font-size:22px;line-height:1;transition:opacity .15s}
+.btn-back:hover{opacity:1}
+.hdr-title{font-family:'DM Serif Display',serif;font-size:17px;font-weight:400}
+.hdr-right{display:flex;align-items:center;gap:10px}
+.btn-icon{background:none;border:none;cursor:pointer;font-size:18px;color:white;opacity:.8;padding:4px;transition:opacity .15s}
+.btn-icon:hover{opacity:1}
+
+/* HERO CARD */
+.hero{background:linear-gradient(135deg,var(--verde-e) 0%,var(--verde) 100%);color:white;padding:2rem 1.5rem 1.5rem;margin-bottom:0}
+.hero-inner{max-width:900px;margin:0 auto;display:flex;align-items:flex-start;gap:1.5rem;flex-wrap:wrap}
+.avatar-big{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;flex-shrink:0;border:3px solid rgba(255,255,255,.4);letter-spacing:-1px}
+.hero-info{flex:1;min-width:0}
+.hero-nome{font-family:'DM Serif Display',serif;font-size:24px;font-weight:400;line-height:1.2;margin-bottom:4px}
+.hero-apelido{font-size:13px;opacity:.75;margin-bottom:10px}
+.hero-meta{display:flex;flex-wrap:wrap;gap:10px}
+.hero-badge{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.15);border-radius:20px;padding:4px 10px;font-size:12px}
+.hero-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:1rem}
+.btn-hero{padding:8px 14px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:1.5px solid rgba(255,255,255,.4);background:rgba(255,255,255,.15);color:white;display:inline-flex;align-items:center;gap:5px;text-decoration:none;transition:all .15s;font-family:'DM Sans',sans-serif}
+.btn-hero:hover{background:rgba(255,255,255,.25)}
+.btn-hero.pri{background:white;color:var(--verde-e);border-color:white}
+.btn-hero.pri:hover{background:rgba(255,255,255,.9)}
+
+/* MAIN */
+.main{max-width:900px;margin:0 auto;padding:1.5rem}
+
+/* TABS */
+.tabs{display:flex;gap:3px;background:var(--card);border-radius:12px;padding:4px;margin-bottom:1.5rem;box-shadow:var(--s);border:1px solid var(--borda);flex-wrap:wrap}
+.tb{flex:1;min-width:70px;padding:9px 8px;border:none;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;color:var(--ct);background:transparent;transition:all .15s;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:5px}
+.tb.active{background:var(--verde);color:white;box-shadow:0 2px 6px rgba(29,158,117,.3)}
+.tb:not(.active):hover{background:var(--bg)}
+.panel{display:none}.panel.active{display:block}
+
+/* CARD */
+.card{background:var(--card);border-radius:12px;padding:1.25rem;box-shadow:var(--s);border:1px solid var(--borda);margin-bottom:1rem}
+.sec-title{font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;margin-top:1.25rem;padding-bottom:6px;border-bottom:1px solid var(--borda)}
+.sec-title:first-child{margin-top:0}
+
+/* GRID DADOS */
+.dados-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.dado-item{background:var(--bg);border-radius:8px;padding:10px 12px}
+.dado-label{font-size:10px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.dado-val{font-size:14px;font-weight:500;color:var(--txt)}
+.dado-item.full{grid-column:1/-1}
+
+/* TIMELINE */
+.timeline{position:relative;padding-left:28px}
+.timeline::before{content:'';position:absolute;left:10px;top:0;bottom:0;width:2px;background:var(--borda)}
+.tl-item{position:relative;margin-bottom:1rem}
+.tl-dot{position:absolute;left:-22px;top:14px;width:12px;height:12px;border-radius:50%;background:var(--verde);border:2px solid var(--card);box-shadow:0 0 0 2px var(--verde)}
+.tl-card{background:var(--card);border:1px solid var(--borda);border-radius:10px;padding:12px 14px;box-shadow:var(--s)}
+.tl-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px}
+.tl-data{font-size:13px;font-weight:600;color:var(--verde-e)}
+.tl-badge{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:500}
+.tl-trats{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+.trat-chip{font-size:12px;padding:3px 9px;border-radius:20px;background:var(--verde-c);color:var(--verde-e);font-weight:500}
+.tl-retorno{font-size:12px;color:var(--ct);display:flex;align-items:center;gap:4px}
+
+/* FOTOS */
+.fotos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.foto-item{border-radius:10px;overflow:hidden;position:relative;aspect-ratio:3/4;background:var(--bg);border:1px solid var(--borda);cursor:pointer}
+.foto-item img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s}
+.foto-item:hover img{transform:scale(1.03)}
+.foto-meta{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.65));padding:8px 8px 6px;color:white}
+.foto-data{font-size:11px;opacity:.9}
+.foto-label{font-size:12px;font-weight:600}
+.foto-del{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.55);border:none;cursor:pointer;color:white;font-size:14px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s}
+.foto-item:hover .foto-del{opacity:1}
+.upload-area{border:2px dashed var(--borda);border-radius:10px;padding:2rem;text-align:center;cursor:pointer;transition:all .15s;color:var(--ct)}
+.upload-area:hover{border-color:var(--verde);background:var(--verde-c);color:var(--verde-e)}
+.upload-area input{display:none}
+
+/* ANTES/DEPOIS */
+.compare-wrap{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem}
+.compare-slot{border-radius:10px;overflow:hidden;position:relative;aspect-ratio:3/4;background:var(--bg);border:1px solid var(--borda)}
+.compare-slot img{width:100%;height:100%;object-fit:cover}
+.compare-label{position:absolute;top:8px;left:8px;font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px}
+.compare-label.antes{background:#E24B4A;color:white}
+.compare-label.depois{background:var(--verde);color:white}
+.compare-empty{display:flex;align-items:center;justify-content:center;height:100%;color:var(--ct);font-size:13px;flex-direction:column;gap:6px}
+
+/* DOCUMENTOS */
+.doc-item{display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--bg);border-radius:10px;margin-bottom:7px;border:1px solid var(--borda)}
+.doc-icon2{font-size:22px;flex-shrink:0}
+.doc-info{flex:1;min-width:0}
+.doc-nome{font-size:14px;font-weight:500;color:var(--txt)}
+.doc-sub2{font-size:12px;color:var(--ct);margin-top:2px}
+.doc-acoes{display:flex;gap:6px}
+
+/* LEMBRETES */
+.lembrete-item{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:10px;margin-bottom:7px;border-left:4px solid}
+.lembrete-item.venc{background:var(--vermelho-c);border-color:var(--vermelho)}
+.lembrete-item.hoje{background:var(--amarelo-c);border-color:var(--amarelo)}
+.lembrete-item.fut{background:var(--azul-c);border-color:var(--azul)}
+.lembrete-item.ok{background:var(--bg);border-color:var(--borda);opacity:.6}
+
+/* RESUMO — CARDS */
+.resumo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1rem}
+.rc{background:var(--card);border-radius:12px;padding:1rem 1.25rem;box-shadow:var(--s);border:1px solid var(--borda);display:flex;align-items:center;gap:12px}
+.ri{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.rn{font-size:22px;font-weight:600;line-height:1}
+.rl{font-size:12px;color:var(--ct);margin-top:2px}
+
+/* RETORNO ALERT */
+.retorno-alert{border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px;border-left:4px solid}
+.ret-urg{background:var(--vermelho-c);border-color:var(--vermelho)}
+.ret-ate{background:var(--amarelo-c);border-color:var(--amarelo)}
+.ret-ok{background:var(--verde-c);border-color:var(--verde)}
+
+/* BOTÕES */
+.btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:1.5px solid var(--borda);background:var(--card);color:var(--txt);transition:all .15s;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:5px;text-decoration:none}
+.btn:hover{background:var(--bg)}
+.btn.pri{background:var(--verde);color:white;border-color:var(--verde)}
+.btn.pri:hover{background:var(--verde-e)}
+.btn.wpp{background:#25D366;color:white;border-color:#25D366}
+.btn.wpp:hover{background:#128C7E}
+.btn.dan{color:var(--vermelho);border-color:transparent}
+.btn.dan:hover{background:var(--vermelho-c)}
+.btn.sm{padding:6px 11px;font-size:12px}
+
+/* MODAL */
+.mb{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:1rem}
+.mb.open{display:flex}
+.mx{background:var(--card);border-radius:16px;padding:1.75rem;max-width:480px;width:100%;box-shadow:var(--sm);max-height:90vh;overflow-y:auto}
+.mx h3{font-size:17px;font-weight:600;margin-bottom:1rem}
+
+/* INPUTS */
+label{font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em}
+input,select,textarea{padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;background:var(--card);color:var(--txt);transition:border-color .15s;width:100%}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,158,117,.1)}
+textarea{resize:vertical;min-height:70px}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fgr{display:flex;flex-direction:column;gap:5px}
+.fgr.full{grid-column:1/-1}
+.br{display:flex;gap:8px;justify-content:flex-end;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--borda)}
+
+/* TOAST */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;z-index:300;background:var(--txt);color:var(--bg);padding:11px 18px;border-radius:10px;font-size:14px;font-weight:500;box-shadow:var(--sm);transform:translateY(100px);opacity:0;transition:all .3s}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.verde{background:var(--verde);color:white}
+.toast.vermelho{background:var(--vermelho);color:white}
+
+/* LIGHTBOX */
+.lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:500;align-items:center;justify-content:center;padding:1rem}
+.lightbox.open{display:flex}
+.lightbox img{max-width:100%;max-height:90vh;border-radius:8px;object-fit:contain}
+.lightbox-close{position:absolute;top:1rem;right:1.5rem;color:white;font-size:28px;cursor:pointer;background:none;border:none;line-height:1}
+
+/* LOADING */
+.loading{text-align:center;padding:3rem;color:var(--ct);font-size:14px}
+.empty{text-align:center;padding:2rem;color:var(--ct)}
+.empty-icon{font-size:36px;margin-bottom:8px}
+
+/* UPLOAD PROGRESS */
+.progress-bar{height:4px;background:var(--borda);border-radius:2px;overflow:hidden;margin-top:6px}
+.progress-fill{height:100%;background:var(--verde);border-radius:2px;transition:width .3s;width:0%}
+
+/* FOTO TABS */
+.foto-sub-tabs{display:flex;gap:4px;margin-bottom:1rem}
+.foto-stb{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1.5px solid var(--borda);background:var(--card);color:var(--ct);transition:all .15s;font-family:'DM Sans',sans-serif}
+.foto-stb.active{background:var(--verde);color:white;border-color:var(--verde)}
+
+@media(max-width:600px){
+  .dados-grid{grid-template-columns:1fr 1fr}
+  .resumo-grid{grid-template-columns:1fr 1fr}
+  .fg{grid-template-columns:1fr}
+  .fgr.full{grid-column:1}
+  .hero-nome{font-size:20px}
+  .compare-wrap{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-left">
+    <a href="index.html" class="btn-back" title="Voltar">←</a>
+    <span class="hdr-title">Ficha do Paciente</span>
+  </div>
+  <div class="hdr-right">
+    <a href="documentos.html" id="hdr-docs-link" class="btn-icon" title="Documentos" style="font-size:15px;text-decoration:none">📄</a>
+    <button class="btn-icon" onclick="toggleDark()" id="btn-dark-icon" title="Modo escuro">🌙</button>
+  </div>
+</header>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-inner">
+    <div class="avatar-big" id="hero-avatar">—</div>
+    <div class="hero-info">
+      <div class="hero-nome" id="hero-nome">Carregando...</div>
+      <div class="hero-apelido" id="hero-apelido"></div>
+      <div class="hero-meta" id="hero-meta"></div>
+      <div class="hero-actions" id="hero-actions"></div>
+    </div>
+  </div>
+</div>
+
+<main class="main">
+  <div id="loading-main" class="loading">Carregando ficha...</div>
+  <div id="conteudo" style="display:none">
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tb active" onclick="aba('resumo',this)">📋 Resumo</button>
+      <button class="tb" onclick="aba('historico',this)">🩺 Atendimentos</button>
+      <button class="tb" onclick="aba('fotos',this)">📸 Fotos</button>
+      <button class="tb" onclick="aba('documentos',this)">📄 Documentos</button>
+      <button class="tb" onclick="aba('lembretes',this)">📌 Lembretes</button>
+    </div>
+
+    <!-- ═══════════════════════════════════ RESUMO ═══ -->
+    <div id="p-resumo" class="panel active">
+
+      <div class="resumo-grid" id="res-stats"></div>
+
+      <!-- Retornos pendentes -->
+      <div class="card" id="res-retornos-card" style="display:none">
+        <div class="sec-title">🔔 Retornos pendentes</div>
+        <div id="res-retornos"></div>
+      </div>
+
+      <!-- Dados pessoais -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="sec-title" style="margin:0;border:none;padding:0">👤 Dados pessoais</div>
+          <button class="btn sm" onclick="abrirEditarDados()">✏️ Editar</button>
+        </div>
+        <div class="dados-grid" id="res-dados"></div>
+      </div>
+
+      <!-- Último atendimento -->
+      <div class="card" id="res-ult-card" style="display:none">
+        <div class="sec-title">🩺 Último atendimento</div>
+        <div id="res-ult"></div>
+      </div>
+
+      <!-- Observações -->
+      <div class="card" id="res-obs-card" style="display:none">
+        <div class="sec-title">📝 Observações</div>
+        <div id="res-obs" style="font-size:14px;color:var(--txt);line-height:1.7;white-space:pre-wrap"></div>
+      </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════ ATENDIMENTOS ═══ -->
+    <div id="p-historico" class="panel">
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:1rem">
+        <button class="btn pri" onclick="novoAtendimento()">+ Novo atendimento</button>
+      </div>
+      <div class="timeline" id="hist-timeline">
+        <div class="loading">Carregando...</div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════ FOTOS ═══ -->
+    <div id="p-fotos" class="panel">
+
+      <div class="foto-sub-tabs">
+        <button class="foto-stb active" onclick="fotoTab('galeria',this)">🖼 Galeria</button>
+        <button class="foto-stb" onclick="fotoTab('comparar',this)">⚡ Antes / Depois</button>
+      </div>
+
+      <!-- GALERIA -->
+      <div id="ft-galeria">
+        <label for="upload-input" class="upload-area" id="upload-area" style="display:block;margin-bottom:1rem">
+          <input type="file" id="upload-input" accept="image/*" multiple onchange="uploadFotos(this.files)">
+          <div style="font-size:28px;margin-bottom:6px">📷</div>
+          <div style="font-size:14px;font-weight:500">Clique para adicionar fotos</div>
+          <div style="font-size:12px;margin-top:3px">JPG, PNG — máx. 5 MB por foto</div>
+        </label>
+        <div id="upload-progress" style="display:none">
+          <div style="font-size:13px;color:var(--ct);margin-bottom:4px" id="upload-status">Enviando...</div>
+          <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        </div>
+
+        <!-- Filtro por categoria -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="foto-filtros" style="display:none">
+          <button class="foto-stb active" onclick="filtrarFotos('todas',this)" style="padding:4px 10px;font-size:11px">Todas</button>
+          <button class="foto-stb" onclick="filtrarFotos('antes',this)" style="padding:4px 10px;font-size:11px">Antes</button>
+          <button class="foto-stb" onclick="filtrarFotos('depois',this)" style="padding:4px 10px;font-size:11px">Depois</button>
+          <button class="foto-stb" onclick="filtrarFotos('evolucao',this)" style="padding:4px 10px;font-size:11px">Evolução</button>
+        </div>
+
+        <div class="fotos-grid" id="fotos-grid"></div>
+      </div>
+
+      <!-- ANTES/DEPOIS -->
+      <div id="ft-comparar" style="display:none">
+        <div style="font-size:13px;color:var(--ct);margin-bottom:1rem">Compare fotos antes e depois selecionando da galeria.</div>
+        <div class="compare-wrap">
+          <div class="compare-slot" id="cp-antes">
+            <div class="compare-label antes">ANTES</div>
+            <div class="compare-empty">
+              <span style="font-size:22px">📷</span>
+              <span>Selecionar foto</span>
+              <button class="btn sm" onclick="selecionarParaComparar('antes')">Escolher</button>
+            </div>
+          </div>
+          <div class="compare-slot" id="cp-depois">
+            <div class="compare-label depois">DEPOIS</div>
+            <div class="compare-empty">
+              <span style="font-size:22px">📷</span>
+              <span>Selecionar foto</span>
+              <button class="btn sm" onclick="selecionarParaComparar('depois')">Escolher</button>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:center">
+          <button class="btn" onclick="limparComparacao()">Limpar</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ═════════════════════════════ DOCUMENTOS ═══ -->
+    <div id="p-documentos" class="panel">
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:1rem">
+        <a href="#" id="btn-novo-doc" class="btn pri">+ Novo documento</a>
+      </div>
+      <div id="docs-lista">
+        <div class="loading">Carregando...</div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════ LEMBRETES ═══ -->
+    <div id="p-lembretes" class="panel">
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:1rem">
+        <button class="btn pri" onclick="abrirNovoLembrete()">+ Novo lembrete</button>
+      </div>
+      <div id="lemb-lista"></div>
+    </div>
+
+  </div><!-- /conteudo -->
+</main>
+
+<!-- ═══════ MODAL EDITAR DADOS ═══════ -->
+<div class="mb" id="m-edit">
+  <div class="mx" style="max-width:520px">
+    <h3>✏️ Editar dados pessoais</h3>
+    <div class="fg">
+      <div class="fgr full"><label>Nome completo *</label><input type="text" id="e-nome"/></div>
+      <div class="fgr full"><label>Apelido / Como chamar</label><input type="text" id="e-apelido"/></div>
+      <div class="fgr"><label>Telefone *</label><input type="text" id="e-tel"/></div>
+      <div class="fgr"><label>Data de nascimento</label><input type="date" id="e-nasc"/></div>
+      <div class="fgr"><label>CPF</label><input type="text" id="e-cpf"/></div>
+      <div class="fgr"><label>RG</label><input type="text" id="e-rg"/></div>
+      <div class="fgr"><label>Sexo</label>
+        <select id="e-sexo"><option value="">Selecione</option><option>Feminino</option><option>Masculino</option></select>
+      </div>
+      <div class="fgr"><label>CEP</label><input type="text" id="e-cep" oninput="buscarCep(this)"/></div>
+      <div class="fgr full"><label>Rua / Logradouro</label><input type="text" id="e-rua"/></div>
+      <div class="fgr"><label>Número</label><input type="text" id="e-numero"/></div>
+      <div class="fgr"><label>Bairro</label><input type="text" id="e-bairro"/></div>
+      <div class="fgr"><label>Cidade</label><input type="text" id="e-cidade"/></div>
+      <div class="fgr"><label>📁 Link Google Drive</label><input type="url" id="e-drive"/></div>
+      <div class="fgr"><label>Indicação</label><input type="text" id="e-indic"/></div>
+      <div class="fgr"><label>Como conheceu</label>
+        <select id="e-conheceu">
+          <option value="">Selecione...</option>
+          <option>Indicação de paciente</option><option>Instagram</option><option>Facebook</option>
+          <option>Google</option><option>WhatsApp</option><option>Panfleto / Material impresso</option>
+          <option>Evento / Feira</option><option>Já era paciente</option><option>Outro</option>
+        </select>
+      </div>
+      <div class="fgr full"><label>Observações</label><textarea id="e-obs"></textarea></div>
+    </div>
+    <div class="br">
+      <button class="btn" onclick="fchEdit()">Cancelar</button>
+      <button class="btn pri" onclick="salvarEdit()">✓ Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MODAL LEMBRETE ═══════ -->
+<div class="mb" id="m-lembr">
+  <div class="mx" style="max-width:420px">
+    <h3>📌 Lembrete</h3>
+    <input type="hidden" id="l-id"/>
+    <div class="fg">
+      <div class="fgr full"><label>Recado</label>
+        <textarea id="l-recado" placeholder="Ex: Ligar para remarcar retorno..." style="min-height:80px"></textarea>
+      </div>
+      <div class="fgr"><label>Lembrar em</label>
+        <select id="l-prazo" onchange="document.getElementById('l-data-g').style.display=this.value==='0'?'flex':'none'">
+          <option value="7">1 semana</option>
+          <option value="15">15 dias</option>
+          <option value="30" selected>1 mês</option>
+          <option value="60">2 meses</option>
+          <option value="90">3 meses</option>
+          <option value="120">4 meses</option>
+          <option value="180">6 meses</option>
+          <option value="0">Data específica</option>
+        </select>
+      </div>
+      <div class="fgr" id="l-data-g" style="display:none"><label>Data</label><input type="date" id="l-data"/></div>
+    </div>
+    <div class="br">
+      <button class="btn" onclick="fchLembr()">Cancelar</button>
+      <button class="btn dan" id="l-del-btn" onclick="delLembrAtual()" style="display:none;margin-right:auto">🗑 Excluir</button>
+      <button class="btn pri" onclick="salvarLembr()">📌 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MODAL FOTOS — SELECIONAR ═══════ -->
+<div class="mb" id="m-sel-foto">
+  <div class="mx" style="max-width:560px">
+    <h3 id="m-sel-titulo">📸 Selecionar foto</h3>
+    <div class="fotos-grid" id="m-sel-grid" style="max-height:400px;overflow-y:auto"></div>
+    <div class="br"><button class="btn" onclick="document.getElementById('m-sel-foto').classList.remove('open')">Cancelar</button></div>
+  </div>
+</div>
+
+<!-- ═══════ MODAL FOTO — EDITAR LABEL ═══════ -->
+<div class="mb" id="m-foto-edit">
+  <div class="mx" style="max-width:400px">
+    <h3>🏷️ Editar foto</h3>
+    <input type="hidden" id="fe-path"/>
+    <div class="fgr" style="margin-bottom:12px">
+      <label>Categoria</label>
+      <select id="fe-cat">
+        <option value="geral">Geral</option>
+        <option value="antes">Antes</option>
+        <option value="depois">Depois</option>
+        <option value="evolucao">Evolução</option>
+      </select>
+    </div>
+    <div class="fgr" style="margin-bottom:12px">
+      <label>Descrição</label>
+      <input type="text" id="fe-desc" placeholder="Ex: Botox frontal — 20U"/>
+    </div>
+    <div class="br">
+      <button class="btn" onclick="document.getElementById('m-foto-edit').classList.remove('open')">Cancelar</button>
+      <button class="btn pri" onclick="salvarMetaFoto()">✓ Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="this.classList.remove('open')">
+  <button class="lightbox-close" onclick="document.getElementById('lightbox').classList.remove('open')">✕</button>
+  <img id="lb-img" src="" alt=""/>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL='https://nathaeuqbeqlvkftbmes.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hdGhhZXVxYmVxbHZrZnRibWVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4OTc4MzYsImV4cCI6MjA5NTQ3MzgzNn0.9t3q5C_h1pRb11gqRtpGGVpOUGey5TBzvMgal8h6wtg';
+const {createClient}=supabase;
+const db=createClient(SB_URL,SB_KEY);
+
+let pac=null;
+let todasFotos=[];
+let fotoFiltroAtivo='todas';
+let comparacaoSlot=null; // 'antes' ou 'depois'
+let lembrEditandoId=null;
+let HOJE=new Date().toISOString().split('T')[0];
+
+// ─── UTILS ───
+function toast(m,t=''){const el=document.getElementById('toast');el.textContent=m;el.className='toast show '+t;setTimeout(()=>el.className='toast',3000);}
+function fDt(s){if(!s)return'—';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`;}
+function fmtBRL(v){return v?'R$ '+parseFloat(v).toLocaleString('pt-BR',{minimumFractionDigits:2}):'—';}
+function ini(n){return n.split(' ').filter(Boolean).slice(0,2).map(p=>p[0].toUpperCase()).join('');}
+function chamada(p){return p.apelido||p.nome.split(' ')[0];}
+function dias(dr){if(!dr)return null;const h=new Date();h.setHours(0,0,0,0);const r=new Date(dr+'T12:00:00');return Math.ceil((r-h)/86400000);}
+function anivHoje(dn){if(!dn)return false;const[,m,d]=dn.split('-');return m===String(new Date().getMonth()+1).padStart(2,'0')&&d===String(new Date().getDate()).padStart(2,'0');}
+function idade(dn){if(!dn)return null;const hoje=new Date();const nasc=new Date(dn+'T12:00:00');let a=hoje.getFullYear()-nasc.getFullYear();const m=hoje.getMonth()-nasc.getMonth();if(m<0||(m===0&&hoje.getDate()<nasc.getDate()))a--;return a;}
+
+// ─── DARK MODE ───
+function toggleDark(){
+  const html=document.documentElement;
+  const isDark=html.getAttribute('data-theme')==='dark';
+  html.setAttribute('data-theme',isDark?'light':'dark');
+  document.getElementById('btn-dark-icon').textContent=isDark?'🌙':'☀️';
+  localStorage.setItem('theme',isDark?'light':'dark');
+}
+const savedTheme=localStorage.getItem('theme');
+if(savedTheme){document.documentElement.setAttribute('data-theme',savedTheme);document.getElementById('btn-dark-icon').textContent=savedTheme==='dark'?'☀️':'🌙';}
+
+// ─── ABAS ───
+function aba(id,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tb').forEach(b=>b.classList.remove('active'));
+  document.getElementById('p-'+id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='historico') renderHistorico();
+  if(id==='fotos') renderFotos();
+  if(id==='documentos') renderDocumentos();
+  if(id==='lembretes') renderLembretes();
+}
+
+// ─── CARREGAR PACIENTE ───
+async function iniciar(){
+  const params=new URLSearchParams(window.location.search);
+  const id=params.get('id');
+  if(!id){document.getElementById('loading-main').innerHTML='<div class="empty"><div class="empty-icon">❌</div><p>ID do paciente não informado.</p><a href="index.html" class="btn" style="margin-top:1rem">← Voltar</a></div>';return;}
+
+  const{data,error}=await db.from('pacientes').select('*').eq('id',id).single();
+  if(error||!data){document.getElementById('loading-main').innerHTML='<div class="empty"><div class="empty-icon">❌</div><p>Paciente não encontrado.</p><a href="index.html" class="btn" style="margin-top:1rem">← Voltar</a></div>';return;}
+
+  pac=data;
+  // Atualizar link documentos
+  document.getElementById('hdr-docs-link').href=`documentos.html?pac=${pac.id}`;
+  document.getElementById('btn-novo-doc').href=`documentos.html?pac=${pac.id}`;
+
+  renderHero();
+  renderResumo();
+
+  document.getElementById('loading-main').style.display='none';
+  document.getElementById('conteudo').style.display='block';
+}
+
+// ─── HERO ───
+function renderHero(){
+  const p=pac;
+  document.title=`${p.nome} — Ficha`;
+  document.getElementById('hero-avatar').textContent=ini(p.nome);
+  document.getElementById('hero-nome').textContent=p.nome;
+  document.getElementById('hero-apelido').textContent=p.apelido?`Como chamar: ${p.apelido}`:'';
+
+  const meta=[];
+  if(p.telefone) meta.push(`📱 ${p.telefone}`);
+  if(p.data_nascimento){const i=idade(p.data_nascimento);meta.push(`🎂 ${fDt(p.data_nascimento)}${i!==null?' ('+i+' anos)':''}`);}
+  if(p.sexo) meta.push(`👤 ${p.sexo}`);
+  if(anivHoje(p.data_nascimento)) meta.push(`🎉 Aniversário hoje!`);
+  document.getElementById('hero-meta').innerHTML=meta.map(m=>`<span class="hero-badge">${m}</span>`).join('');
+
+  const tel='55'+p.telefone.replace(/\D/g,'');
+  const actions=[];
+  actions.push(`<a href="https://wa.me/${tel}" target="_blank" class="btn-hero">💬 WhatsApp</a>`);
+  if(p.link_drive) actions.push(`<a href="${p.link_drive}" target="_blank" class="btn-hero">📁 Drive</a>`);
+  actions.push(`<a href="documentos.html?pac=${p.id}" class="btn-hero">📄 Documentos</a>`);
+  document.getElementById('hero-actions').innerHTML=actions.join('');
+}
+
+// ─── RESUMO ───
+function renderResumo(){
+  const p=pac;
+  const trats=p.tratamentos_adicionais||[];
+  const total=trats.length;
+  const procs=[...new Set(trats.map(t=>t.nome))].length;
+  const retPend=trats.filter(t=>{const d=dias(t.dataRetorno);return d!==null&&d<=30;}).length;
+
+  document.getElementById('res-stats').innerHTML=`
+    <div class="rc"><div class="ri" style="background:var(--verde-c)">🩺</div><div><div class="rn">${total}</div><div class="rl">Atendimentos</div></div></div>
+    <div class="rc"><div class="ri" style="background:var(--azul-c)">💉</div><div><div class="rn">${procs}</div><div class="rl">Procedimentos</div></div></div>
+    <div class="rc"><div class="ri" style="background:var(--amarelo-c)">🔔</div><div><div class="rn">${retPend}</div><div class="rl">Retornos (30d)</div></div></div>
+  `;
+
+  // Retornos pendentes
+  const rets=trats.filter(t=>{const d=dias(t.dataRetorno);return d!==null&&d<=30;}).sort((a,b)=>dias(a.dataRetorno)-dias(b.dataRetorno));
+  if(rets.length>0){
+    document.getElementById('res-retornos-card').style.display='block';
+    document.getElementById('res-retornos').innerHTML=rets.map(t=>{
+      const d=dias(t.dataRetorno);
+      const cls=d<0?'ret-urg':d<=7?'ret-ate':'ret-ok';
+      const txt=d<0?`${Math.abs(d)}d atrasado`:d===0?'Hoje!':` em ${d}d`;
+      return `<div class="retorno-alert ${cls}">
+        <div><div style="font-weight:600;font-size:14px">${t.nome}</div><div style="font-size:12px;color:var(--ct)">Retorno: ${fDt(t.dataRetorno)}</div></div>
+        <span style="font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;background:rgba(0,0,0,.07)">${txt}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Dados pessoais
+  const endereco=[p.rua,p.numero,p.bairro,p.cidade].filter(Boolean).join(', ')||p.endereco||'—';
+  document.getElementById('res-dados').innerHTML=`
+    <div class="dado-item"><div class="dado-label">Telefone</div><div class="dado-val">${p.telefone||'—'}</div></div>
+    <div class="dado-item"><div class="dado-label">CPF</div><div class="dado-val">${p.cpf||'—'}</div></div>
+    <div class="dado-item"><div class="dado-label">RG</div><div class="dado-val">${p.rg||'—'}</div></div>
+    <div class="dado-item"><div class="dado-label">Sexo</div><div class="dado-val">${p.sexo||'—'}</div></div>
+    <div class="dado-item"><div class="dado-label">Data de nascimento</div><div class="dado-val">${fDt(p.data_nascimento)}${idade(p.data_nascimento)?' ('+idade(p.data_nascimento)+' anos)':''}</div></div>
+    <div class="dado-item"><div class="dado-label">Indicação</div><div class="dado-val">${p.indicacao||'—'}</div></div>
+    <div class="dado-item full"><div class="dado-label">Endereço</div><div class="dado-val">${endereco}</div></div>
+    ${p.link_drive?`<div class="dado-item full"><div class="dado-label">Google Drive</div><div class="dado-val"><a href="${p.link_drive}" target="_blank" style="color:var(--verde)">Abrir pasta</a></div></div>`:''}
+    ${p.como_conheceu?`<div class="dado-item"><div class="dado-label">Como conheceu</div><div class="dado-val">${p.como_conheceu}</div></div>`:''}
+    <div class="dado-item"><div class="dado-label">Cadastro</div><div class="dado-val">${fDt(p.data_atendimento||p.criado_em?.split('T')[0])}</div></div>
+  `;
+
+  // Último atendimento
+  const ats=p.atendimentos||[];
+  if(ats.length>0){
+    const ult=ats.sort((a,b)=>b.data.localeCompare(a.data))[0];
+    document.getElementById('res-ult-card').style.display='block';
+    const tlist=(ult.trats||[]).map(t=>t.nome).join(', ')||'—';
+    document.getElementById('res-ult').innerHTML=`
+      <div style="font-size:13px;color:var(--ct);margin-bottom:4px">${fDt(ult.data)}</div>
+      <div style="font-weight:500;font-size:14px">${tlist}</div>
+      ${ult.valor?`<div style="font-size:13px;color:var(--ct);margin-top:4px">Valor: ${fmtBRL(ult.valor)}</div>`:''}
+    `;
+  }
+
+  // Observações
+  if(p.observacoes){
+    document.getElementById('res-obs-card').style.display='block';
+    document.getElementById('res-obs').textContent=p.observacoes;
+  }
+}
+
+// ─── HISTÓRICO ───
+function renderHistorico(){
+  const el=document.getElementById('hist-timeline');
+  const trats=pac.tratamentos_adicionais||[];
+
+  // Agrupar por data de atendimento
+  const porData={};
+  trats.forEach(t=>{
+    const key=t.dataAtendimento||pac.data_atendimento||'—';
+    if(!porData[key]) porData[key]=[];
+    porData[key].push(t);
+  });
+
+  // Também incluir atendimentos extras
+  const ats=pac.atendimentos||[];
+  ats.forEach(a=>{
+    if(!porData[a.data]) porData[a.data]=[];
+    // marcar como "atendimento" se não tiver trats ainda
+  });
+
+  const datas=Object.keys(porData).filter(d=>d!=='—').sort((a,b)=>b.localeCompare(a));
+  if(datas.length===0&&(!ats.length)){
+    el.innerHTML='<div class="empty"><div class="empty-icon">🩺</div><p>Nenhum atendimento registrado.</p></div>';
+    return;
+  }
+
+  el.innerHTML=datas.map(data=>{
+    const ts=porData[data]||[];
+    const atend=ats.find(a=>a.data===data);
+    const verif=atend?.verificacaoData;
+    const dv=verif?dias(verif):null;
+    const valor=atend?.valor||ts.reduce((s,t)=>s+(parseFloat(t.valor)||0),0)||null;
+    return `<div class="tl-item">
+      <div class="tl-dot"></div>
+      <div class="tl-card">
+        <div class="tl-header">
+          <span class="tl-data">📅 ${fDt(data)}</span>
+          ${valor?`<span class="tl-badge" style="background:var(--verde-c);color:var(--verde-e)">${fmtBRL(valor)}</span>`:''}
+        </div>
+        <div class="tl-trats">
+          ${ts.map(t=>`<span class="trat-chip">${t.nome}</span>`).join('')}
+        </div>
+        ${ts.filter(t=>t.dataRetorno).map(t=>`<div class="tl-retorno">🔔 Retorno ${t.nome}: ${fDt(t.dataRetorno)}</div>`).join('')}
+        ${verif?`<div class="tl-retorno" style="color:${dv!==null&&dv<=3?'var(--vermelho)':'var(--ct)'}">🔬 Verificação: ${fDt(verif)}${dv!==null?' ('+Math.abs(dv)+'d'+(dv<0?' atrás':'')+')'':''}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── FOTOS ───
+async function carregarFotos(){
+  const {data}=await db.storage.from('fotos-pacientes').list(`${pac.id}/`,{sortBy:{column:'created_at',order:'desc'}});
+  todasFotos=data||[];
+}
+
+async function renderFotos(){
+  await carregarFotos();
+  aplicarFiltroFotos();
+
+  // Mostrar filtros se tiver fotos
+  if(todasFotos.length>0) document.getElementById('foto-filtros').style.display='flex';
+}
+
+function aplicarFiltroFotos(){
+  const el=document.getElementById('fotos-grid');
+  const fotos=fotoFiltroAtivo==='todas'?todasFotos:todasFotos.filter(f=>{
+    const meta=parseFotoMeta(f.name);
+    return meta.cat===fotoFiltroAtivo;
+  });
+
+  if(fotos.length===0){
+    el.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="empty-icon">📷</div><p>Nenhuma foto ainda. Clique acima para adicionar.</p></div>';
+    return;
+  }
+
+  el.innerHTML=fotos.map(f=>{
+    const url=db.storage.from('fotos-pacientes').getPublicUrl(`${pac.id}/${f.name}`).data.publicUrl;
+    const meta=parseFotoMeta(f.name);
+    const data=f.created_at?f.created_at.split('T')[0]:'';
+    return `<div class="foto-item" onclick="openLightbox('${url}')">
+      <img src="${url}" alt="${meta.desc||'foto'}" loading="lazy"/>
+      <button class="foto-del" onclick="event.stopPropagation();deletarFoto('${f.name}')" title="Excluir">✕</button>
+      <div class="foto-meta">
+        ${meta.cat&&meta.cat!=='geral'?`<div class="foto-label">${meta.cat.charAt(0).toUpperCase()+meta.cat.slice(1)}</div>`:''}
+        ${meta.desc?`<div class="foto-data">${meta.desc}</div>`:''}
+        ${data?`<div class="foto-data">${fDt(data)}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function parseFotoMeta(filename){
+  // formato: ts_cat_desc.ext  ou  ts_.ext
+  const parts=filename.split('_');
+  const cat=parts[1]||'geral';
+  const descWithExt=(parts.slice(2).join('_')||'');
+  const desc=descWithExt.replace(/\.[^.]+$/,'').replace(/-/g,' ');
+  return{cat,desc};
+}
+
+function filtrarFotos(cat,btn){
+  fotoFiltroAtivo=cat;
+  document.querySelectorAll('[onclick^="filtrarFotos"]').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  aplicarFiltroFotos();
+}
+
+async function uploadFotos(files){
+  if(!files||!files.length) return;
+  const prog=document.getElementById('upload-progress');
+  const fill=document.getElementById('progress-fill');
+  const status=document.getElementById('upload-status');
+  prog.style.display='block';
+
+  // Modal para categoria
+  const cat=await pedirCategoria();
+
+  for(let i=0;i<files.length;i++){
+    const f=files[i];
+    if(f.size>5*1024*1024){toast(`${f.name} muito grande (máx 5 MB)`,'vermelho');continue;}
+
+    status.textContent=`Enviando ${i+1} de ${files.length}...`;
+    fill.style.width=Math.round(((i)/files.length)*100)+'%';
+
+    const ts=Date.now();
+    const ext=f.name.split('.').pop();
+    const path=`${pac.id}/${ts}_${cat}_.${ext}`;
+    const{error}=await db.storage.from('fotos-pacientes').upload(path,f,{cacheControl:'3600',upsert:false});
+    if(error) toast(`Erro ao enviar ${f.name}`,'vermelho');
+  }
+
+  fill.style.width='100%';
+  status.textContent='Pronto!';
+  setTimeout(()=>{prog.style.display='none';fill.style.width='0%';},1200);
+  toast('Fotos enviadas! ✅','verde');
+  document.getElementById('upload-input').value='';
+  await renderFotos();
+}
+
+function pedirCategoria(){
+  return new Promise(resolve=>{
+    const cats=['geral','antes','depois','evolucao'];
+    const labels={geral:'Geral',antes:'Antes',depois:'Depois',evolucao:'Evolução'};
+    const div=document.createElement('div');
+    div.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:1rem';
+    div.innerHTML=`<div style="background:var(--card);border-radius:16px;padding:1.5rem;max-width:340px;width:100%;box-shadow:var(--sm)">
+      <div style="font-size:16px;font-weight:600;margin-bottom:1rem">📷 Categoria da foto</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        ${cats.map(c=>`<button onclick="this.closest('.cat-picker').dataset.val='${c}';document.querySelectorAll('.cat-btn').forEach(b=>b.style.background='');this.style.background='var(--verde-c)'" class="cat-btn" style="padding:12px;border-radius:8px;border:1.5px solid var(--borda);cursor:pointer;font-size:14px;background:var(--card);color:var(--txt);font-family:'DM Sans',sans-serif">${labels[c]}</button>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
+        <button onclick="this.closest('div').parentElement.dataset.val='geral';resolve_cat()" style="padding:8px 14px;border-radius:8px;border:1.5px solid var(--borda);cursor:pointer;background:var(--card);color:var(--txt);font-size:13px;font-family:'DM Sans',sans-serif">Pular</button>
+        <button onclick="confirm_cat()" style="padding:8px 14px;border-radius:8px;background:var(--verde);color:white;border:none;cursor:pointer;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif">Confirmar</button>
+      </div>
+    </div>`;
+    div.classList.add('cat-picker');
+    div.dataset.val='geral';
+    document.body.appendChild(div);
+    window.resolve_cat=()=>{document.body.removeChild(div);resolve(div.dataset.val||'geral');};
+    window.confirm_cat=()=>{document.body.removeChild(div);resolve(div.dataset.val||'geral');};
+  });
+}
+
+async function deletarFoto(filename){
+  if(!confirm('Excluir esta foto?')) return;
+  const{error}=await db.storage.from('fotos-pacientes').remove([`${pac.id}/${filename}`]);
+  if(error){toast('Erro ao excluir','vermelho');return;}
+  toast('Foto excluída','verde');
+  await renderFotos();
+}
+
+function openLightbox(url){
+  document.getElementById('lb-img').src=url;
+  document.getElementById('lightbox').classList.add('open');
+}
+
+// ANTES/DEPOIS
+function fotoTab(tab,btn){
+  document.querySelectorAll('.foto-stb').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('ft-galeria').style.display=tab==='galeria'?'block':'none';
+  document.getElementById('ft-comparar').style.display=tab==='comparar'?'block':'none';
+}
+
+function selecionarParaComparar(slot){
+  comparacaoSlot=slot;
+  // Montar grid de seleção
+  const grid=document.getElementById('m-sel-grid');
+  if(!todasFotos.length){grid.innerHTML='<div class="empty"><p>Nenhuma foto disponível.</p></div>';document.getElementById('m-sel-foto').classList.add('open');return;}
+  grid.innerHTML=todasFotos.map(f=>{
+    const url=db.storage.from('fotos-pacientes').getPublicUrl(`${pac.id}/${f.name}`).data.publicUrl;
+    return `<div class="foto-item" style="cursor:pointer" onclick="confirmarComparacao('${url}')"><img src="${url}" loading="lazy"/></div>`;
+  }).join('');
+  document.getElementById('m-sel-foto').classList.add('open');
+}
+
+function confirmarComparacao(url){
+  document.getElementById('m-sel-foto').classList.remove('open');
+  const slot=document.getElementById('cp-'+comparacaoSlot);
+  const label=comparacaoSlot==='antes'?'antes':'depois';
+  slot.innerHTML=`
+    <div class="compare-label ${label}">${label.toUpperCase()}</div>
+    <img src="${url}" style="width:100%;height:100%;object-fit:cover"/>
+    <button style="position:absolute;bottom:8px;right:8px;padding:5px 10px;border-radius:6px;background:rgba(0,0,0,.5);color:white;border:none;cursor:pointer;font-size:12px" onclick="selecionarParaComparar('${label}')">Trocar</button>
+  `;
+}
+
+function limparComparacao(){
+  ['antes','depois'].forEach(s=>{
+    const slot=document.getElementById('cp-'+s);
+    const label=s==='antes'?'antes':'depois';
+    slot.innerHTML=`
+      <div class="compare-label ${label}">${s.toUpperCase()}</div>
+      <div class="compare-empty"><span style="font-size:22px">📷</span><span>Selecionar foto</span><button class="btn sm" onclick="selecionarParaComparar('${s}')">Escolher</button></div>
+    `;
+  });
+}
+
+// ─── DOCUMENTOS ───
+async function renderDocumentos(){
+  const el=document.getElementById('docs-lista');
+  const{data}=await db.from('documentos').select('*').eq('paciente_id',pac.id).order('criado_em',{ascending:false});
+  const nomes={anamnese:'📋 Ficha de Anamnese','termo-botox':'💉 Termo — Toxina Botulínica','termo-preenchimento':'💉 Termo — Preenchimento Facial','termo-bioestimulador':'💉 Termo — Bioestimuladores','autorizacao-imagem':'📸 Autorização de Uso de Imagem',orcamento:'💰 Ficha de Orçamento',planejamento:'📐 Planejamento de Procedimentos',odontograma:'🦷 Ficha Clínica / Odontograma','anamnese-odonto':'📋 Anamnese Odontológica'};
+  if(!data||!data.length){el.innerHTML='<div class="empty"><div class="empty-icon">📄</div><p>Nenhum documento salvo ainda.</p><a href="documentos.html?pac='+pac.id+'" class="btn pri" style="margin-top:1rem;display:inline-flex">+ Criar documento</a></div>';return;}
+  el.innerHTML=data.map(d=>`
+    <div class="doc-item">
+      <div class="doc-icon2">📄</div>
+      <div class="doc-info">
+        <div class="doc-nome">${nomes[d.tipo]||d.tipo}</div>
+        <div class="doc-sub2">Salvo em ${fDt(d.data_assinatura||d.criado_em?.split('T')[0])}</div>
+      </div>
+      <div class="doc-acoes">
+        <a href="documentos.html?pac=${pac.id}&doc=${d.id}&tipo=${d.tipo}" class="btn sm">👁 Ver</a>
+        <button class="btn sm dan" onclick="excluirDoc('${d.id}')">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function excluirDoc(id){
+  if(!confirm('Excluir este documento?')) return;
+  await db.from('documentos').delete().eq('id',id);
+  toast('Documento excluído');
+  renderDocumentos();
+}
+
+// ─── LEMBRETES ───
+function renderLembretes(){
+  const el=document.getElementById('lemb-lista');
+  const lembs=pac.lembretes||[];
+  if(!lembs.length){el.innerHTML='<div class="empty"><div class="empty-icon">📌</div><p>Nenhum lembrete.</p></div>';return;}
+
+  const agora=lembs.map(l=>({...l,_d:dias(l.data)})).sort((a,b)=>a._d-b._d);
+  el.innerHTML=agora.map(l=>{
+    const cls=l._d<0?'venc':l._d===0?'hoje':'fut';
+    const txt=l._d<0?`${Math.abs(l._d)}d atrasado`:l._d===0?'Hoje!':` em ${l._d}d`;
+    const icone=l.tipo==='cobranca'?'💰':'📌';
+    return `<div class="lembrete-item ${cls}">
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:14px">${icone} ${l.recado||l.texto||'—'}</div>
+        <div style="font-size:12px;color:var(--ct);margin-top:3px">📅 ${fDt(l.data)} · <strong>${txt}</strong></div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn sm" onclick="editarLembrete(${JSON.stringify(l).replace(/"/g,'&quot;')})">✏️</button>
+        <button class="btn sm dan" onclick="delLembr('${l.id}')">✓ Feito</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function abrirNovoLembrete(){
+  lembrEditandoId=null;
+  document.getElementById('l-id').value='';
+  document.getElementById('l-recado').value='';
+  document.getElementById('l-prazo').value='30';
+  document.getElementById('l-data').value='';
+  document.getElementById('l-data-g').style.display='none';
+  document.getElementById('l-del-btn').style.display='none';
+  document.getElementById('m-lembr').classList.add('open');
+}
+
+function editarLembrete(l){
+  lembrEditandoId=l.id;
+  document.getElementById('l-id').value=l.id;
+  document.getElementById('l-recado').value=l.recado||l.texto||'';
+  document.getElementById('l-prazo').value='0';
+  document.getElementById('l-data').value=l.data||'';
+  document.getElementById('l-data-g').style.display='flex';
+  document.getElementById('l-del-btn').style.display='inline-flex';
+  document.getElementById('m-lembr').classList.add('open');
+}
+
+function fchLembr(){document.getElementById('m-lembr').classList.remove('open');}
+
+async function salvarLembr(){
+  const recado=document.getElementById('l-recado').value.trim();
+  if(!recado){toast('Digite o recado','vermelho');return;}
+  const prazo=document.getElementById('l-prazo').value;
+  let data;
+  if(prazo==='0'){data=document.getElementById('l-data').value;}
+  else{const d=new Date();d.setDate(d.getDate()+parseInt(prazo));data=d.toISOString().split('T')[0];}
+  if(!data){toast('Informe a data','vermelho');return;}
+
+  const lembs=[...(pac.lembretes||[])];
+  if(lembrEditandoId){
+    const idx=lembs.findIndex(l=>l.id===lembrEditandoId);
+    if(idx>=0)lembs[idx]={...lembs[idx],recado,data};
+  } else {
+    lembs.push({id:Date.now().toString(),recado,data,tipo:'geral'});
+  }
+
+  const{error}=await db.from('pacientes').update({lembretes:lembs}).eq('id',pac.id);
+  if(error){toast('Erro ao salvar','vermelho');return;}
+  pac.lembretes=lembs;
+  toast('Lembrete salvo 📌','verde');
+  fchLembr();
+  renderLembretes();
+}
+
+async function delLembr(lid){
+  const lembs=(pac.lembretes||[]).filter(l=>l.id!==lid);
+  await db.from('pacientes').update({lembretes:lembs}).eq('id',pac.id);
+  pac.lembretes=lembs;
+  toast('Lembrete removido ✓');
+  renderLembretes();
+}
+
+function delLembrAtual(){
+  const id=document.getElementById('l-id').value;
+  if(id){fchLembr();delLembr(id);}
+}
+
+// ─── EDITAR DADOS ───
+function abrirEditarDados(){
+  const p=pac;
+  document.getElementById('e-nome').value=p.nome||'';
+  document.getElementById('e-apelido').value=p.apelido||'';
+  document.getElementById('e-tel').value=p.telefone||'';
+  document.getElementById('e-nasc').value=p.data_nascimento||'';
+  document.getElementById('e-cpf').value=p.cpf||'';
+  document.getElementById('e-rg').value=p.rg||'';
+  document.getElementById('e-sexo').value=p.sexo||'';
+  document.getElementById('e-cep').value=p.cep||'';
+  document.getElementById('e-rua').value=p.rua||'';
+  document.getElementById('e-numero').value=p.numero||'';
+  document.getElementById('e-bairro').value=p.bairro||'';
+  document.getElementById('e-cidade').value=p.cidade||'';
+  document.getElementById('e-drive').value=p.link_drive||'';
+  document.getElementById('e-indic').value=p.indicacao||'';
+  document.getElementById('e-conheceu').value=p.como_conheceu||'';
+  document.getElementById('e-obs').value=p.observacoes||'';
+  document.getElementById('m-edit').classList.add('open');
+}
+
+function fchEdit(){document.getElementById('m-edit').classList.remove('open');}
+
+async function salvarEdit(){
+  const nome=document.getElementById('e-nome').value.trim();
+  const tel=document.getElementById('e-tel').value.trim();
+  if(!nome||!tel){toast('Nome e telefone são obrigatórios','vermelho');return;}
+  const updates={
+    nome,telefone:tel,
+    apelido:document.getElementById('e-apelido').value||null,
+    data_nascimento:document.getElementById('e-nasc').value||null,
+    cpf:document.getElementById('e-cpf').value||null,
+    rg:document.getElementById('e-rg').value||null,
+    sexo:document.getElementById('e-sexo').value||null,
+    cep:document.getElementById('e-cep').value||null,
+    rua:document.getElementById('e-rua').value||null,
+    numero:document.getElementById('e-numero').value||null,
+    bairro:document.getElementById('e-bairro').value||null,
+    cidade:document.getElementById('e-cidade').value||null,
+    link_drive:document.getElementById('e-drive').value||null,
+    indicacao:document.getElementById('e-indic').value||null,
+    como_conheceu:document.getElementById('e-conheceu').value||null,
+    observacoes:document.getElementById('e-obs').value||null,
+  };
+  const{error}=await db.from('pacientes').update(updates).eq('id',pac.id);
+  if(error){toast('Erro ao salvar','vermelho');return;}
+  Object.assign(pac,updates);
+  toast('Dados atualizados ✅','verde');
+  fchEdit();
+  renderHero();
+  renderResumo();
+}
+
+async function buscarCep(input){
+  const cep=input.value.replace(/\D/g,'');
+  if(cep.length!==8) return;
+  try{
+    const r=await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const d=await r.json();
+    if(!d.erro){
+      document.getElementById('e-rua').value=d.logradouro||'';
+      document.getElementById('e-bairro').value=d.bairro||'';
+      document.getElementById('e-cidade').value=d.localidade||'';
+    }
+  }catch(e){}
+}
+
+// ─── NOVO ATENDIMENTO (redireciona para index) ───
+function novoAtendimento(){
+  window.location.href=`index.html?abrirAtend=${pac.id}`;
+}
+
+// ─── FECHAR MODAIS AO CLICAR FORA ───
+document.addEventListener('click',e=>{
+  if(e.target.classList.contains('mb')) e.target.classList.remove('open');
+});
+
+// ─── INICIAR ───
+iniciar();
+</script>
+</body>
+</html>
