@@ -891,7 +891,7 @@ function renderHoje(){
   const anivs=pacs.filter(p=>anivHoje(p.data_nascimento));
   document.getElementById('l-aniv').innerHTML=anivs.length===0
     ?`<div class="empty" style="padding:1rem"><div class="empty-icon">🎂</div><p>Nenhum aniversariante hoje.</p></div>`
-    :anivs.map(p=>`<div class="ai anv"><div><div class="an">🎂 ${p.nome}</div><div class="ad">${p.telefone}</div></div><div class="aa"><span class="ab">Aniversário hoje!</span><button class="btn anv" onclick='abrAniv(${J(p)})'>🎉 Parabenizar</button></div></div>`).join('');
+    :anivs.map(p=>`<div class="ai anv"><div><div class="an">🎂 ${p.nome}</div><div class="ad">${p.telefone}</div></div><div class="aa"><span class="ab">Aniversário hoje!</span><button class="btn anv" onclick='abrAniv(${J(p)})'>🎉 Parabenizar</button><a href="paciente.html?id=${p.id}" class="btn" style="padding:7px 11px;font-size:12px">👤 Ficha</a></div></div>`).join('');
 
   // Lembretes
   const lems=[];pacs.forEach(p=>(p.lembretes||[]).forEach(l=>{const d=dias(l.data);if(d!==null&&d<=15&&(l.recado||l.texto))lems.push({...l,_p:p,_d:d});}));lems.sort((a,b)=>a._d-b._d);
@@ -990,11 +990,13 @@ function cardAlerta(p, d, nomeTrat) {
   const statusBadge = status==='aguardando'
     ? `<span class="ab" style="background:var(--azul-c);color:var(--azul)">💬 Msg enviada</span>`
     : `<span class="ab">${txt}</span>`;
-  const botoes = status==='aguardando'
+ const botoes = status==='aguardando'
     ? `<button class="btn" style="padding:7px 11px;font-size:12px;color:var(--verde);border-color:var(--verde)" onclick="setStatusRetorno('${p.id}',${JSON.stringify(nomeTrat)},'confirmado')">✅ Retornou</button>
-       <button class="btn" style="padding:7px 11px;font-size:12px;color:var(--vermelho)" onclick="setStatusRetorno('${p.id}',${JSON.stringify(nomeTrat)},'pendente')">↩ Reabrir</button>`
+       <button class="btn" style="padding:7px 11px;font-size:12px;color:var(--vermelho)" onclick="setStatusRetorno('${p.id}',${JSON.stringify(nomeTrat)},'pendente')">↩ Reabrir</button>
+       <a href="paciente.html?id=${p.id}" class="btn" style="padding:7px 11px;font-size:12px">👤 Ficha</a>`
     : `<button class="btn wpp" onclick='abrRet(${J(p)},${JSON.stringify(nomeTrat)})'>🔔 WhatsApp</button>
-       <button class="btn" style="padding:7px 11px;font-size:12px;color:var(--ct);opacity:.7" onclick="arquivarAlerta('${p.id}',${JSON.stringify(nomeTrat)})" title="Arquivar — paciente não retorna mais">📁</button>`;
+       <button class="btn" style="padding:7px 11px;font-size:12px;color:var(--ct);opacity:.7" onclick="arquivarAlerta('${p.id}',${JSON.stringify(nomeTrat)})" title="Arquivar">📁</button>
+       <a href="paciente.html?id=${p.id}" class="btn" style="padding:7px 11px;font-size:12px">👤 Ficha</a>`;
   return `<div class="ai ${cls}">
     <div><div class="an">${p.nome}</div><div class="ad">${nomeTrat} · ${p.telefone} · Retorno: ${fDt(p.tratamentos_adicionais?.find(t=>t.nome===nomeTrat)?.dataRetorno)}</div></div>
     <div class="aa">${statusBadge}${botoes}</div>
