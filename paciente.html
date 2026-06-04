@@ -737,6 +737,7 @@ function renderHistorico(){
     // marcar como "atendimento" se não tiver trats ainda
   });
 
+  _porData = porData; // cache global para modal de detalhes
   const datas=Object.keys(porData).filter(d=>d!=='—').sort((a,b)=>b.localeCompare(a));
   if(datas.length===0&&(!ats.length)){
     el.innerHTML='<div class="empty"><div class="empty-icon">🩺</div><p>Nenhum atendimento registrado.</p></div>';
@@ -752,7 +753,7 @@ function renderHistorico(){
     return `<div class="tl-item">
       <div class="tl-dot"></div>
       <div class="tl-card">
-        <div class="tl-header" onclick="abrirDetAtend(data, porData[data])" style="cursor:pointer">
+        <div class="tl-header" onclick="abrirDetAtendKey('${data}')" style="cursor:pointer">
           <span class="tl-data">📅 ${fDt(data)}</span>
           <div style="display:flex;align-items:center;gap:6px">
             ${valor?`<span class="tl-badge" style="background:var(--verde-c);color:var(--verde-e)">${fmtBRL(valor)}</span>`:''}
@@ -1181,6 +1182,12 @@ document.addEventListener('click',e=>{
 
 // ─── MODAL DETALHES DO ATENDIMENTO ───
 let atendAtual = null; // {data, trats, idx}
+let _porData = {}; // cache global para abrirDetAtendKey
+
+function abrirDetAtendKey(data) {
+  const trats = _porData[data] || [];
+  abrirDetAtend(data, trats);
+}
 
 function abrirDetAtend(data, trats) {
   atendAtual = { data, trats };
