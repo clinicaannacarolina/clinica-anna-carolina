@@ -671,7 +671,7 @@ function renderHistorico(){
           ${ts.map(t=>`<span class="trat-chip">${t.nome}</span>`).join('')}
         </div>
         ${ts.filter(t=>t.dataRetorno).map(t=>`<div class="tl-retorno">🔔 Retorno ${t.nome}: ${fDt(t.dataRetorno)}</div>`).join('')}
-        ${verif?`<div class="tl-retorno" style="color:${dv!==null&&dv<=3?'var(--vermelho)':'var(--ct)'}">🔬 Verificação: ${fDt(verif)}${dv!==null?' ('+Math.abs(dv)+'d'+(dv<0?' atrás':'')+')'':''}</div>`:''}
+        ${verif?`<div class="tl-retorno" style="color:${dv!==null&&dv<=3?"var(--vermelho)":"var(--ct)"}">🔬 Verificação: ${fDt(verif)}${dv!==null?" ("+Math.abs(dv)+"d"+(dv<0?" atrás":"")+")"":""}</div>`:""}
       </div>
     </div>`;
   }).join('');
@@ -771,23 +771,54 @@ function pedirCategoria(){
   return new Promise(resolve=>{
     const cats=['geral','antes','depois','evolucao'];
     const labels={geral:'Geral',antes:'Antes',depois:'Depois',evolucao:'Evolução'};
-    const div=document.createElement('div');
-    div.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:1rem';
-    div.innerHTML=`<div style="background:var(--card);border-radius:16px;padding:1.5rem;max-width:340px;width:100%;box-shadow:var(--sm)">
-      <div style="font-size:16px;font-weight:600;margin-bottom:1rem">📷 Categoria da foto</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        ${cats.map(c=>`<button onclick="this.closest('.cat-picker').dataset.val='${c}';document.querySelectorAll('.cat-btn').forEach(b=>b.style.background='');this.style.background='var(--verde-c)'" class="cat-btn" style="padding:12px;border-radius:8px;border:1.5px solid var(--borda);cursor:pointer;font-size:14px;background:var(--card);color:var(--txt);font-family:'DM Sans',sans-serif">${labels[c]}</button>`).join('')}
-      </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
-        <button onclick="this.closest('div').parentElement.dataset.val='geral';resolve_cat()" style="padding:8px 14px;border-radius:8px;border:1.5px solid var(--borda);cursor:pointer;background:var(--card);color:var(--txt);font-size:13px;font-family:'DM Sans',sans-serif">Pular</button>
-        <button onclick="confirm_cat()" style="padding:8px 14px;border-radius:8px;background:var(--verde);color:white;border:none;cursor:pointer;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif">Confirmar</button>
-      </div>
-    </div>`;
-    div.classList.add('cat-picker');
-    div.dataset.val='geral';
-    document.body.appendChild(div);
-    window.resolve_cat=()=>{document.body.removeChild(div);resolve(div.dataset.val||'geral');};
-    window.confirm_cat=()=>{document.body.removeChild(div);resolve(div.dataset.val||'geral');};
+
+    const overlay=document.createElement('div');
+    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:1rem';
+
+    const box=document.createElement('div');
+    box.style.cssText='background:var(--card);border-radius:16px;padding:1.5rem;max-width:340px;width:100%;box-shadow:var(--sm)';
+
+    const titulo=document.createElement('div');
+    titulo.style.cssText='font-size:16px;font-weight:600;margin-bottom:1rem';
+    titulo.textContent='📷 Categoria da foto';
+    box.appendChild(titulo);
+
+    const grid=document.createElement('div');
+    grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:1rem';
+
+    let catSelecionada='geral';
+
+    cats.forEach(c=>{
+      const btn=document.createElement('button');
+      btn.style.cssText='padding:12px;border-radius:8px;border:1.5px solid var(--borda);cursor:pointer;font-size:14px;background:var(--card);color:var(--txt);font-family:sans-serif';
+      btn.textContent=labels[c];
+      btn.onclick=()=>{
+        catSelecionada=c;
+        grid.querySelectorAll('button').forEach(b=>b.style.background='var(--card)');
+        btn.style.background='var(--verde-c)';
+      };
+      grid.appendChild(btn);
+    });
+    box.appendChild(grid);
+
+    const acoes=document.createElement('div');
+    acoes.style.cssText='display:flex;gap:8px;justify-content:flex-end';
+
+    const btnPular=document.createElement('button');
+    btnPular.style.cssText='padding:8px 14px;border-radius:8px;border:1.5px solid var(--borda);cursor:pointer;background:var(--card);color:var(--txt);font-size:13px';
+    btnPular.textContent='Pular';
+    btnPular.onclick=()=>{document.body.removeChild(overlay);resolve('geral');};
+
+    const btnOk=document.createElement('button');
+    btnOk.style.cssText='padding:8px 14px;border-radius:8px;background:var(--verde);color:white;border:none;cursor:pointer;font-size:13px;font-weight:500';
+    btnOk.textContent='Confirmar';
+    btnOk.onclick=()=>{document.body.removeChild(overlay);resolve(catSelecionada);};
+
+    acoes.appendChild(btnPular);
+    acoes.appendChild(btnOk);
+    box.appendChild(acoes);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
   });
 }
 
