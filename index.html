@@ -1052,6 +1052,7 @@ function renderPac(){
         <div class="ps">${tls}<br><a href="tel:${p.telefone.replace(/\D/g,'')}" style="color:var(--ct);text-decoration:none">📞 ${p.telefone}</a>${p.data_nascimento?' · 🎂 '+fDt(p.data_nascimento):''}${p.indicacao?` · 👥 ${p.indicacao}`:''}${fatTotal>0?` · 💰 ${fmtBRL(fatTotal)}`:''}
         </div>
         <div class="pa">
+        <a href="paciente.html?id=${p.id}" class="btn" style="padding:6px 10px;font-size:12px">👤 Ficha</a>
           ${isPend?`<button class="btn" style="padding:6px 10px;color:var(--amarelo);border-color:var(--amarelo);font-weight:600" onclick='completarCad(${J(p)})'>✏️ Completar</button>`:''}
           ${p.link_drive&&!isPend?`<button class="btn" style="padding:6px 10px;color:var(--verde-e)" onclick="window.open('${p.link_drive}','_blank')">📁</button>`:''}
           <a href="tel:${p.telefone.replace(/\D/g,'')}" class="btn" style="padding:6px 10px;color:var(--azul)">📞</a>
