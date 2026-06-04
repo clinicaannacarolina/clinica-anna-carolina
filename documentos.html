@@ -1782,5 +1782,46 @@ function setVal(id, val) {
   if (el) el.value = val;
 }
 </script>
+<script>
+// ── PATCH: Salvar dados financeiros no atendimento ──
+// Intercepta confirmarRealizado() para enriquecer o registro
+
+const _confirmarOriginal = window.confirmarRealizado;
+window.confirmarRealizado = async function() {
+  // Capturar dados do modal ANTES de fechar
+  const pgto   = document.getElementById('modal-pgto')?.value || '';
+  const status = document.querySelector('input[name="modal-status"]:checked')?.value || 'recebido';
+  const verif  = document.getElementById('modal-ver-data')?.value || '';
+  const data   = document.getElementById('modal-data')?.value || '';
+  const obs    = document.getElementById('modal-obs-fin')?.value || '';
+
+  // Executar função original
+  await _confirmarOriginal.apply(this, arguments);
+
+  // Após salvar, atualizar o último atendimento com dados financeiros
+  if (!pacSelecionada) return;
+  await new Promise(r => setTimeout(r, 800)); // aguardar salvar
+
+  const { data: pac } = await db
+    .from('pacientes')
+    .select('tratamentos_adicionais')
+    .eq('id', pacSelecionada.id)
+    .single();
+
+  if (!pac?.tratamentos_adicionais) return;
+
+  // Encontrar atendimentos da data e adicionar dados financeiros
+  const trats = pac.tratamentos_adicionais.map(t => {
+    if (t.dataAtendimento === data || !t.formaPagamento) {
+      return { ...t, formaPagamento: pgto, statusPagamento: status, obsFinanceiro: obs };
+    }
+    return t;
+  });
+
+  await db.from('pacientes')
+    .update({ tratamentos_adicionais: trats })
+    .eq('id', pacSelecionada.id);
+};
+</script>
 </body>
 </html>
