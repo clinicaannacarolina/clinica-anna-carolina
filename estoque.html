@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Estoque — Clínica Dra. Anna Carolina</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --verde:#1D9E75;--verde-e:#0F6E56;--verde-c:#E1F5EE;
+  --amarelo:#EF9F27;--amarelo-c:#FAEEDA;
+  --vermelho:#E24B4A;--vermelho-c:#FCEBEB;
+  --azul:#185FA5;--azul-c:#E6F1FB;
+  --roxo:#7C3AED;--roxo-c:#EDE9FE;
+  --laranja:#F97316;--laranja-c:#FEF0E6;
+  --bg:#F7F6F3;--card:#FFFFFF;--borda:#E8E6E1;--ct:#6B6860;--txt:#1A1916;
+  --s:0 1px 3px rgba(0,0,0,.06);--sm:0 4px 16px rgba(0,0,0,.10);
+}
+[data-theme="dark"]{
+  --bg:#1A1916;--card:#242220;--borda:#3A3835;--ct:#9A9690;--txt:#F0EDE8;
+  --verde-c:#0F3D2E;--amarelo-c:#3D2E0A;--vermelho-c:#3D1515;--azul-c:#0F2540;--roxo-c:#2D1A5E;--laranja-c:#3D1F0A;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:15px}
+/* HEADER */
+.hdr{background:var(--verde-e);color:white;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:50;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr h1{font-family:'DM Serif Display',serif;font-size:18px;font-weight:400}
+.hdr-right{display:flex;align-items:center;gap:10px}
+.btn-back{background:none;border:none;cursor:pointer;color:white;opacity:.8;font-size:22px;padding:4px;line-height:1}
+.btn-back:hover{opacity:1}
+.btn-dark{background:none;border:none;cursor:pointer;font-size:18px;color:white;opacity:.8;padding:4px}
+/* MAIN */
+.main{max-width:1100px;margin:0 auto;padding:1.5rem}
+/* TABS */
+.tabs{display:flex;gap:3px;background:var(--card);border-radius:12px;padding:4px;margin-bottom:1.5rem;box-shadow:var(--s);border:1px solid var(--borda);flex-wrap:wrap}
+.tb{flex:1;min-width:80px;padding:9px 8px;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;color:var(--ct);background:transparent;transition:all .15s;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:5px}
+.tb.on{background:var(--verde-e);color:white}
+/* CARDS STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.5rem}
+@media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}}
+.sc{background:var(--card);border-radius:12px;padding:1rem 1.25rem;box-shadow:var(--s);border:1px solid var(--borda);display:flex;align-items:center;gap:12px}
+.si{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.sn{font-size:22px;font-weight:700;line-height:1;color:var(--txt)}
+.sl{font-size:12px;color:var(--ct);margin-top:2px}
+/* BOTÕES */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 14px;border-radius:8px;border:1.5px solid var(--borda);background:var(--card);color:var(--txt);font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap}
+.btn:hover{background:var(--bg)}
+.btn.pri{background:var(--verde);border-color:var(--verde);color:white}
+.btn.pri:hover{background:var(--verde-e)}
+.btn.dan{color:var(--vermelho);border-color:transparent;background:transparent}
+.btn.dan:hover{background:var(--vermelho-c)}
+.btn.sm{padding:5px 10px;font-size:12px}
+/* CARD */
+.card{background:var(--card);border-radius:12px;border:1px solid var(--borda);box-shadow:var(--s);padding:1.25rem;margin-bottom:1rem}
+.card-title{font-size:13px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.05em;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;gap:8px}
+/* FORM */
+.fg{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.fgr{display:flex;flex-direction:column;gap:4px}
+.fgr.full{grid-column:1/-1}
+.fgr label{font-size:12px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em}
+.fgr input,.fgr select,.fgr textarea{padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);transition:border-color .15s}
+.fgr input:focus,.fgr select:focus,.fgr textarea:focus{outline:none;border-color:var(--verde)}
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.04em;padding:8px 12px;border-bottom:2px solid var(--borda);text-align:left;background:var(--bg)}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--borda);font-size:13px;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--bg)}
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px}
+.badge.verde{background:var(--verde-c);color:var(--verde-e)}
+.badge.amarelo{background:var(--amarelo-c);color:#8a6000}
+.badge.vermelho{background:var(--vermelho-c);color:var(--vermelho)}
+.badge.azul{background:var(--azul-c);color:var(--azul)}
+.badge.roxo{background:var(--roxo-c);color:var(--roxo)}
+.badge.laranja{background:var(--laranja-c);color:var(--laranja)}
+/* ALERTA */
+.alerta{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;margin-bottom:8px;font-size:13px}
+.alerta.verm{background:var(--vermelho-c);border:1px solid var(--vermelho);color:var(--vermelho)}
+.alerta.amar{background:var(--amarelo-c);border:1px solid var(--amarelo);color:#8a6000}
+/* MODAL */
+.mb{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:1rem}
+.mb.open{display:flex}
+.mb-box{background:var(--card);border-radius:16px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;box-shadow:var(--sm)}
+.mb-head{display:flex;justify-content:space-between;align-items:center;padding:1.2rem 1.5rem .8rem;border-bottom:1px solid var(--borda);position:sticky;top:0;background:var(--card)}
+.mb-head h3{font-size:16px;font-weight:700}
+.mb-body{padding:1.5rem}
+.mb-foot{padding:.8rem 1.5rem 1.2rem;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--borda)}
+/* TOAST */
+.toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(80px);background:#1A1916;color:white;padding:10px 20px;border-radius:10px;font-size:14px;font-weight:500;z-index:9999;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.verde{background:var(--verde)}
+.toast.vermelho{background:var(--vermelho)}
+/* EMPTY */
+.empty{text-align:center;padding:3rem 1rem;color:var(--ct)}
+.empty-icon{font-size:40px;margin-bottom:.5rem}
+/* SEARCH */
+.search-bar{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap}
+.search-bar input{flex:1;min-width:200px;padding:9px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt)}
+.search-bar input:focus{outline:none;border-color:var(--verde)}
+/* PROGRESS BAR */
+.prog-bar{height:6px;border-radius:4px;background:var(--borda);overflow:hidden;margin-top:4px}
+.prog-fill{height:100%;border-radius:4px;transition:width .4s}
+@media(max-width:600px){.fg{grid-template-columns:1fr}.fgr.full{grid-column:1}.tbl{display:block;overflow-x:auto}}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-left">
+    <button class="btn-back" onclick="history.back()">←</button>
+    <h1>📦 Estoque <span style="font-size:12px;opacity:.6;font-family:'DM Sans',sans-serif">Dra. Anna Carolina</span></h1>
+  </div>
+  <div class="hdr-right">
+    <button class="btn-dark" onclick="toggleTheme()" title="Tema">🌙</button>
+  </div>
+</header>
+
+<div class="main">
+  <!-- STATS -->
+  <div class="stats" id="stats">
+    <div class="sc"><div class="si" style="background:var(--azul-c)">📦</div><div><div class="sn" id="st-produtos">—</div><div class="sl">Produtos</div></div></div>
+    <div class="sc"><div class="si" style="background:var(--vermelho-c)">🚨</div><div><div class="sn" id="st-criticos">—</div><div class="sl">Estoque crítico</div></div></div>
+    <div class="sc"><div class="si" style="background:var(--amarelo-c)">⏰</div><div><div class="sn" id="st-vencendo">—</div><div class="sl">Vencendo em 30d</div></div></div>
+    <div class="sc"><div class="si" style="background:var(--verde-c)">🏭</div><div><div class="sn" id="st-fornecedores">—</div><div class="sl">Fornecedores</div></div></div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tb on" onclick="setTab('dashboard')" id="tab-dashboard">📊 Dashboard</button>
+    <button class="tb" onclick="setTab('produtos')" id="tab-produtos">📦 Produtos</button>
+    <button class="tb" onclick="setTab('movimentos')" id="tab-movimentos">🔄 Movimentações</button>
+    <button class="tb" onclick="setTab('fornecedores')" id="tab-fornecedores">🏭 Fornecedores</button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="sec-dashboard">
+    <div id="alertas-container"></div>
+    <div class="card">
+      <div class="card-title">📊 Visão geral do estoque</div>
+      <div id="dashboard-lista"></div>
+    </div>
+  </div>
+
+  <!-- PRODUTOS -->
+  <div id="sec-produtos" style="display:none">
+    <div class="search-bar">
+      <input type="text" id="busca-produto" placeholder="🔍 Buscar produto..." oninput="filtrarProdutos()"/>
+      <select id="filtro-cat" onchange="filtrarProdutos()" style="padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt)">
+        <option value="">Todas as categorias</option>
+        <option>Toxina Botulínica</option>
+        <option>Preenchimento / Ácido Hialurônico</option>
+        <option>Bioestimulador</option>
+        <option>Fios de PDO</option>
+        <option>Skinbooster</option>
+        <option>Anestésico</option>
+        <option>Descartável</option>
+        <option>Higiene / Limpeza</option>
+        <option>Outro</option>
+      </select>
+      <button class="btn pri" onclick="abrirModalProduto()">+ Novo produto</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="tbl">
+        <thead><tr>
+          <th>Produto</th><th>Categoria</th><th>Estoque</th><th>Mín.</th><th>Status</th><th>Fornecedor</th><th></th>
+        </tr></thead>
+        <tbody id="tbl-produtos"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- MOVIMENTOS -->
+  <div id="sec-movimentos" style="display:none">
+    <div class="search-bar">
+      <select id="filtro-mov-produto" style="flex:1;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt)">
+        <option value="">Todos os produtos</option>
+      </select>
+      <select id="filtro-mov-tipo" onchange="filtrarMovimentos()" style="padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt)">
+        <option value="">Todos os tipos</option>
+        <option value="entrada">Entrada</option>
+        <option value="saida">Saída</option>
+        <option value="uso">Uso em procedimento</option>
+        <option value="descarte">Descarte</option>
+        <option value="ajuste">Ajuste</option>
+      </select>
+      <button class="btn pri" onclick="abrirModalMovimento('entrada')">+ Entrada</button>
+      <button class="btn" onclick="abrirModalMovimento('saida')" style="border-color:var(--vermelho);color:var(--vermelho)">− Saída</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="tbl">
+        <thead><tr>
+          <th>Data</th><th>Produto</th><th>Tipo</th><th>Qtd</th><th>Lote</th><th>Validade</th><th>Paciente</th><th>Obs</th>
+        </tr></thead>
+        <tbody id="tbl-movimentos"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- FORNECEDORES -->
+  <div id="sec-fornecedores" style="display:none">
+    <div class="search-bar">
+      <input type="text" id="busca-forn" placeholder="🔍 Buscar fornecedor..." oninput="filtrarFornecedores()"/>
+      <button class="btn pri" onclick="abrirModalFornecedor()">+ Novo fornecedor</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="tbl">
+        <thead><tr>
+          <th>Nome</th><th>CNPJ</th><th>Contato</th><th>Telefone</th><th>E-mail</th><th></th>
+        </tr></thead>
+        <tbody id="tbl-fornecedores"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PRODUTO -->
+<div class="mb" id="modal-produto">
+  <div class="mb-box">
+    <div class="mb-head">
+      <h3 id="modal-produto-titulo">📦 Novo produto</h3>
+      <button class="btn dan" onclick="fecharModal('modal-produto')">✕</button>
+    </div>
+    <div class="mb-body">
+      <input type="hidden" id="prod-id"/>
+      <div class="fg">
+        <div class="fgr full"><label>Nome do produto *</label><input type="text" id="prod-nome" placeholder="Ex: Botox Allergan 100U"/></div>
+        <div class="fgr"><label>Categoria *</label>
+          <select id="prod-cat">
+            <option value="">Selecione...</option>
+            <option>Toxina Botulínica</option>
+            <option>Preenchimento / Ácido Hialurônico</option>
+            <option>Bioestimulador</option>
+            <option>Fios de PDO</option>
+            <option>Skinbooster</option>
+            <option>Anestésico</option>
+            <option>Descartável</option>
+            <option>Higiene / Limpeza</option>
+            <option>Outro</option>
+          </select>
+        </div>
+        <div class="fgr"><label>Unidade</label>
+          <select id="prod-unidade">
+            <option value="unidade">Unidade</option>
+            <option value="frasco">Frasco</option>
+            <option value="caixa">Caixa</option>
+            <option value="ml">mL</option>
+            <option value="seringa">Seringa</option>
+            <option value="ampola">Ampola</option>
+            <option value="par">Par</option>
+          </select>
+        </div>
+        <div class="fgr"><label>Quantidade atual</label><input type="number" id="prod-qtd" min="0" step="0.01" placeholder="0"/></div>
+        <div class="fgr"><label>Estoque mínimo (alerta)</label><input type="number" id="prod-min" min="0" step="0.01" placeholder="0"/></div>
+        <div class="fgr full"><label>Fornecedor</label>
+          <select id="prod-forn">
+            <option value="">Sem fornecedor</option>
+          </select>
+        </div>
+        <div class="fgr full"><label>Observações</label><textarea id="prod-obs" rows="2" placeholder="Referência, código, observações..."></textarea></div>
+      </div>
+    </div>
+    <div class="mb-foot">
+      <button class="btn" onclick="fecharModal('modal-produto')">Cancelar</button>
+      <button class="btn pri" onclick="salvarProduto()">✓ Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MOVIMENTO -->
+<div class="mb" id="modal-movimento">
+  <div class="mb-box">
+    <div class="mb-head">
+      <h3 id="modal-mov-titulo">🔄 Registrar movimentação</h3>
+      <button class="btn dan" onclick="fecharModal('modal-movimento')">✕</button>
+    </div>
+    <div class="mb-body">
+      <div class="fg">
+        <div class="fgr full"><label>Produto *</label>
+          <select id="mov-produto">
+            <option value="">Selecione um produto...</option>
+          </select>
+        </div>
+        <div class="fgr"><label>Tipo *</label>
+          <select id="mov-tipo">
+            <option value="entrada">📥 Entrada</option>
+            <option value="saida">📤 Saída</option>
+            <option value="uso">💉 Uso em procedimento</option>
+            <option value="descarte">🗑 Descarte</option>
+            <option value="ajuste">⚙️ Ajuste de estoque</option>
+          </select>
+        </div>
+        <div class="fgr"><label>Quantidade *</label><input type="number" id="mov-qtd" min="0.01" step="0.01" placeholder="0"/></div>
+        <div class="fgr"><label>Lote</label><input type="text" id="mov-lote" placeholder="Ex: Faa2404"/></div>
+        <div class="fgr"><label>Validade</label><input type="date" id="mov-validade"/></div>
+        <div class="fgr full" id="mov-paciente-row" style="display:none"><label>Paciente (opcional)</label>
+          <select id="mov-paciente"><option value="">Sem vínculo</option></select>
+        </div>
+        <div class="fgr full"><label>Observações</label><textarea id="mov-obs" rows="2" placeholder="Observações sobre a movimentação..."></textarea></div>
+      </div>
+    </div>
+    <div class="mb-foot">
+      <button class="btn" onclick="fecharModal('modal-movimento')">Cancelar</button>
+      <button class="btn pri" onclick="salvarMovimento()">✓ Registrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FORNECEDOR -->
+<div class="mb" id="modal-fornecedor">
+  <div class="mb-box">
+    <div class="mb-head">
+      <h3 id="modal-forn-titulo">🏭 Novo fornecedor</h3>
+      <button class="btn dan" onclick="fecharModal('modal-fornecedor')">✕</button>
+    </div>
+    <div class="mb-body">
+      <input type="hidden" id="forn-id"/>
+      <div class="fg">
+        <div class="fgr full"><label>Nome *</label><input type="text" id="forn-nome" placeholder="Nome da empresa ou distribuidor"/></div>
+        <div class="fgr"><label>CNPJ</label><input type="text" id="forn-cnpj" placeholder="00.000.000/0000-00"/></div>
+        <div class="fgr"><label>Contato</label><input type="text" id="forn-contato" placeholder="Nome do representante"/></div>
+        <div class="fgr"><label>Telefone / WhatsApp</label><input type="text" id="forn-tel" placeholder="(17) 99999-9999"/></div>
+        <div class="fgr"><label>E-mail</label><input type="email" id="forn-email" placeholder="contato@empresa.com"/></div>
+        <div class="fgr full"><label>Observações</label><textarea id="forn-obs" rows="2" placeholder="Produtos fornecidos, condições, etc..."></textarea></div>
+      </div>
+    </div>
+    <div class="mb-foot">
+      <button class="btn" onclick="fecharModal('modal-fornecedor')">Cancelar</button>
+      <button class="btn pri" onclick="salvarFornecedor()">✓ Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ENTRADA RÁPIDA -->
+<div class="mb" id="modal-entrada-rapida">
+  <div class="mb-box">
+    <div class="mb-head">
+      <h3>📥 Entrada de produto</h3>
+      <button class="btn dan" onclick="fecharModal('modal-entrada-rapida')">✕</button>
+    </div>
+    <div class="mb-body">
+      <input type="hidden" id="er-produto-id"/>
+      <div id="er-produto-nome" style="font-weight:600;font-size:15px;margin-bottom:1rem;color:var(--verde-e)"></div>
+      <div class="fg">
+        <div class="fgr"><label>Quantidade *</label><input type="number" id="er-qtd" min="0.01" step="0.01" placeholder="0"/></div>
+        <div class="fgr"><label>Lote</label><input type="text" id="er-lote" placeholder="Ex: Faa2404"/></div>
+        <div class="fgr"><label>Validade</label><input type="date" id="er-validade"/></div>
+        <div class="fgr"><label>Fornecedor</label><select id="er-forn"><option value="">Sem vínculo</option></select></div>
+        <div class="fgr full"><label>Observações</label><input type="text" id="er-obs" placeholder="NF, pedido, etc..."/></div>
+      </div>
+    </div>
+    <div class="mb-foot">
+      <button class="btn" onclick="fecharModal('modal-entrada-rapida')">Cancelar</button>
+      <button class="btn pri" onclick="salvarEntradaRapida()">✓ Registrar entrada</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL='https://nathaeuqbeqlvkftbmes.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hdGhhZXVxYmVxbHZrZnRibWVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4OTc4MzYsImV4cCI6MjA5NTQ3MzgzNn0.9t3q5C_h1pRb11gqRtpGGVpOUGey5TBzvMgal8h6wtg';
+const {createClient}=supabase;
+const db=createClient(SB_URL,SB_KEY);
+
+let _produtos=[], _fornecedores=[], _movimentos=[], _pacientes=[];
+let _tabAtual='dashboard';
+
+// ── UTILS ──
+function toast(msg,tipo=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast '+(tipo||'');
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+function fDt(d){if(!d)return'—';const[y,m,dd]=(d+'').split('T')[0].split('-');return`${dd}/${m}/${y}`;}
+function hoje(){return new Date().toISOString().split('T')[0];}
+function diasParaVencer(d){if(!d)return null;const diff=Math.round((new Date(d+'T12:00:00')-new Date())/(1000*60*60*24));return diff;}
+function toggleTheme(){const h=document.documentElement;h.dataset.theme=h.dataset.theme==='dark'?'light':'dark';}
+function fecharModal(id){document.getElementById(id).classList.remove('open');}
+function abrirModal(id){document.getElementById(id).classList.add('open');}
+
+// ── TABS ──
+function setTab(tab){
+  _tabAtual=tab;
+  ['dashboard','produtos','movimentos','fornecedores'].forEach(t=>{
+    document.getElementById('sec-'+t).style.display=t===tab?'block':'none';
+    document.getElementById('tab-'+t).classList.toggle('on',t===tab);
+  });
+  if(tab==='produtos') renderProdutos();
+  if(tab==='movimentos') renderMovimentos();
+  if(tab==='fornecedores') renderFornecedores();
+  if(tab==='dashboard') renderDashboard();
+}
+
+// ── CARREGAR DADOS ──
+async function carregar(){
+  const[{data:p},{data:f},{data:m},{data:pac}]=await Promise.all([
+    db.from('produtos').select('*').order('nome'),
+    db.from('fornecedores').select('*').order('nome'),
+    db.from('estoque_movimentos').select('*').order('criado_em',{ascending:false}).limit(200),
+    db.from('pacientes').select('id,nome').order('nome')
+  ]);
+  _produtos=p||[];_fornecedores=f||[];_movimentos=m||[];_pacientes=pac||[];
+  renderStats();
+  renderDashboard();
+  popularSelects();
+}
+
+// ── STATS ──
+function renderStats(){
+  const criticos=_produtos.filter(p=>p.estoque_minimo>0&&p.quantidade<=p.estoque_minimo).length;
+  const hoje30=new Date();hoje30.setDate(hoje30.getDate()+30);
+  // Vencendo: verificar movimentos de entrada com validade nos próximos 30 dias
+  const vencendo=_movimentos.filter(m=>{
+    if(!m.validade||m.tipo!=='entrada')return false;
+    const d=new Date(m.validade+'T12:00:00');
+    return d>=new Date()&&d<=hoje30;
+  }).length;
+  document.getElementById('st-produtos').textContent=_produtos.length;
+  document.getElementById('st-criticos').textContent=criticos;
+  document.getElementById('st-vencendo').textContent=vencendo;
+  document.getElementById('st-fornecedores').textContent=_fornecedores.length;
+}
+
+// ── DASHBOARD ──
+function renderDashboard(){
+  const cont=document.getElementById('alertas-container');
+  const lista=document.getElementById('dashboard-lista');
+
+  // Alertas
+  let alertas='';
+  const criticos=_produtos.filter(p=>p.estoque_minimo>0&&p.quantidade<=p.estoque_minimo);
+  if(criticos.length){
+    alertas+=`<div class="alerta verm">🚨 <strong>${criticos.length} produto${criticos.length>1?'s':''} com estoque crítico:</strong> ${criticos.map(p=>p.nome).join(', ')}</div>`;
+  }
+  // Validades próximas
+  const hoje30=new Date();hoje30.setDate(hoje30.getDate()+30);
+  const vencEnts=_movimentos.filter(m=>{
+    if(!m.validade)return false;
+    const d=new Date(m.validade+'T12:00:00');
+    return d>=new Date()&&d<=hoje30&&m.tipo==='entrada';
+  });
+  if(vencEnts.length){
+    alertas+=`<div class="alerta amar">⏰ <strong>${vencEnts.length} lote${vencEnts.length>1?'s':''} vencendo em 30 dias</strong> — verifique a aba Movimentações</div>`;
+  }
+  // Vencidos
+  const vencidos=_movimentos.filter(m=>{
+    if(!m.validade)return false;
+    return new Date(m.validade+'T12:00:00')<new Date()&&m.tipo==='entrada';
+  });
+  if(vencidos.length){
+    alertas+=`<div class="alerta verm">❌ <strong>${vencidos.length} lote${vencidos.length>1?'s':''} vencido${vencidos.length>1?'s':''}</strong> — descarte imediato necessário</div>`;
+  }
+  cont.innerHTML=alertas;
+
+  // Lista de produtos com barra de estoque
+  if(!_produtos.length){
+    lista.innerHTML='<div class="empty"><div class="empty-icon">📦</div><p>Nenhum produto cadastrado ainda.</p><br><button class="btn pri" onclick="setTab(\'produtos\')">+ Cadastrar produto</button></div>';
+    return;
+  }
+
+  // Ordenar: críticos primeiro
+  const sorted=[..._produtos].sort((a,b)=>{
+    const ac=a.estoque_minimo>0&&a.quantidade<=a.estoque_minimo;
+    const bc=b.estoque_minimo>0&&b.quantidade<=b.estoque_minimo;
+    return bc-ac||a.nome.localeCompare(b.nome);
+  });
+
+  lista.innerHTML=`<table class="tbl">
+    <thead><tr><th>Produto</th><th>Categoria</th><th>Estoque</th><th>Progresso</th><th>Último lote</th><th>Ações</th></tr></thead>
+    <tbody>${sorted.map(p=>{
+      const forn=_fornecedores.find(f=>f.id===p.fornecedor_id);
+      const critico=p.estoque_minimo>0&&p.quantidade<=p.estoque_minimo;
+      const pct=p.estoque_minimo>0?Math.min(100,Math.round((p.quantidade/p.estoque_minimo)*100)):100;
+      const cor=critico?'var(--vermelho)':pct<150?'var(--amarelo)':'var(--verde)';
+      // Último movimento de entrada com lote/validade
+      const ultEnt=_movimentos.find(m=>m.produto_id===p.id&&m.lote);
+      return`<tr>
+        <td><div style="font-weight:600">${p.nome}</div>${forn?`<div style="font-size:11px;color:var(--ct)">${forn.nome}</div>`:''}</td>
+        <td><span class="badge azul">${p.categoria||'—'}</span></td>
+        <td><div style="font-weight:700;color:${critico?'var(--vermelho)':'var(--txt)'}">${p.quantidade} ${p.unidade||''}</div>${p.estoque_minimo>0?`<div style="font-size:11px;color:var(--ct)">Mín: ${p.estoque_minimo}</div>`:''}</td>
+        <td style="min-width:100px">${p.estoque_minimo>0?`<div class="prog-bar"><div class="prog-fill" style="width:${Math.min(100,pct)}%;background:${cor}"></div></div><div style="font-size:10px;color:var(--ct);margin-top:2px">${pct}%</div>`:'<span style="font-size:11px;color:var(--ct)">Sem mín.</span>'}</td>
+        <td>${ultEnt?`<div style="font-size:12px">Lote: <strong>${ultEnt.lote}</strong></div><div style="font-size:11px;color:var(--ct)">Val: ${fDt(ultEnt.validade)}</div>`:'<span style="font-size:11px;color:var(--ct)">—</span>'}</td>
+        <td><button class="btn sm pri" onclick="abrirEntradaRapida('${p.id}','${p.nome.replace(/'/g,"\\'")}')">📥 Entrada</button></td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+// ── PRODUTOS ──
+function filtrarProdutos(){
+  const q=(document.getElementById('busca-produto').value||'').toLowerCase();
+  const cat=document.getElementById('filtro-cat').value;
+  const filtrados=_produtos.filter(p=>
+    (!q||p.nome.toLowerCase().includes(q))&&
+    (!cat||p.categoria===cat)
+  );
+  renderTblProdutos(filtrados);
+}
+
+function renderProdutos(){renderTblProdutos(_produtos);}
+
+function renderTblProdutos(lista){
+  const tb=document.getElementById('tbl-produtos');
+  if(!lista.length){
+    tb.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-icon">📦</div><p>Nenhum produto encontrado.</p></div></td></tr>`;
+    return;
+  }
+  tb.innerHTML=lista.map(p=>{
+    const forn=_fornecedores.find(f=>f.id===p.fornecedor_id);
+    const critico=p.estoque_minimo>0&&p.quantidade<=p.estoque_minimo;
+    const ok=!critico;
+    return`<tr>
+      <td><div style="font-weight:600">${p.nome}</div>${p.obs?`<div style="font-size:11px;color:var(--ct)">${p.obs}</div>`:''}</td>
+      <td><span class="badge azul">${p.categoria||'—'}</span></td>
+      <td style="font-weight:700;color:${critico?'var(--vermelho)':'var(--txt)'}">${p.quantidade} <span style="font-size:11px;font-weight:400;color:var(--ct)">${p.unidade||''}</span></td>
+      <td style="color:var(--ct)">${p.estoque_minimo||'—'}</td>
+      <td>${critico?'<span class="badge vermelho">🚨 Crítico</span>':ok?'<span class="badge verde">✅ OK</span>':'<span class="badge amarelo">⚠️ Baixo</span>'}</td>
+      <td style="font-size:12px;color:var(--ct)">${forn?forn.nome:'—'}</td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn sm" onclick="abrirEntradaRapida('${p.id}','${p.nome.replace(/'/g,"\\'")}')">📥</button>
+        <button class="btn sm" onclick="editarProduto('${p.id}')">✏️</button>
+        <button class="btn sm dan" onclick="excluirProduto('${p.id}')">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function abrirModalProduto(id){
+  document.getElementById('modal-produto-titulo').textContent=id?'✏️ Editar produto':'📦 Novo produto';
+  document.getElementById('prod-id').value='';
+  document.getElementById('prod-nome').value='';
+  document.getElementById('prod-cat').value='';
+  document.getElementById('prod-unidade').value='unidade';
+  document.getElementById('prod-qtd').value='';
+  document.getElementById('prod-min').value='';
+  document.getElementById('prod-obs').value='';
+  // Popular fornecedores
+  const sel=document.getElementById('prod-forn');
+  sel.innerHTML='<option value="">Sem fornecedor</option>'+_fornecedores.map(f=>`<option value="${f.id}">${f.nome}</option>`).join('');
+  abrirModal('modal-produto');
+}
+
+function editarProduto(id){
+  const p=_produtos.find(x=>x.id===id);if(!p)return;
+  document.getElementById('modal-produto-titulo').textContent='✏️ Editar produto';
+  document.getElementById('prod-id').value=p.id;
+  document.getElementById('prod-nome').value=p.nome;
+  document.getElementById('prod-cat').value=p.categoria||'';
+  document.getElementById('prod-unidade').value=p.unidade||'unidade';
+  document.getElementById('prod-qtd').value=p.quantidade||0;
+  document.getElementById('prod-min').value=p.estoque_minimo||0;
+  document.getElementById('prod-obs').value=p.obs||'';
+  const sel=document.getElementById('prod-forn');
+  sel.innerHTML='<option value="">Sem fornecedor</option>'+_fornecedores.map(f=>`<option value="${f.id}"${f.id===p.fornecedor_id?' selected':''}>${f.nome}</option>`).join('');
+  abrirModal('modal-produto');
+}
+
+async function salvarProduto(){
+  const id=document.getElementById('prod-id').value;
+  const nome=document.getElementById('prod-nome').value.trim();
+  if(!nome){toast('Informe o nome do produto','vermelho');return;}
+  const obj={
+    nome,
+    categoria:document.getElementById('prod-cat').value||null,
+    unidade:document.getElementById('prod-unidade').value,
+    quantidade:parseFloat(document.getElementById('prod-qtd').value)||0,
+    estoque_minimo:parseFloat(document.getElementById('prod-min').value)||0,
+    fornecedor_id:document.getElementById('prod-forn').value||null,
+    obs:document.getElementById('prod-obs').value.trim()||null
+  };
+  const{error}=id
+    ?await db.from('produtos').update(obj).eq('id',id)
+    :await db.from('produtos').insert(obj);
+  if(error){toast('Erro ao salvar: '+error.message,'vermelho');return;}
+  toast(id?'Produto atualizado ✓':'Produto cadastrado ✓','verde');
+  fecharModal('modal-produto');
+  await carregar();
+  if(_tabAtual==='produtos')renderProdutos();
+}
+
+async function excluirProduto(id){
+  if(!confirm('Excluir este produto?'))return;
+  const{error}=await db.from('produtos').delete().eq('id',id);
+  if(error){toast('Erro ao excluir','vermelho');return;}
+  toast('Produto excluído');
+  await carregar();
+  if(_tabAtual==='produtos')renderProdutos();
+}
+
+// ── ENTRADA RÁPIDA ──
+function abrirEntradaRapida(prodId,prodNome){
+  document.getElementById('er-produto-id').value=prodId;
+  document.getElementById('er-produto-nome').textContent='📦 '+prodNome;
+  document.getElementById('er-qtd').value='';
+  document.getElementById('er-lote').value='';
+  document.getElementById('er-validade').value='';
+  document.getElementById('er-obs').value='';
+  const sel=document.getElementById('er-forn');
+  sel.innerHTML='<option value="">Sem vínculo</option>'+_fornecedores.map(f=>`<option value="${f.id}">${f.nome}</option>`).join('');
+  abrirModal('modal-entrada-rapida');
+}
+
+async function salvarEntradaRapida(){
+  const prodId=document.getElementById('er-produto-id').value;
+  const qtd=parseFloat(document.getElementById('er-qtd').value)||0;
+  if(!qtd){toast('Informe a quantidade','vermelho');return;}
+  const lote=document.getElementById('er-lote').value.trim()||null;
+  const validade=document.getElementById('er-validade').value||null;
+  const obs=document.getElementById('er-obs').value.trim()||null;
+  // Registrar movimento
+  const{error:eM}=await db.from('estoque_movimentos').insert({
+    produto_id:prodId,tipo:'entrada',quantidade:qtd,lote,validade,obs
+  });
+  if(eM){toast('Erro ao registrar','vermelho');return;}
+  // Atualizar quantidade
+  const prod=_produtos.find(p=>p.id===prodId);
+  const novaQtd=(prod?.quantidade||0)+qtd;
+  await db.from('produtos').update({quantidade:novaQtd}).eq('id',prodId);
+  toast('Entrada registrada ✅','verde');
+  fecharModal('modal-entrada-rapida');
+  await carregar();
+  if(_tabAtual==='produtos')renderProdutos();
+  if(_tabAtual==='dashboard')renderDashboard();
+}
+
+// ── MOVIMENTOS ──
+function abrirModalMovimento(tipo){
+  document.getElementById('modal-mov-titulo').textContent=tipo==='entrada'?'📥 Registrar entrada':'📤 Registrar saída';
+  document.getElementById('mov-tipo').value=tipo;
+  document.getElementById('mov-qtd').value='';
+  document.getElementById('mov-lote').value='';
+  document.getElementById('mov-validade').value='';
+  document.getElementById('mov-obs').value='';
+  const sel=document.getElementById('mov-produto');
+  sel.innerHTML='<option value="">Selecione um produto...</option>'+_produtos.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
+  const selPac=document.getElementById('mov-paciente');
+  selPac.innerHTML='<option value="">Sem vínculo</option>'+_pacientes.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
+  // Mostrar campo paciente só para uso
+  document.getElementById('mov-tipo').addEventListener('change',function(){
+    document.getElementById('mov-paciente-row').style.display=this.value==='uso'?'flex':'none';
+  });
+  document.getElementById('mov-paciente-row').style.display=tipo==='uso'?'flex':'none';
+  abrirModal('modal-movimento');
+}
+
+async function salvarMovimento(){
+  const prodId=document.getElementById('mov-produto').value;
+  const tipo=document.getElementById('mov-tipo').value;
+  const qtd=parseFloat(document.getElementById('mov-qtd').value)||0;
+  if(!prodId){toast('Selecione um produto','vermelho');return;}
+  if(!qtd){toast('Informe a quantidade','vermelho');return;}
+  const lote=document.getElementById('mov-lote').value.trim()||null;
+  const validade=document.getElementById('mov-validade').value||null;
+  const pacId=document.getElementById('mov-paciente').value||null;
+  const obs=document.getElementById('mov-obs').value.trim()||null;
+  const{error:eM}=await db.from('estoque_movimentos').insert({
+    produto_id:prodId,tipo,quantidade:qtd,lote,validade,paciente_id:pacId,obs
+  });
+  if(eM){toast('Erro: '+eM.message,'vermelho');return;}
+  // Atualizar quantidade do produto
+  const prod=_produtos.find(p=>p.id===prodId);
+  const delta=tipo==='entrada'?qtd:-qtd;
+  const novaQtd=Math.max(0,(prod?.quantidade||0)+delta);
+  await db.from('produtos').update({quantidade:novaQtd}).eq('id',prodId);
+  toast('Movimentação registrada ✓','verde');
+  fecharModal('modal-movimento');
+  await carregar();
+  if(_tabAtual==='movimentos')renderMovimentos();
+}
+
+function filtrarMovimentos(){
+  const prodId=document.getElementById('filtro-mov-produto').value;
+  const tipo=document.getElementById('filtro-mov-tipo').value;
+  const filtrados=_movimentos.filter(m=>
+    (!prodId||m.produto_id===prodId)&&
+    (!tipo||m.tipo===tipo)
+  );
+  renderTblMovimentos(filtrados);
+}
+
+function renderMovimentos(){
+  // Popular select de produto no filtro
+  const sel=document.getElementById('filtro-mov-produto');
+  sel.innerHTML='<option value="">Todos os produtos</option>'+_produtos.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
+  sel.onchange=filtrarMovimentos;
+  renderTblMovimentos(_movimentos);
+}
+
+function renderTblMovimentos(lista){
+  const tb=document.getElementById('tbl-movimentos');
+  if(!lista.length){
+    tb.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="empty-icon">🔄</div><p>Nenhuma movimentação encontrada.</p></div></td></tr>`;
+    return;
+  }
+  const tipoLabel={entrada:'📥 Entrada',saida:'📤 Saída',uso:'💉 Uso',descarte:'🗑 Descarte',ajuste:'⚙️ Ajuste'};
+  const tipoBadge={entrada:'verde',saida:'vermelho',uso:'roxo',descarte:'amarelo',ajuste:'azul'};
+  tb.innerHTML=lista.map(m=>{
+    const prod=_produtos.find(p=>p.id===m.produto_id);
+    const pac=_pacientes.find(p=>p.id===m.paciente_id);
+    const dv=m.validade?diasParaVencer(m.validade):null;
+    const valdClass=dv!==null?(dv<0?'vermelho':dv<=30?'amarelo':'verde'):'';
+    return`<tr>
+      <td style="font-size:12px;color:var(--ct);white-space:nowrap">${fDt(m.criado_em?.split('T')[0])}</td>
+      <td><div style="font-weight:600;font-size:13px">${prod?.nome||'—'}</div></td>
+      <td><span class="badge ${tipoBadge[m.tipo]||'azul'}">${tipoLabel[m.tipo]||m.tipo}</span></td>
+      <td style="font-weight:700">${m.quantidade} <span style="font-weight:400;font-size:11px;color:var(--ct)">${prod?.unidade||''}</span></td>
+      <td style="font-size:12px">${m.lote||'—'}</td>
+      <td style="font-size:12px">${m.validade?('<span class="badge '+valdClass+'">'+fDt(m.validade)+(dv!==null?(dv<0?' (vencido)':dv===0?' (hoje)':' ('+dv+'d)'):'')+'</span>'):'—'}</td>
+      <td style="font-size:12px;color:var(--ct)">${pac?pac.nome:'—'}</td>
+      <td style="font-size:12px;color:var(--ct);max-width:150px;overflow:hidden;text-overflow:ellipsis">${m.obs||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── FORNECEDORES ──
+function filtrarFornecedores(){
+  const q=(document.getElementById('busca-forn').value||'').toLowerCase();
+  renderTblFornecedores(_fornecedores.filter(f=>f.nome.toLowerCase().includes(q)));
+}
+
+function renderFornecedores(){renderTblFornecedores(_fornecedores);}
+
+function renderTblFornecedores(lista){
+  const tb=document.getElementById('tbl-fornecedores');
+  if(!lista.length){
+    tb.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-icon">🏭</div><p>Nenhum fornecedor cadastrado.</p></div></td></tr>`;
+    return;
+  }
+  tb.innerHTML=lista.map(f=>`<tr>
+    <td><div style="font-weight:600">${f.nome}</div>${f.obs?`<div style="font-size:11px;color:var(--ct)">${f.obs}</div>`:''}</td>
+    <td style="font-size:12px;color:var(--ct)">${f.cnpj||'—'}</td>
+    <td style="font-size:12px">${f.contato||'—'}</td>
+    <td style="font-size:12px">${f.telefone?`<a href="https://wa.me/55${f.telefone.replace(/\D/g,'')}" target="_blank" style="color:var(--verde)">💬 ${f.telefone}</a>`:'—'}</td>
+    <td style="font-size:12px">${f.email?`<a href="mailto:${f.email}" style="color:var(--azul)">${f.email}</a>`:'—'}</td>
+    <td style="display:flex;gap:6px">
+      <button class="btn sm" onclick="editarFornecedor('${f.id}')">✏️</button>
+      <button class="btn sm dan" onclick="excluirFornecedor('${f.id}')">🗑</button>
+    </td>
+  </tr>`).join('');
+}
+
+function abrirModalFornecedor(){
+  ['forn-id','forn-nome','forn-cnpj','forn-contato','forn-tel','forn-email','forn-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('modal-forn-titulo').textContent='🏭 Novo fornecedor';
+  abrirModal('modal-fornecedor');
+}
+
+function editarFornecedor(id){
+  const f=_fornecedores.find(x=>x.id===id);if(!f)return;
+  document.getElementById('modal-forn-titulo').textContent='✏️ Editar fornecedor';
+  document.getElementById('forn-id').value=f.id;
+  document.getElementById('forn-nome').value=f.nome;
+  document.getElementById('forn-cnpj').value=f.cnpj||'';
+  document.getElementById('forn-contato').value=f.contato||'';
+  document.getElementById('forn-tel').value=f.telefone||'';
+  document.getElementById('forn-email').value=f.email||'';
+  document.getElementById('forn-obs').value=f.obs||'';
+  abrirModal('modal-fornecedor');
+}
+
+async function salvarFornecedor(){
+  const id=document.getElementById('forn-id').value;
+  const nome=document.getElementById('forn-nome').value.trim();
+  if(!nome){toast('Informe o nome','vermelho');return;}
+  const obj={
+    nome,
+    cnpj:document.getElementById('forn-cnpj').value.trim()||null,
+    contato:document.getElementById('forn-contato').value.trim()||null,
+    telefone:document.getElementById('forn-tel').value.trim()||null,
+    email:document.getElementById('forn-email').value.trim()||null,
+    obs:document.getElementById('forn-obs').value.trim()||null
+  };
+  const{error}=id
+    ?await db.from('fornecedores').update(obj).eq('id',id)
+    :await db.from('fornecedores').insert(obj);
+  if(error){toast('Erro: '+error.message,'vermelho');return;}
+  toast(id?'Fornecedor atualizado ✓':'Fornecedor cadastrado ✓','verde');
+  fecharModal('modal-fornecedor');
+  await carregar();
+  if(_tabAtual==='fornecedores')renderFornecedores();
+}
+
+async function excluirFornecedor(id){
+  if(!confirm('Excluir este fornecedor?'))return;
+  const{error}=await db.from('fornecedores').delete().eq('id',id);
+  if(error){toast('Erro ao excluir','vermelho');return;}
+  toast('Fornecedor excluído');
+  await carregar();
+  if(_tabAtual==='fornecedores')renderFornecedores();
+}
+
+// ── POPULAR SELECTS GLOBAIS ──
+function popularSelects(){
+  // Selects de produto nos modais de movimento
+  const opts='<option value="">Selecione um produto...</option>'+_produtos.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
+  const movProd=document.getElementById('mov-produto');
+  if(movProd)movProd.innerHTML=opts;
+}
+
+// ── FECHAR MODAIS AO CLICAR FORA ──
+document.querySelectorAll('.mb').forEach(m=>{
+  m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');});
+});
+
+// ── INIT ──
+carregar();
+</script>
+</body>
+</html>
