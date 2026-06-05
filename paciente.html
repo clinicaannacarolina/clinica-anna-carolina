@@ -1329,42 +1329,52 @@ async function salvarEditAtend() {
 }
 
 // ─── FINANCEIRO ───
-function renderFinanceiro(){
-  const trats = pac.tratamentos_adicionais || [];
-  const ats = pac.atendimentos || [];
+async function renderFinanceiro(){
+  // Buscar lançamentos financeiros do paciente diretamente da tabela financeiro
+  const { data: lancamentos } = await db.from('financeiro')
+    .select('*')
+    .eq('paciente_id', pac.id)
+    .eq('tipo', 'receita')
+    .order('data', { ascending: false });
 
-  // Agrupar por data
+  const fins = lancamentos || [];
+
+  // Stats
+  let totalGasto = 0, totalPago = 0, totalPendente = 0;
+  fins.forEach(l => {
+    const val = parseFloat(l.valor) || 0;
+    totalGasto += val;
+    if (l.status === 'recebido') totalPago += val;
+    else if (l.status === 'pendente') totalPendente += val;
+  });
+
+  // Complementar com atendimentos que não têm paciente_id no financeiro (legado)
+  const trats = pac.tratamentos_adicionais || [];
   const porData = {};
   trats.forEach(t=>{
     const key = t.dataAtendimento || '—';
     if(!porData[key]) porData[key] = [];
     porData[key].push(t);
   });
-
   const datas = Object.keys(porData).filter(d=>d!=='—').sort((a,b)=>b.localeCompare(a));
 
-  // Stats — usar apenas tratamentos_adicionais do paciente
-  let totalGasto = 0, totalPago = 0, totalPendente = 0, nAtend = 0;
+  // Se não tem lançamentos no financeiro, usar legado
+  if (!fins.length) {
+    datas.forEach(data=>{
+      const ts = porData[data];
+      const total = ts.reduce((s,t)=>s+(parseFloat(t.valor)||0),0);
+      const status = ts.find(t=>t.statusPagamento)?.statusPagamento || '';
+      const vPago = parseFloat(ts.find(t=>t.valorPago)?.valorPago) || 0;
+      const vPend = parseFloat(ts.find(t=>t.valorPendente)?.valorPendente) || 0;
+      totalGasto += total;
+      if(vPago > 0) { totalPago += vPago; totalPendente += vPend; }
+      else if(status==='recebido') totalPago += total;
+      else if(status==='pendente') totalPendente += total;
+      else totalPago += total;
+    });
+  }
 
-  datas.forEach(data=>{
-    const ts = porData[data];
-    const total = ts.reduce((s,t)=>s+(parseFloat(t.valor)||0),0);
-    const status = ts.find(t=>t.statusPagamento)?.statusPagamento || '';
-    const vPago = parseFloat(ts.find(t=>t.valorPago)?.valorPago) || 0;
-    const vPend = parseFloat(ts.find(t=>t.valorPendente)?.valorPendente) || 0;
-    totalGasto += total;
-    nAtend++;
-    if(vPago > 0) {
-      totalPago += vPago;
-      totalPendente += vPend;
-    } else if(status==='recebido') {
-      totalPago += total;
-    } else if(status==='pendente') {
-      totalPendente += total;
-    } else {
-      totalPago += total;
-    }
-  });
+  const nAtend = datas.length;
 
   const ticket = nAtend > 0 ? totalGasto / nAtend : 0;
 
@@ -1375,37 +1385,44 @@ function renderFinanceiro(){
     <div class="rc"><div class="ri" style="background:${totalPendente>0?'var(--amarelo-c)':'var(--verde-c)'}">⏳</div><div><div class="rn" style="color:${totalPendente>0?'var(--amarelo)':'var(--verde)'}">${totalPendente>0?fmtBRL(totalPendente):'—'}</div><div class="rl">Pendente</div></div></div>
   `;
 
-  // Histórico
+  // Histórico — usar lançamentos financeiros se disponíveis
   const histEl = document.getElementById('fin-historico');
-  if(!datas.length){
+  
+  const itensHist = fins.length ? fins : datas.flatMap(data => {
+    const ts = porData[data];
+    return ts.map(t => ({
+      data,
+      descricao: t.nome,
+      valor: t.valor || 0,
+      forma_pagamento: t.formaPagamento || '',
+      status: t.statusPagamento || 'recebido'
+    }));
+  });
+
+  if (!itensHist.length) {
     histEl.innerHTML='<div class="empty"><div class="empty-icon">💰</div><p>Nenhum pagamento registrado.</p></div>';
     return;
   }
 
-  histEl.innerHTML = datas.map(data=>{
-    const ts = porData[data];
-    const total = ts.reduce((s,t)=>s+(parseFloat(t.valor)||0),0);
-    const pgto = ts.find(t=>t.formaPagamento)?.formaPagamento || '';
-    const status = ts.find(t=>t.statusPagamento)?.statusPagamento || '';
-    const vPago = parseFloat(ts.find(t=>t.valorPago)?.valorPago) || 0;
-    const vPend = parseFloat(ts.find(t=>t.valorPendente)?.valorPendente) || 0;
-    const temParcial = vPago > 0 && vPend > 0;
-    const pgtoLabel = pgto.replace('pix','Pix').replace('dinheiro','Dinheiro').replace('debito','Débito').replace('transferencia','Transferência').replace('credito-','Crédito ');
-    const statusCor = status==='recebido'?'var(--verde)':status==='pendente'?'var(--amarelo)':'var(--ct)';
-    const statusLabel = status==='recebido'?'✅ Pago':status==='pendente'?'⏳ Pendente':'—';
+  histEl.innerHTML = itensHist.map(l => {
+    const pgto = (l.forma_pagamento||'').replace('pix','Pix').replace('dinheiro','Dinheiro').replace('debito','Débito').replace('transferencia','Transferência').replace('credito-','Crédito ');
+    const statusCor = l.status==='recebido'?'var(--verde)':l.status==='pendente'?'var(--amarelo)':'var(--ct)';
+    const statusLabel = l.status==='recebido'?'✅ Recebido':l.status==='pendente'?'⏳ Pendente':'—';
+    const bgCard = l.status==='pendente'?'var(--amarelo-c)':'var(--bg)';
+    const borderCard = l.status==='pendente'?'var(--amarelo)':'var(--borda)';
 
-    return `<div style="padding:12px 14px;border-radius:10px;background:var(--bg);margin-bottom:8px;border:1px solid var(--borda)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
-        <span style="font-size:13px;font-weight:600;color:var(--verde-e)">📅 ${fDt(data)}</span>
-        <span style="font-size:15px;font-weight:700;color:var(--txt)">${fmtBRL(total)}</span>
+    return `<div style="padding:12px 14px;border-radius:10px;background:${bgCard};margin-bottom:8px;border:1px solid ${borderCard}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:6px">
+        <span style="font-size:13px;font-weight:600;color:var(--verde-e)">📅 ${fDt(l.data)}</span>
+        <span style="font-size:15px;font-weight:700;color:${l.status==='pendente'?'#8a6000':'var(--txt)'}">${fmtBRL(l.valor)}</span>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
-        ${ts.map(t=>`<span class="trat-chip">${t.nome}</span>`).join('')}
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        ${pgto?`<span style="font-size:12px;padding:2px 8px;border-radius:20px;background:var(--azul-c);color:var(--azul);font-weight:500">💳 ${pgtoLabel}</span>`:''}
-        ${status?`<span style="font-size:12px;padding:2px 8px;border-radius:20px;background:${status==='recebido'?'var(--verde-c)':'var(--amarelo-c)'};color:${statusCor};font-weight:500">${statusLabel}</span>`:''}
-        ${temParcial?`<span style="font-size:12px;color:var(--ct)">Pago: ${fmtBRL(vPago)} · Pendente: ${fmtBRL(vPend)}</span>`:''}
+      <div style="font-size:13px;color:var(--txt);margin-bottom:6px">${l.descricao||''}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${pgto?`<span style="font-size:12px;padding:2px 8px;border-radius:20px;background:var(--azul-c);color:var(--azul);font-weight:500">💳 ${pgto}</span>`:''}
+          <span style="font-size:12px;padding:2px 8px;border-radius:20px;background:${l.status==='recebido'?'var(--verde-c)':'var(--amarelo-c)'};color:${statusCor};font-weight:500">${statusLabel}</span>
+        </div>
+        ${l.status==='pendente'?`<button class="btn sm" style="padding:5px 10px;font-size:12px;background:var(--verde);color:white;border-color:var(--verde)" onclick="marcarRecebidoPaciente('${l.id}')">✓ Recebido</button>`:''}
       </div>
     </div>`;
   }).join('');
@@ -1435,6 +1452,15 @@ function renderFinanceiro(){
   } else {
     document.getElementById('fin-pendencias-card').style.display='none';
   }
+}
+
+// ─── MARCAR RECEBIDO NA FICHA ───
+async function marcarRecebidoPaciente(lancId) {
+  if (!lancId) return;
+  const { error } = await db.from('financeiro').update({ status: 'recebido' }).eq('id', lancId);
+  if (error) { toast('Erro ao atualizar', 'vermelho'); return; }
+  toast('Pagamento recebido ✅', 'verde');
+  renderFinanceiro();
 }
 
 // ─── INICIAR ───
