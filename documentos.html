@@ -1212,13 +1212,63 @@ function restaurarSig(id,dataUrl){
 const PLAN_PROCS=['Toxina Botulínica','Preenchimento Facial','Preenchimento Labial','Bioestimuladores','Fios de Sustentação','Rinomodelação','Skinbooster','Microagulhamento','Peeling Químico','Bichectomia','Lipo de papada','Harmonização do sorriso'];
 const PLAN_REGIOES=['Frontal','Corrugador','Prócero','Orbicular do olho','Mentual','Levantador do lábio superior','Depressor do septo nasal','Depressor do ângulo da boca','Platisma','Masseter','Outras'];
 
-function abrirPlanejamento(){
+async function abrirPlanejamento(){
   const p=pacSelecionada;
   document.getElementById('plan-pac-info').innerHTML=`<div><div class="pac-info-nome">${p.nome}${p.apelido?` (${p.apelido})`:''}</div><div class="pac-info-sub">${p.telefone}${p.data_nascimento?' · Nasc: '+fDt(p.data_nascimento):''}</div></div>`;
   document.getElementById('plan-procs').innerHTML=PLAN_PROCS.map((c,i)=>`<div class="check-item"><input type="checkbox" id="plck-${i}"><label for="plck-${i}">${c}</label></div>`).join('');
   document.getElementById('plan-regioes').innerHTML=PLAN_REGIOES.map((r,i)=>`<div style="display:grid;grid-template-columns:140px 80px;gap:8px;align-items:center;margin-bottom:6px"><label style="text-transform:none;letter-spacing:0;font-size:13px;font-weight:400;color:var(--txt)">${r}</label><input type="number" id="plan-reg-${i}" placeholder="U" min="0" style="padding:5px 8px;font-size:13px"/></div>`).join('');
   document.getElementById('plan-preench').innerHTML='';
   for(let i=0;i<4;i++) addLinhaPreench();
+
+  // Carregar último planejamento salvo automaticamente
+  const {data:docs} = await db.from('documentos').select('*')
+    .eq('paciente_id', p.id).eq('tipo','planejamento')
+    .order('criado_em',{ascending:false}).limit(1);
+
+  if(docs && docs.length > 0){
+    const d = docs[0].dados || {};
+    // Indicar que está carregando dados salvos
+    const info = document.getElementById('plan-pac-info');
+    info.innerHTML += `<div style="font-size:11px;color:var(--verde-e);background:var(--verde-c);padding:4px 10px;border-radius:6px;margin-top:6px;display:inline-block">✅ Carregado do último planejamento (${fDt(docs[0].data_assinatura||docs[0].criado_em?.split('T')[0])})</div>`;
+
+    // Preencher campos
+    if(d.validade) document.getElementById('plan-validade').value=d.validade;
+    if(d.lote) document.getElementById('plan-lote').value=d.lote;
+    if(d.diluicao) document.getElementById('plan-diluicao').value=d.diluicao;
+    if(d.anotacoes) document.getElementById('plan-anotacoes').value=d.anotacoes;
+    if(d.outros){
+      ['plan-outros1','plan-outros2','plan-outros3'].forEach((id,i)=>{
+        const el=document.getElementById(id); if(el) el.value=d.outros[i]||'';
+      });
+    }
+    // Marcar checkboxes
+    if(d.procs){
+      document.querySelectorAll('#plan-procs input[type=checkbox]').forEach(cb=>{
+        if(d.procs.includes(cb.nextElementSibling?.textContent)) cb.checked=true;
+      });
+    }
+    // Regiões toxina
+    if(d.regioes){
+      document.querySelectorAll('#plan-regioes > div').forEach(div=>{
+        const inp=div.querySelector('input[type=number]');
+        const lbl=div.querySelector('label');
+        if(inp&&lbl){ const val=d.regioes[lbl.textContent]; if(val) inp.value=val; }
+      });
+    }
+    // Preenchimentos
+    if(d.preench&&d.preench.length>0){
+      document.getElementById('plan-preench').innerHTML='';
+      d.preench.forEach(row=>{
+        addLinhaPreench();
+        const divs=document.querySelectorAll('#plan-preench > div');
+        const div=divs[divs.length-1];
+        const inputs=div.querySelectorAll('input');
+        row.forEach((v,i)=>{if(inputs[i])inputs[i].value=v;});
+      });
+      const atual=document.querySelectorAll('#plan-preench > div').length;
+      for(let i=atual;i<4;i++) addLinhaPreench();
+    }
+  }
 }
 
 function addLinhaPreench(){
@@ -1238,7 +1288,7 @@ const DENTES_INF=[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
 const CORES_DENTE={normal:'#F0EDE8',carie:'#E24B4A',restauracao:'#EF9F27',higido:'#1D9E75',extracao:'#185FA5',ausente:'#888',protese:'#7C3AED'};
 let estadoDentes={};
 
-function abrirOdontograma(){
+async function abrirOdontograma(){
   const p=pacSelecionada;
   estadoDentes={};
   document.getElementById('odonto-pac-info').innerHTML=`<div><div class="pac-info-nome">${p.nome}${p.apelido?` (${p.apelido})`:''}</div><div class="pac-info-sub">${p.telefone}</div></div>`;
@@ -1249,6 +1299,28 @@ function abrirOdontograma(){
   document.getElementById('od-trats').innerHTML='';
   for(let i=0;i<5;i++) addLinhaOdonto();
   calcTotalOdonto();
+  // Carregar último salvo automaticamente
+  const {data:docs}=await db.from('documentos').select('*').eq('paciente_id',p.id).eq('tipo','odontograma').order('criado_em',{ascending:false}).limit(1);
+  if(docs&&docs.length>0){
+    const d=docs[0].dados||{};
+    const info=document.getElementById('odonto-pac-info');
+    info.innerHTML+=`<div style="font-size:11px;color:var(--verde-e);background:var(--verde-c);padding:4px 10px;border-radius:6px;margin-top:6px;display:inline-block">✅ Carregado do último registro (${fDt(docs[0].data_assinatura||docs[0].criado_em?.split('T')[0])})</div>`;
+    if(d.estadoDentes){estadoDentes=d.estadoDentes;renderOdontograma();}
+    if(d.end) document.getElementById('od-end').value=d.end;
+    if(d.bairro) document.getElementById('od-bairro').value=d.bairro;
+    if(d.cidade) document.getElementById('od-cidade').value=d.cidade;
+    if(d.rg) document.getElementById('od-rg').value=d.rg;
+    if(d.cpf) document.getElementById('od-cpf').value=d.cpf;
+    if(d.resp) document.getElementById('od-resp').value=d.resp;
+    if(d.validade) document.getElementById('od-validade-dias').value=d.validade;
+    if(d.pagamento) document.getElementById('od-pagamento').value=d.pagamento;
+    if(d.obs) document.getElementById('od-obs').value=d.obs;
+    if(d.trats&&d.trats.length>0){
+      document.getElementById('od-trats').innerHTML='';
+      d.trats.forEach(t=>{addLinhaOdonto();const trs=document.querySelectorAll('#od-trats tr');const tr=trs[trs.length-1];const ins=tr.querySelectorAll('input');if(ins[0])ins[0].value=t.dente||'';if(ins[1])ins[1].value=t.trat||'';if(ins[2])ins[2].value=t.val||'';});
+      calcTotalOdonto();
+    }
+  }
 }
 
 function renderOdontograma(){
