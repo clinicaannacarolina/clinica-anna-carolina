@@ -374,7 +374,7 @@ textarea{resize:vertical;min-height:70px}
 
       <!-- Pendências -->
       <div class="card" id="fin-pendencias-card" style="display:none">
-        <div class="sec-title" style="margin-top:0;color:var(--vermelho)">⏳ Valores pendentes</div>
+        <div class="sec-title" style="margin-top:0;color:var(--vermelho)">⏳ A receber</div>
         <div id="fin-pendencias"></div>
       </div>
     </div>
@@ -543,7 +543,7 @@ textarea{resize:vertical;min-height:70px}
           <label>Status</label>
           <select id="det-status">
             <option value="recebido">✅ Pago</option>
-            <option value="pendente">⏳ Pendente</option>
+            <option value="pendente">⏳ A receber</option>
           </select>
         </div>
         <div class="fgr">
@@ -789,7 +789,7 @@ function renderHistorico(){
           const obs=ts.find(t=>t.obsFinanceiro)?.obsFinanceiro||atend?.obsFinanceiro||'';
           let html='';
           if(pgto||sts){
-            const stsLabel=sts==='recebido'?'✅ Pago':'⏳ Pendente';
+            const stsLabel=sts==='recebido'?'✅ Pago':'⏳ A receber';
             const stsCor=sts==='recebido'?'var(--verde)':'var(--amarelo)';
             const pgtoLabel=pgto?pgto.replace('pix','Pix').replace('dinheiro','Dinheiro').replace('debito','Débito').replace('transferencia','Transferência').replace('credito-','Crédito '):'';
             html+=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">`;
@@ -1231,7 +1231,7 @@ function abrirDetAtend(data, trats) {
   const verif = trats.find(t=>t.verificacaoData)?.verificacaoData || '';
 
   const pgtoLabel = pgto ? pgto.replace('pix','Pix').replace('dinheiro','Dinheiro').replace('debito','Débito').replace('transferencia','Transferência').replace('credito-','Crédito ') : '—';
-  const statusLabel = status === 'recebido' ? '✅ Pago' : status === 'pendente' ? '⏳ Pendente' : '—';
+  const statusLabel = status === 'recebido' ? '✅ Pago' : status === 'pendente' ? '⏳ A receber' : '—';
   const statusCor = status === 'recebido' ? 'var(--verde)' : status === 'pendente' ? 'var(--amarelo)' : 'var(--ct)';
 
   // Calcular valor pago e pendente
@@ -1258,7 +1258,7 @@ function abrirDetAtend(data, trats) {
         <div style="font-size:16px;font-weight:700;color:var(--verde-e)">${fmtBRL(valorPago)}</div>
       </div>
       <div style="background:var(--amarelo-c);border-radius:8px;padding:10px 12px">
-        <div style="font-size:11px;color:#8a6000;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">⏳ Valor pendente</div>
+        <div style="font-size:11px;color:#8a6000;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">⏳ A receber</div>
         <div style="font-size:16px;font-weight:700;color:#8a6000">${fmtBRL(valorPendente)}</div>
       </div>
     </div>` : ''}
@@ -1395,7 +1395,7 @@ async function renderFinanceiro(){
   document.getElementById('fin-resumo-stats').innerHTML = `
     <div class="rc"><div class="ri" style="background:var(--verde-c)">💰</div><div><div class="rn">${fmtBRL(totalGasto)}</div><div class="rl">Total gasto</div></div></div>
     <div class="rc"><div class="ri" style="background:var(--verde-c)">✅</div><div><div class="rn">${fmtBRL(totalPago)}</div><div class="rl">Total pago</div></div></div>
-    <div class="rc"><div class="ri" style="background:${totalPendente>0?'var(--amarelo-c)':'var(--verde-c)'}">⏳</div><div><div class="rn" style="color:${totalPendente>0?'var(--amarelo)':'var(--verde)'}">${totalPendente>0?fmtBRL(totalPendente):'Quitado'}</div><div class="rl">Pendente</div></div></div>
+    <div class="rc"><div class="ri" style="background:${totalPendente>0?'var(--amarelo-c)':'var(--verde-c)'}">⏳</div><div><div class="rn" style="color:${totalPendente>0?'var(--amarelo)':'var(--verde)'}">${totalPendente>0?fmtBRL(totalPendente):'Quitado'}</div><div class="rl">A receber</div></div></div>
   `;
 
   // ── Renderizar card de plano ──
@@ -1437,7 +1437,7 @@ async function renderFinanceiro(){
           <div style="font-size:15px;font-weight:700;color:var(--txt)">${fmtBRL(totalPlano)}</div>
           ${quitado
             ? `<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--verde-c);color:var(--verde);font-weight:600">✅ Quitado</span>`
-            : `<span style="font-size:11px;color:#8a6000;font-weight:600">Pendente: ${fmtBRL(pendPlano)}</span>`
+            : `<span style="font-size:11px;color:#8a6000;font-weight:600">A receber: ${fmtBRL(pendPlano)}</span>`
           }
         </div>
       </div>
@@ -1486,7 +1486,7 @@ async function renderFinanceiro(){
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between">
             <div style="display:flex;gap:6px;flex-wrap:wrap">
               ${pgto?`<span style="font-size:12px;padding:2px 8px;border-radius:20px;background:var(--azul-c);color:var(--azul);font-weight:500">💳 ${pgto}</span>`:''}
-              <span style="font-size:12px;padding:2px 8px;border-radius:20px;background:${recebido?'var(--verde-c)':'var(--amarelo-c)'};color:${recebido?'var(--verde)':'var(--amarelo)'};font-weight:500">${recebido?'✅ Recebido':'⏳ Pendente'}</span>
+              <span style="font-size:12px;padding:2px 8px;border-radius:20px;background:${recebido?'var(--verde-c)':'var(--amarelo-c)'};color:${recebido?'var(--verde)':'var(--amarelo)'};font-weight:500">${recebido?'✅ Recebido':'⏳ A receber'}</span>
             </div>
             ${!recebido?`<button class="btn sm" style="padding:5px 10px;font-size:12px;background:var(--verde);color:white;border-color:var(--verde)" onclick="marcarRecebidoPaciente('${l.id}')">✓ Recebido</button>`:''}
           </div>
@@ -1508,7 +1508,7 @@ async function renderFinanceiro(){
             <span style="font-size:15px;font-weight:700">${fmtBRL(tot)}</span>
           </div>
           <div style="font-size:13px;color:var(--ct)">${ts.map(t=>t.nome).join(' + ')}</div>
-          <div style="margin-top:4px"><span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${recebido?'var(--verde-c)':'var(--amarelo-c)'};color:${recebido?'var(--verde)':'var(--amarelo)'};font-weight:500">${recebido?'✅ Recebido':'⏳ Pendente'}</span></div>
+          <div style="margin-top:4px"><span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${recebido?'var(--verde-c)':'var(--amarelo-c)'};color:${recebido?'var(--verde)':'var(--amarelo)'};font-weight:500">${recebido?'✅ Recebido':'⏳ A receber'}</span></div>
         </div>`;
       }).join('');
     }

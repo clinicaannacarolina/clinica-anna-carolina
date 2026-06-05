@@ -259,7 +259,7 @@ textarea{resize:vertical;min-height:70px}
     <div class="sl2">🔬 Verificações pós-procedimento</div><div id="l-verificacoes"></div>
     <div class="sl2">🎂 Aniversariantes</div><div id="l-aniv"></div>
     <div class="sl2">📌 Lembretes</div><div id="l-lembr"></div>
-    <div class="sl2">💰 Cobranças pendentes (próx. 7 dias)</div><div id="l-fin-hoje"></div>
+    <div class="sl2">💰 A receber (próx. 7 dias)</div><div id="l-fin-hoje"></div>
     <div class="sl2">🔔 Retornos nos próximos 15 dias</div><div id="l-ret-hoje"></div>
   </div>
 
@@ -922,7 +922,7 @@ async function renderAlertasFinHoje(){
     .gte('data',ini.toISOString().split('T')[0])
     .lte('data',fim.toISOString().split('T')[0])
     .order('data',{ascending:true});
-  if(!data||!data.length){el.innerHTML='<div class="empty" style="padding:8px"><p>Nenhum pagamento pendente nos próximos 7 dias.</p></div>';return;}
+  if(!data||!data.length){el.innerHTML='<div class="empty" style="padding:8px"><p>Nenhum valor a receber nos próximos 7 dias.</p></div>';return;}
   el.innerHTML=data.map(l=>{
     const d=dias(l.data);
     const urgente=d<=0;
@@ -1068,7 +1068,7 @@ function renderPac(){
           <button class="btn dan" onclick="excluir('${p.id}','${p.nome.replace(/'/g,"\\'")}')">🗑</button>
         </div>
       </div>
-      <span class="badge ${isPend?'prox':bc}" style="align-self:flex-start;margin-top:4px">${isPend?'Pendente':bt}</span>
+      <span class="badge ${isPend?'prox':bc}" style="align-self:flex-start;margin-top:4px">${isPend?'A receber':bt}</span>
     </div>`;
   }).join('');
 }
@@ -1719,7 +1719,7 @@ function renderFinLista(tipo, elId){
             <div style="text-align:right;flex-shrink:0">
               <div style="font-size:15px;font-weight:700;color:${tipo==='receita'?'var(--verde-e)':'var(--vermelho,#e24b4a)'}">${fmtBRL(l.valor)}</div>
               <div style="font-size:11px;margin-top:2px">
-                <span style="background:${l.status==='recebido'?'var(--verde-c)':'var(--amarelo-c,#fffbea)'};color:${l.status==='recebido'?'var(--verde-e)':'#8a6000'};padding:2px 7px;border-radius:99px;font-weight:600">${l.status==='recebido'?'✅ Recebido':'⏳ Pendente'}</span>
+                <span style="background:${l.status==='recebido'?'var(--verde-c)':'var(--amarelo-c,#fffbea)'};color:${l.status==='recebido'?'var(--verde-e)':'#8a6000'};padding:2px 7px;border-radius:99px;font-weight:600">${l.status==='recebido'?'✅ Recebido':'⏳ A receber'}</span>
               </div>
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
@@ -1913,7 +1913,7 @@ async function exportarFinanceiro(){
   const linhas = [['Data','Tipo','Descrição','Categoria','Valor','Forma de Pagamento','Status','Observações']];
   _finLancs.sort((a,b)=>a.data.localeCompare(b.data)).forEach(l=>{
     linhas.push([fDt(l.data),l.tipo==='receita'?'Receita':'Despesa',l.descricao,l.categoria||'',
-      l.valor,l.forma_pagamento||'',l.status==='recebido'?'Recebido':'Pendente',l.obs||'']);
+      l.valor,l.forma_pagamento||'',l.status==='recebido'?'Recebido':'A receber',l.obs||'']);
   });
   
   // Totais
@@ -2199,7 +2199,7 @@ document.getElementById('modal-inf').addEventListener('click',function(e){if(e.t
         <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Status</label>
         <select id="fin-status" style="width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;margin-top:4px">
           <option value="recebido">✅ Recebido / Pago</option>
-          <option value="pendente">⏳ Pendente</option>
+          <option value="pendente">⏳ A receber</option>
         </select>
       </div>
       <div>
