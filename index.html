@@ -1687,10 +1687,13 @@ function renderFinDashboard(){
       <div style="font-size:22px;font-weight:700;color:${saldo>=0?'var(--verde-e)':'var(--vermelho,#e24b4a)'};margin:4px 0">${fmtBRL(saldo)}</div>
       <div style="font-size:11px;color:var(--ct)">Receitas − Despesas</div>
     </div>
-    <div style="background:var(--amarelo-c,#fffbea);border-radius:12px;padding:14px;border:1.5px solid var(--amarelo,#ef9f27)">
+    <div style="background:var(--amarelo-c,#fffbea);border-radius:12px;padding:14px;border:1.5px solid var(--amarelo,#ef9f27);cursor:pointer" onclick="abrirCarteiraReceber()">
       <div style="font-size:11px;color:#8a6000;font-weight:600;text-transform:uppercase;letter-spacing:.04em">⏳ A Receber</div>
       <div style="font-size:22px;font-weight:700;color:#8a6000;margin:4px 0">${fmtBRL(recPend)}</div>
-      <div style="font-size:11px;color:var(--ct)">${todosPend.length} pagamento${todosPend.length!==1?'s':''} a receber</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px">
+        <span style="font-size:11px;color:var(--ct)">${todosPend.length} pagamento${todosPend.length!==1?'s':''} a receber</span>
+        <span style="font-size:11px;color:#8a6000;font-weight:600">Ver detalhes →</span>
+      </div>
     </div>`;
 }
 
