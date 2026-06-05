@@ -1421,7 +1421,7 @@ async function renderFinanceiro(){
           <span style="font-size:14px;font-weight:700;color:${recebido?'var(--txt)':'#8a6000'}">${fmtBRL(l.valor)}</span>
           ${recebido
             ? `<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--verde-c);color:var(--verde);font-weight:600">✅ Recebido</span>`
-            : `<button class="btn sm" style="padding:4px 10px;font-size:11px;background:var(--verde);color:white;border-color:var(--verde)" onclick="marcarRecebidoPaciente('${l.id}')">✓ Recebido</button>`
+            : `<button class="btn sm" style="padding:4px 10px;font-size:11px;background:var(--amarelo);color:white;border-color:var(--amarelo)" onclick="marcarRecebidoPaciente('${l.id}')">⏳ Marcar recebido</button>`
           }
         </div>
       </div>`;
