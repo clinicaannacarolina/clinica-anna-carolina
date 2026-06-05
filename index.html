@@ -1264,9 +1264,8 @@ async function salvarAtend(){
     const descProcedimentos=tc.map(t=>t.nome).join(' + ');
     const pacNome=pacAtual?.nome||'';
     const {data:plano,error:ePlano}=await db.from('planos_tratamento').insert({
-      paciente_id:id,status:'aberto',
-      obs:descProcedimentos,
-      validade:null,condicoes_pagamento:'A combinar'
+      paciente_id:id,status:'ativo',
+      obs:descProcedimentos
     }).select().single();
     if(!ePlano&&plano){
       // 3. Criar plano_itens (um por tratamento)
