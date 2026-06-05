@@ -1519,9 +1519,9 @@ async function confirmarRealizado(){
   const dataAtend=document.getElementById('modal-data').value;
   if(!dataAtend){toast('Informe a data do atendimento!','vermelho');return;}
 
-  const itens=getOrcItens().filter(i=>i.trat);
-  const selecionados=itens.filter((_,i)=>document.getElementById(`modal-trat-${i}`)?.checked);
-  if(!selecionados.length){toast('Marque ao menos um tratamento!','vermelho');return;}
+const itens = window._modalRealizados || getOrcItens().filter(i=>i.trat);
+const selecionados = itens;
+if(!selecionados.length){toast('Marque ao menos um tratamento!','vermelho');return;}
 
   const verDias=parseInt(document.getElementById('modal-ver-dias').value)||0;
   const verificacaoData=document.getElementById('modal-ver-data').value||null;
