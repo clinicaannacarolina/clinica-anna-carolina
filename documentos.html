@@ -1461,15 +1461,15 @@ function addLinhaHistorico(){
 
 // ATUALIZAR abrirDoc para incluir novos tipos
 const _abrirDocOrig=abrirDoc;
-function abrirDoc(tipo){
+async function abrirDoc(tipo){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('sec-docs').style.display='none';
   document.getElementById('sec-busca').style.display='none';
   if(tipo==='anamnese') abrirAnamnese();
   else if(tipo==='autorizacao-imagem') abrirAutorizacaoImagem();
-  else if(tipo==='orcamento') abrirOrcamento();
-  else if(tipo==='planejamento') abrirPlanejamento();
-  else if(tipo==='odontograma') abrirOdontograma();
+  else if(tipo==='orcamento') await abrirOrcamento();
+  else if(tipo==='planejamento') await abrirPlanejamento();
+  else if(tipo==='odontograma') await abrirOdontograma();
   else if(tipo==='anamnese-odonto') abrirAnamneseOdonto();
   else if(tipo.startsWith('termo-')) abrirTermo(tipo);
   const panel=document.getElementById('panel-'+tipo);
