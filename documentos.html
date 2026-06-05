@@ -1824,32 +1824,177 @@ window.confirmarRealizado = async function() {
 };
 </script>
 <script>
-// ══════════════════════════════════════════════════════
-// PATCH: Checkboxes no orçamento + modal simplificado
+// ══════════════════════════════════════════════════════════════
+// PATCH: Plano de Tratamento Vivo — Orçamento integrado ao financeiro
 // Cole logo antes do </body> no documentos.html
-// ══════════════════════════════════════════════════════
+// (substitui o patch anterior de checkboxes se já estiver lá)
+// ══════════════════════════════════════════════════════════════
 
-// 1. Sobrescrever addItemOrc para incluir checkbox
-const _addItemOrcOriginal = window.addItemOrc;
+// ── ESTADO GLOBAL DO PLANO ──
+window._planoAtual = null; // { id, itens: [{id, procedimento, valor, status, data_realizacao}] }
+
+// ── SOBRESCREVER abrirOrcamento ──
+window.abrirOrcamento = async function() {
+  const p = pacSelecionada;
+  if (!p) return;
+
+  document.getElementById('orc-pac-info').innerHTML = `
+    <div><div class="pac-info-nome">${p.nome}${p.apelido ? ` (${p.apelido})` : ''}</div>
+    <div class="pac-info-sub">${p.telefone}</div></div>`;
+
+  // Buscar plano ativo existente
+  const { data: planos } = await db.from('planos_tratamento')
+    .select('*, plano_itens(*)')
+    .eq('paciente_id', p.id)
+    .eq('status', 'ativo')
+    .order('criado_em', { ascending: false })
+    .limit(1);
+
+  const plano = planos?.[0];
+
+  if (plano) {
+    window._planoAtual = { id: plano.id, itens: plano.plano_itens || [] };
+    document.getElementById('orc-validade').value = plano.validade || '';
+    document.getElementById('orc-pagamento').value = plano.condicoes_pagamento || '';
+    document.getElementById('orc-obs').value = plano.obs || '';
+    renderItensPlano();
+    mostrarBannerPlanoAtivo();
+  } else {
+    window._planoAtual = null;
+    document.getElementById('orc-itens').innerHTML = '';
+    document.getElementById('orc-validade').value = HOJE;
+    document.getElementById('orc-pagamento').value = '';
+    document.getElementById('orc-obs').value = '';
+    addItemOrc(); addItemOrc(); addItemOrc();
+    esconderBannerPlanoAtivo();
+  }
+  calcTotal();
+};
+
+// ── BANNER PLANO ATIVO ──
+function mostrarBannerPlanoAtivo() {
+  let banner = document.getElementById('banner-plano-ativo');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'banner-plano-ativo';
+    banner.style.cssText = 'background:var(--amarelo-c);border:1.5px solid var(--amarelo);border-radius:10px;padding:10px 14px;margin-bottom:1rem;font-size:13px;color:#8a6000;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap';
+    const orcContainer = document.getElementById('orc-pac-info');
+    orcContainer.parentNode.insertBefore(banner, orcContainer.nextSibling);
+  }
+  banner.style.display = 'flex';
+  banner.innerHTML = `
+    <span>📋 <strong>Plano de tratamento ativo</strong> — continuando orçamento existente.</span>
+    <button onclick="novoPlano()" style="padding:5px 12px;border-radius:6px;background:white;border:1.5px solid var(--amarelo);cursor:pointer;font-size:12px;font-weight:500;color:#8a6000">
+      + Novo plano
+    </button>
+  `;
+}
+
+function esconderBannerPlanoAtivo() {
+  const banner = document.getElementById('banner-plano-ativo');
+  if (banner) banner.style.display = 'none';
+}
+
+function novoPlano() {
+  if (!confirm('Criar novo plano de tratamento? O plano atual ficará como histórico.')) return;
+  window._planoAtual = null;
+  document.getElementById('orc-itens').innerHTML = '';
+  document.getElementById('orc-validade').value = HOJE;
+  document.getElementById('orc-pagamento').value = '';
+  document.getElementById('orc-obs').value = '';
+  addItemOrc(); addItemOrc(); addItemOrc();
+  esconderBannerPlanoAtivo();
+  calcTotal();
+}
+
+// ── RENDERIZAR ITENS DO PLANO ──
+function renderItensPlano() {
+  const el = document.getElementById('orc-itens');
+  el.innerHTML = '';
+  
+  if (!window._planoAtual?.itens?.length) {
+    addItemOrc(); addItemOrc(); addItemOrc();
+    return;
+  }
+
+  window._planoAtual.itens.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'orc-linha';
+    div.dataset.itemId = item.id;
+    
+    const isPago = item.status === 'pago';
+    const isRealizado = item.status === 'realizado';
+    const isCancelado = item.status === 'cancelado';
+    const isOrcado = item.status === 'orcado';
+
+    const statusBadge = isPago 
+      ? `<span style="font-size:11px;padding:2px 7px;border-radius:20px;background:var(--verde-c);color:var(--verde-e);font-weight:600;white-space:nowrap">✅ Pago</span>`
+      : isRealizado 
+      ? `<span style="font-size:11px;padding:2px 7px;border-radius:20px;background:var(--amarelo-c);color:#8a6000;font-weight:600;white-space:nowrap">⏳ A receber</span>`
+      : isCancelado
+      ? `<span style="font-size:11px;padding:2px 7px;border-radius:20px;background:var(--vermelho-c);color:var(--vermelho);font-weight:600;white-space:nowrap">❌ Cancelado</span>`
+      : '';
+
+    div.style.cssText = `display:grid;grid-template-columns:24px 1fr 110px auto 32px;gap:7px;align-items:center;margin-bottom:7px;padding:8px 10px;border-radius:8px;background:${isPago?'var(--verde-c)':isRealizado?'var(--amarelo-c)':isCancelado?'var(--vermelho-c)':'var(--bg)'};border:1px solid ${isPago?'var(--verde)':isRealizado?'var(--amarelo)':isCancelado?'var(--vermelho)':'var(--borda)'}`;
+
+    div.innerHTML = `
+      <input type="checkbox" class="orc-check" ${isRealizado||isPago?'checked':''} ${isPago?'disabled':''} 
+        title="${isPago?'Já pago — não editável':'Marcar como realizado hoje'}"
+        style="width:17px;height:17px;cursor:${isPago?'not-allowed':'pointer'};accent-color:var(--verde)"
+        onchange="atualizarVisualLinha(this)"/>
+      <input type="text" class="orc-trat" list="lista-trats-orc" value="${item.procedimento||''}"
+        ${isPago||isRealizado?'readonly':''} placeholder="Tratamento..."
+        style="background:transparent;border-color:transparent;${isPago||isRealizado?'opacity:.7;cursor:default':''}"/>
+      <input type="number" class="orc-val" value="${item.valor||''}" 
+        ${isPago?'readonly':''} placeholder="R$" min="0" step="0.01"
+        oninput="calcTotal()" style="text-align:right;background:transparent;border-color:transparent;${isPago?'opacity:.7;cursor:default':''}"/>
+      ${statusBadge || '<span></span>'}
+      <button class="btn dan" style="padding:5px 7px;${isPago?'opacity:.3;cursor:not-allowed':''}" 
+        ${isPago?'disabled':''} 
+        onclick="cancelarItem('${item.id}',this)">✕</button>
+    `;
+    el.appendChild(div);
+  });
+}
+
+// ── CANCELAR ITEM ──
+async function cancelarItem(itemId, btn) {
+  if (!confirm('Cancelar este procedimento do plano?')) return;
+  
+  if (window._planoAtual?.id) {
+    await db.from('plano_itens').update({ status: 'cancelado' }).eq('id', itemId);
+    // Atualizar localmente
+    const item = window._planoAtual.itens.find(i => i.id === itemId);
+    if (item) item.status = 'cancelado';
+    renderItensPlano();
+    calcTotal();
+  } else {
+    btn.closest('.orc-linha').remove();
+    calcTotal();
+  }
+}
+
+// ── SOBRESCREVER addItemOrc ──
 window.addItemOrc = function() {
   const el = document.getElementById('orc-itens');
   const d = document.createElement('div');
   d.className = 'orc-linha';
-  d.style.cssText = 'display:grid;grid-template-columns:32px 1fr 120px 32px;gap:8px;align-items:center;margin-bottom:7px';
+  d.style.cssText = 'display:grid;grid-template-columns:24px 1fr 110px auto 32px;gap:7px;align-items:center;margin-bottom:7px';
   d.innerHTML = `
-    <input type="checkbox" class="orc-check" checked title="Realizado" 
-      style="width:18px;height:18px;cursor:pointer;accent-color:var(--verde)" 
+    <input type="checkbox" class="orc-check" checked title="Realizado hoje"
+      style="width:17px;height:17px;cursor:pointer;accent-color:var(--verde)"
       onchange="atualizarVisualLinha(this)"/>
     <input type="text" class="orc-trat" list="lista-trats-orc" placeholder="Tratamento..."/>
-    <input type="number" class="orc-val" placeholder="R$" min="0" step="0.01" 
+    <input type="number" class="orc-val" placeholder="R$" min="0" step="0.01"
       oninput="calcTotal()" style="text-align:right"/>
-    <button class="btn dan" style="padding:6px 8px" 
+    <span></span>
+    <button class="btn dan" style="padding:5px 7px"
       onclick="this.closest('.orc-linha').remove();calcTotal()">✕</button>
   `;
   el.appendChild(d);
 };
 
-// 2. Atualizar visual quando desmarca checkbox
+// ── VISUAL DA LINHA ──
 window.atualizarVisualLinha = function(checkbox) {
   const linha = checkbox.closest('.orc-linha');
   const inputs = linha.querySelectorAll('input[type=text], input[type=number]');
@@ -1860,158 +2005,356 @@ window.atualizarVisualLinha = function(checkbox) {
   calcTotal();
 };
 
-// 3. Recalcular total considerando apenas os marcados
-const _calcTotalOriginal = window.calcTotal;
+// ── CALCULAR TOTAL ──
 window.calcTotal = function() {
-  let tTotal = 0, tRealizados = 0;
+  let tTotal = 0, tRealizados = 0, tPago = 0;
   document.querySelectorAll('#orc-itens .orc-linha').forEach(linha => {
     const val = parseFloat(linha.querySelector('.orc-val')?.value) || 0;
     const check = linha.querySelector('.orc-check');
+    const itemId = linha.dataset.itemId;
+    const item = window._planoAtual?.itens?.find(i => i.id === itemId);
     tTotal += val;
-    if (!check || check.checked) tRealizados += val;
+    if (item?.status === 'pago') tPago += val;
+    else if (!check || check.checked) tRealizados += val;
   });
-  
+
   const totalEl = document.getElementById('orc-total');
-  if (totalEl) {
-    if (tRealizados < tTotal) {
-      totalEl.innerHTML = `<span style="font-size:13px;text-decoration:line-through;opacity:.5">${fmtBRL(tTotal)}</span> <span style="color:var(--verde-e)">${fmtBRL(tRealizados)}</span>`;
-    } else {
-      totalEl.textContent = fmtBRL(tTotal);
-    }
+  if (!totalEl) return;
+  
+  if (tPago > 0 || tRealizados < tTotal - tPago) {
+    let html = '';
+    if (tPago > 0) html += `<span style="font-size:12px;opacity:.7">Pago: ${fmtBRL(tPago)} · </span>`;
+    if (tRealizados > 0) html += `<span>Hoje: ${fmtBRL(tRealizados)}</span>`;
+    const restante = tTotal - tPago - tRealizados;
+    if (restante > 0) html += `<span style="font-size:12px;color:#8a6000"> · Pendente: ${fmtBRL(restante)}</span>`;
+    totalEl.innerHTML = html;
+  } else {
+    totalEl.textContent = fmtBRL(tTotal);
   }
 };
 
-// 4. Simplificar modal — remover lista de tratamentos, mostrar só financeiro
-const _abrirModalOriginal = window.abrirModalRealizado;
-window.abrirModalRealizado = function() {
+// ── SOBRESCREVER abrirModalRealizado ──
+window.abrirModalRealizado = async function() {
   if (!pacSelecionada) { toast('Selecione um paciente', 'vermelho'); return; }
-  
-  // Coletar tratamentos marcados no orçamento
-  const realizados = [];
-  const pendentes = [];
+
+  // Coletar realizados e pendentes
+  const realizados = [], pendentes = [];
   document.querySelectorAll('#orc-itens .orc-linha').forEach(linha => {
     const trat = linha.querySelector('.orc-trat')?.value || '';
     const val = parseFloat(linha.querySelector('.orc-val')?.value) || 0;
     const check = linha.querySelector('.orc-check');
+    const itemId = linha.dataset.itemId;
+    const item = window._planoAtual?.itens?.find(i => i.id === itemId);
+    
     if (!trat) return;
-    if (!check || check.checked) realizados.push({ trat, val });
-    else pendentes.push({ trat, val });
+    if (item?.status === 'pago') return; // já pago, não aparece
+    if (item?.status === 'cancelado') return; // cancelado, não aparece
+    
+    if (!check || check.checked) realizados.push({ trat, val, itemId });
+    else pendentes.push({ trat, val, itemId });
   });
+
+  if (!realizados.length) { toast('Marque ao menos um tratamento!', 'vermelho'); return; }
 
   const totalRealizados = realizados.reduce((s, t) => s + t.val, 0);
   const totalPendentes = pendentes.reduce((s, t) => s + t.val, 0);
 
-  // Atualizar modal
   document.getElementById('modal-pac-nome').textContent = pacSelecionada.nome;
-  document.getElementById('modal-data').value = new Date().toISOString().split('T')[0];
-  
-  // Substituir lista de tratamentos do modal por resumo
+  document.getElementById('modal-data').value = HOJE;
+
   const listaEl = document.getElementById('modal-lista-trats');
   if (listaEl) {
-    let html = '';
-    if (realizados.length) {
-      html += `<div style="margin-bottom:8px">
-        <div style="font-size:11px;font-weight:600;color:var(--verde-e);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">✅ Realizados hoje</div>
-        ${realizados.map(t => `
-          <div style="display:flex;justify-content:space-between;padding:7px 10px;background:var(--verde-c);border-radius:7px;margin-bottom:4px;font-size:13px">
-            <span>${t.trat}</span>
-            <span style="font-weight:600;color:var(--verde-e)">${fmtBRL(t.val)}</span>
-          </div>`).join('')}
-      </div>`;
-    }
+    let html = `<div style="margin-bottom:8px">
+      <div style="font-size:11px;font-weight:600;color:var(--verde-e);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">✅ Realizados hoje</div>
+      ${realizados.map(t => `<div style="display:flex;justify-content:space-between;padding:7px 10px;background:var(--verde-c);border-radius:7px;margin-bottom:4px;font-size:13px">
+        <span>${t.trat}</span><span style="font-weight:600;color:var(--verde-e)">${fmtBRL(t.val)}</span>
+      </div>`).join('')}
+    </div>`;
+    
     if (pendentes.length) {
       html += `<div style="margin-bottom:8px">
-        <div style="font-size:11px;font-weight:600;color:var(--amarelo);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">⏸ Pendentes (não realizados hoje)</div>
-        ${pendentes.map(t => `
-          <div style="display:flex;justify-content:space-between;padding:7px 10px;background:var(--amarelo-c);border-radius:7px;margin-bottom:4px;font-size:13px;opacity:.8">
-            <span>${t.trat}</span>
-            <span style="font-weight:600;color:#8a6000">${fmtBRL(t.val)}</span>
-          </div>`).join('')}
+        <div style="font-size:11px;font-weight:600;color:#8a6000;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">⏸ Ficam para próxima vez</div>
+        ${pendentes.map(t => `<div style="display:flex;justify-content:space-between;padding:7px 10px;background:var(--amarelo-c);border-radius:7px;margin-bottom:4px;font-size:13px;opacity:.8">
+          <span>${t.trat}</span><span style="font-weight:600;color:#8a6000">${fmtBRL(t.val)}</span>
+        </div>`).join('')}
       </div>`;
     }
     listaEl.innerHTML = html;
   }
 
-  // Atualizar total
   const totalEl = document.getElementById('modal-total-sel');
   if (totalEl) {
-    totalEl.textContent = fmtBRL(totalRealizados);
-    if (totalPendentes > 0) {
-      totalEl.innerHTML = `${fmtBRL(totalRealizados)} <span style="font-size:12px;color:#8a6000;font-weight:400">(${fmtBRL(totalPendentes)} pendente)</span>`;
-    }
+    totalEl.innerHTML = fmtBRL(totalRealizados) + (totalPendentes > 0 
+      ? ` <span style="font-size:12px;color:#8a6000;font-weight:400">(+ ${fmtBRL(totalPendentes)} no plano)</span>` 
+      : '');
   }
 
-  // Guardar dados para usar no confirmar
   window._modalRealizados = realizados;
   window._modalPendentes = pendentes;
 
-  calcDataVerificacao();
+  calcDataVerificacao?.();
   document.getElementById('modal-realizado').style.display = 'flex';
 };
 
-// 5. Interceptar confirmarRealizado para salvar realizados vs pendentes
-const _confirmarOriginal2 = window.confirmarRealizado;
+// ── SOBRESCREVER confirmarRealizado ──
 window.confirmarRealizado = async function() {
+  const dataAtend = document.getElementById('modal-data')?.value;
+  if (!dataAtend) { toast('Informe a data do atendimento!', 'vermelho'); return; }
+
   const realizados = window._modalRealizados || [];
   const pendentes = window._modalPendentes || [];
+  if (!realizados.length) { toast('Nenhum tratamento selecionado', 'vermelho'); return; }
+
+  const btn = document.getElementById('btn-confirmar-realizado');
+  if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
+
+  const pgto = document.getElementById('modal-pgto')?.value || 'pix';
+  const statusPgto = document.querySelector('input[name="modal-status"]:checked')?.value || 'recebido';
+  const obs = document.getElementById('modal-obs-fin')?.value?.trim() || null;
+  const verDias = parseInt(document.getElementById('modal-ver-dias')?.value) || 0;
+  const verData = document.getElementById('modal-ver-data')?.value || null;
+  const isParcial = document.getElementById('modal-parcial-check')?.checked;
+  const entrada = parseFloat(document.getElementById('modal-entrada')?.value) || 0;
+  const lembrData = document.getElementById('modal-lembrete-data')?.value;
   
-  // Chamar função original
-  await _confirmarOriginal2.apply(this, arguments);
+  const totalReal = realizados.reduce((s, t) => s + t.val, 0);
+  const valorPago = isParcial ? entrada : (statusPgto === 'recebido' ? totalReal : 0);
+  const valorPendente = isParcial ? (totalReal - entrada) : (statusPgto === 'pendente' ? totalReal : 0);
 
-  // Após salvar, atualizar tratamentos_adicionais com info de realizados/pendentes
-  if (!pacSelecionada) return;
-  await new Promise(r => setTimeout(r, 600));
+  try {
+    // 1. Salvar/atualizar plano de tratamento
+    let planoId = window._planoAtual?.id;
 
-  const { data: pac } = await db.from('pacientes')
-    .select('tratamentos_adicionais')
-    .eq('id', pacSelecionada.id)
-    .single();
+    if (!planoId) {
+      // Criar novo plano
+      const todosItens = [
+        ...realizados.map(t => ({ procedimento: t.trat, valor: t.val, status: 'orcado' })),
+        ...pendentes.map(t => ({ procedimento: t.trat, valor: t.val, status: 'orcado' }))
+      ];
 
-  if (!pac?.tratamentos_adicionais) return;
+      const { data: novoPlano } = await db.from('planos_tratamento').insert({
+        paciente_id: pacSelecionada.id,
+        status: 'ativo',
+        validade: document.getElementById('orc-validade')?.value || null,
+        condicoes_pagamento: document.getElementById('orc-pagamento')?.value || null,
+        obs: document.getElementById('orc-obs')?.value || null
+      }).select().single();
 
-  const data = document.getElementById('modal-data')?.value || '';
-  
-  // Marcar quais foram realizados e quais são pendentes
-  const trats = pac.tratamentos_adicionais.map(t => {
-    const realizado = realizados.find(r => r.trat === t.nome);
-    const pendente = pendentes.find(p => p.trat === t.nome);
-    if (realizado) return { ...t, statusTrat: 'realizado' };
-    if (pendente) return { ...t, statusTrat: 'pendente_realizacao' };
-    return t;
-  });
+      planoId = novoPlano.id;
 
-  await db.from('pacientes')
-    .update({ tratamentos_adicionais: trats })
-    .eq('id', pacSelecionada.id);
-};
+      // Inserir itens
+      await db.from('plano_itens').insert(
+        todosItens.map(i => ({ ...i, plano_id: planoId, paciente_id: pacSelecionada.id }))
+      );
 
-// 6. Ao carregar orçamento salvo — restaurar checkboxes
-const _verDocOriginalOrc = window.verDoc;
-window.verDoc = async function(id, tipo) {
-  await _verDocOriginalOrc.apply(this, arguments);
-  
-  if (tipo === 'orcamento') {
-    // Aguardar renderização e recriar linhas com checkboxes
-    await new Promise(r => setTimeout(r, 200));
-    const linhas = document.querySelectorAll('#orc-itens .orc-linha');
-    linhas.forEach(linha => {
-      if (!linha.querySelector('.orc-check')) {
-        // Linha antiga sem checkbox — adicionar
-        const check = document.createElement('input');
-        check.type = 'checkbox';
-        check.className = 'orc-check';
-        check.checked = true;
-        check.title = 'Realizado';
-        check.style.cssText = 'width:18px;height:18px;cursor:pointer;accent-color:var(--verde)';
-        check.onchange = () => atualizarVisualLinha(check);
-        linha.style.gridTemplateColumns = '32px 1fr 120px 32px';
-        linha.insertBefore(check, linha.firstChild);
+      // Buscar itens criados para ter os IDs
+      const { data: itens } = await db.from('plano_itens').select('*').eq('plano_id', planoId);
+      window._planoAtual = { id: planoId, itens: itens || [] };
+
+      // Reatribuir itemIds
+      realizados.forEach(r => {
+        const item = itens?.find(i => i.procedimento === r.trat && i.status === 'orcado');
+        if (item) r.itemId = item.id;
+      });
+    }
+
+    // 2. Marcar realizados como 'realizado' ou 'pago'
+    for (const r of realizados) {
+      const novoStatus = statusPgto === 'recebido' && !isParcial ? 'pago' : 'realizado';
+      if (r.itemId) {
+        await db.from('plano_itens').update({ 
+          status: novoStatus, 
+          data_realizacao: dataAtend 
+        }).eq('id', r.itemId);
       }
+    }
+
+    // 3. Lançar no financeiro — valor recebido
+    if (valorPago > 0) {
+      const descReal = realizados.map(r => r.trat).join(' + ');
+      await db.from('financeiro').insert({
+        paciente_id: pacSelecionada.id,
+        plano_id: planoId,
+        tipo: 'receita',
+        data: dataAtend,
+        descricao: `${descReal} — ${pacSelecionada.nome}`,
+        categoria: 'Harmonização Orofacial',
+        valor: valorPago,
+        forma_pagamento: pgto,
+        status: 'recebido',
+        obs: obs
+      });
+    }
+
+    // 4. Lançar no financeiro — valor pendente
+    if (valorPendente > 0) {
+      const descReal = realizados.map(r => r.trat).join(' + ');
+      await db.from('financeiro').insert({
+        paciente_id: pacSelecionada.id,
+        plano_id: planoId,
+        tipo: 'receita',
+        data: lembrData || dataAtend,
+        descricao: `${descReal} — ${pacSelecionada.nome} (restante)`,
+        categoria: 'Harmonização Orofacial',
+        valor: valorPendente,
+        forma_pagamento: pgto,
+        status: 'pendente',
+        obs: obs
+      });
+    }
+
+    // 5. Salvar atendimento no paciente (tratamentos_adicionais)
+    const { data: pacAtual } = await db.from('pacientes').select('*').eq('id', pacSelecionada.id).single();
+    
+    const PRAZOS = {
+      'Botox (toxina botulínica)':6,'Botox para bruxismo (masseter)':6,
+      'Preenchimento labial':12,'Preenchimento de bigode chinês':12,
+      'Preenchimento de olheiras':12,'Bioestimulador de colágeno':6,
+      'Skinbooster':6,'Profilaxia (limpeza dental)':6,'Clareamento dental (consultório)':6,
+    };
+
+    const novosTrats = realizados.map(item => {
+      const prazo = PRAZOS[item.trat] || 6;
+      const dtRet = new Date(dataAtend + 'T12:00:00');
+      dtRet.setMonth(dtRet.getMonth() + prazo);
+      return {
+        nome: item.trat,
+        valor: item.val,
+        prazo,
+        dataRetorno: dtRet.toISOString().split('T')[0],
+        dataAtendimento: dataAtend,
+        formaPagamento: pgto,
+        statusPagamento: statusPgto === 'recebido' && !isParcial ? 'recebido' : 'parcial',
+        valorPago: valorPago > 0 ? (valorPago / realizados.length).toFixed(2) : null,
+        valorPendente: valorPendente > 0 ? (valorPendente / realizados.length).toFixed(2) : null,
+        planoId: planoId
+      };
     });
+
+    const tratsAntigos = (pacAtual.tratamentos_adicionais || []).filter(t => t.dataAtendimento !== dataAtend);
+    const verificacaoData = verDias > 0 ? verData : null;
+
+    const atsAntigos = pacAtual.atendimentos || [];
+    const atsAtualizados = [...atsAntigos.filter(a => a.data !== dataAtend), {
+      data: dataAtend,
+      trats: realizados.map(r => ({ nome: r.trat, valor: r.val })),
+      valor: totalReal,
+      formaPagamento: pgto,
+      statusPagamento: statusPgto,
+      valorPago,
+      valorPendente,
+      verificacaoData,
+      planoId
+    }];
+
+    // Criar lembrete de cobrança se parcial
+    let lembretes = pacAtual.lembretes || [];
+    if (valorPendente > 0 && lembrData) {
+      // Remover lembretes antigos de cobrança do mesmo plano
+      lembretes = lembretes.filter(l => l.planoId !== planoId);
+      lembretes.push({
+        id: Date.now().toString(),
+        tipo: 'cobranca',
+        recado: `💰 Cobrar restante: ${fmtBRL(valorPendente)} — ${realizados.map(r=>r.trat).join(' + ')} — ${pacSelecionada.nome}`,
+        data: lembrData,
+        planoId,
+        valorPendente
+      });
+    }
+
+    await db.from('pacientes').update({
+      tratamentos_adicionais: [...tratsAntigos, ...novosTrats],
+      atendimentos: atsAtualizados,
+      lembretes
+    }).eq('id', pacSelecionada.id);
+
+    toast('Atendimento e lançamento financeiro registrados! ✓', 'verde');
+    
+    // Fechar modal
+    document.getElementById('modal-realizado').style.display = 'none';
+    document.getElementById('modal-parcial-check').checked = false;
+    document.getElementById('modal-parcial-box').style.display = 'none';
+
+    // Recarregar orçamento para refletir status atualizados
+    await window.abrirOrcamento();
+
+  } catch(e) {
+    console.error('Erro ao confirmar:', e);
+    toast('Erro ao salvar. Verifique o console.', 'vermelho');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Confirmar e registrar'; }
   }
 };
 
-console.log('✅ Patch orçamento carregado');
+// ── SOBRESCREVER salvarDoc para orçamento ──
+const _salvarDocOriginal = window.salvarDoc;
+window.salvarDoc = async function(tipo) {
+  if (tipo !== 'orcamento') {
+    return _salvarDocOriginal.apply(this, arguments);
+  }
+
+  if (!pacSelecionada) { toast('Selecione um paciente primeiro!', 'vermelho'); return; }
+
+  const itens = [];
+  document.querySelectorAll('#orc-itens .orc-linha').forEach(linha => {
+    const trat = linha.querySelector('.orc-trat')?.value || '';
+    const val = parseFloat(linha.querySelector('.orc-val')?.value) || 0;
+    const itemId = linha.dataset.itemId;
+    if (trat) itens.push({ trat, val, itemId });
+  });
+
+  if (!itens.length) { toast('Adicione ao menos um tratamento', 'vermelho'); return; }
+
+  const validade = document.getElementById('orc-validade')?.value || null;
+  const condicoes = document.getElementById('orc-pagamento')?.value || null;
+  const obs = document.getElementById('orc-obs')?.value || null;
+
+  if (window._planoAtual?.id) {
+    // Atualizar plano existente
+    await db.from('planos_tratamento').update({ validade, condicoes_pagamento: condicoes, obs, atualizado_em: new Date().toISOString() }).eq('id', window._planoAtual.id);
+    
+    // Adicionar novos itens (que não têm itemId)
+    for (const item of itens) {
+      if (!item.itemId) {
+        await db.from('plano_itens').insert({
+          plano_id: window._planoAtual.id,
+          paciente_id: pacSelecionada.id,
+          procedimento: item.trat,
+          valor: item.val,
+          status: 'orcado'
+        });
+      }
+    }
+    toast('Plano de tratamento atualizado ✓', 'verde');
+  } else {
+    // Criar novo plano + itens
+    const { data: novoPlano } = await db.from('planos_tratamento').insert({
+      paciente_id: pacSelecionada.id,
+      status: 'ativo',
+      validade,
+      condicoes_pagamento: condicoes,
+      obs
+    }).select().single();
+
+    await db.from('plano_itens').insert(
+      itens.map(i => ({ plano_id: novoPlano.id, paciente_id: pacSelecionada.id, procedimento: i.trat, valor: i.val, status: 'orcado' }))
+    );
+    toast('Plano de tratamento salvo ✓', 'verde');
+  }
+
+  // Também salvar na tabela documentos para histórico
+  await db.from('documentos').insert({
+    paciente_id: pacSelecionada.id,
+    tipo: 'orcamento',
+    dados: { itens: itens.map(i => ({ trat: i.trat, val: i.val })), pagamento: condicoes, obs, validade },
+    data_assinatura: HOJE
+  });
+
+  carregarDocsSalvos();
+  await window.abrirOrcamento();
+};
+
+console.log('✅ Patch Plano de Tratamento carregado');
 </script>
 
 </body>
