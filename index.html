@@ -885,7 +885,7 @@ function renderHoje(){
   pacs.forEach(p=>(p.atendimentos||[]).forEach(a=>{if(a.verificacaoData){const d=dias(a.verificacaoData);if(d!==null&&d<=3&&d>=-2)vers.push({p,a,d});}}) );
   document.getElementById('l-verificacoes').innerHTML=vers.length===0
     ?`<div class="empty" style="padding:1rem"><div class="empty-icon">🔬</div><p>Nenhuma verificação nos próximos dias.</p></div>`
-    :vers.map(({p,a,d})=>{const tel='55'+p.telefone.replace(/\D/g,'');const txt=d<0?`${Math.abs(d)}d atrasada`:d===0?'Hoje!':` em ${d}d`;return`<div class="ai ver"><div><div class="an">🔬 ${p.nome}</div><div class="ad">${a.trats?.map(t=>t.nome).join(', ')||''} · ${p.telefone}</div></div><div class="aa"><span class="ab">${txt}</span><a href="https://wa.me/${tel}?text=${encodeURIComponent(msgVerificacao(p,a.trats?.map(t=>t.nome).join(', ')||'procedimento'))}" target="_blank" class="btn wpp">💬 WhatsApp</a></div></div>`;}).join('');
+    :vers.map(({p,a,d})=>{const tel='55'+p.telefone.replace(/\D/g,'');const txt=d<0?`${Math.abs(d)}d atrasada`:d===0?'Hoje!':` em ${d}d`;return`<div class="ai ver"><div><div class="an">🔬 ${p.nome}</div><div class="ad">${a.trats?.map(t=>t.nome).join(', ')||''} · ${p.telefone}</div></div><div class="aa"><span class="ab">${txt}</span><a href="https://wa.me/${tel}?text=${encodeURIComponent(msgVerificacao(p,a.trats?.map(t=>t.nome).join(', ')||'procedimento'))}" target="_blank" class="btn wpp">💬 WhatsApp</a><a href="paciente.html?id=${p.id}" class="btn" style="padding:7px 11px;font-size:12px">👤 Ficha</a></div></div>`;}).join('');
 
   // Aniversários
   const anivs=pacs.filter(p=>anivHoje(p.data_nascimento));
@@ -897,7 +897,7 @@ function renderHoje(){
   const lems=[];pacs.forEach(p=>(p.lembretes||[]).forEach(l=>{const d=dias(l.data);if(d!==null&&d<=15&&(l.recado||l.texto))lems.push({...l,_p:p,_d:d});}));lems.sort((a,b)=>a._d-b._d);
   document.getElementById('l-lembr').innerHTML=lems.length===0
     ?`<div class="empty" style="padding:1rem"><div class="empty-icon">📌</div><p>Nenhum lembrete nos próximos 15 dias.</p></div>`
-    :lems.map(l=>{const cls=l._d<=0?'urg':'lem';const txt=l._d<0?`${Math.abs(l._d)}d atrasado`:l._d===0?'Hoje!':`em ${l._d}d`;const icone=l.tipo==='cobranca'?'💰':'📌';const recadoTxt=l.recado||l.texto||'';return`<div class="ai ${cls}"><div style="flex:1"><div class="an">${icone} ${l._p.nome}</div><div class="ad">${recadoTxt}</div></div><div class="aa"><span class="ab">${txt}</span>${l.tipo==='cobranca'?`<button class="btn" style="font-size:12px;padding:7px 10px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde)" onclick="abrAtend(${J(l._p)})">💰 Ver</button>`:''}<button class="btn" style="font-size:12px;padding:7px 10px;color:var(--vermelho)" onclick="delLembr('${l._p.id}','${l.id}')">✓ Feito</button></div></div>`;}).join('');
+    :lems.map(l=>{const cls=l._d<=0?'urg':'lem';const txt=l._d<0?`${Math.abs(l._d)}d atrasado`:l._d===0?'Hoje!':`em ${l._d}d`;const icone=l.tipo==='cobranca'?'💰':'📌';const recadoTxt=l.recado||l.texto||'';return`<div class="ai ${cls}"><div style="flex:1"><div class="an">${icone} ${l._p.nome}</div><div class="ad">${recadoTxt}</div></div><div class="aa"><span class="ab">${txt}</span>${l.tipo==='cobranca'?`<button class="btn" style="font-size:12px;padding:7px 10px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde)" onclick="abrAtend(${J(l._p)})">💰 Ver</button>`:''}<button class="btn" style="font-size:12px;padding:7px 10px;color:var(--vermelho)" onclick="delLembr('${l._p.id}','${l.id}')">✓ Feito</button><a href="paciente.html?id=${l._p.id}" class="btn" style="padding:7px 11px;font-size:12px">👤 Ficha</a></div></div>`;}).join('');
 
   // Retornos
   const rets=[];pacs.forEach(p=>(p.tratamentos_adicionais||[]).forEach(t=>{const d=dias(t.dataRetorno);if(d!==null&&d<=15)rets.push({...p,_t:t,_d:d});}));rets.sort((a,b)=>a._d-b._d);
@@ -933,6 +933,7 @@ async function renderAlertasFinHoje(){
       </div>
       <div class="aa">
         <button class="btn" style="padding:6px 10px;font-size:12px;background:var(--amarelo);color:white;border-color:var(--amarelo)" onclick="marcarRecebidoFin('${l.id}')">⏳ Marcar recebido</button>
+        ${l.paciente_id?`<a href="paciente.html?id=${l.paciente_id}" class="btn" style="padding:6px 10px;font-size:12px">👤 Ficha</a>`:''}
       </div>
     </div>`;
   }).join('');
