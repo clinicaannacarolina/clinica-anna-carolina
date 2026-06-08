@@ -961,6 +961,12 @@ async function salvarDoc(tipo){
     dados.obs=document.getElementById('orc-obs')?.value||'';
     dados.validade=document.getElementById('orc-validade')?.value||'';
     dados.produtos=getProdutosOrcamento();
+    console.log('[DEBUG salvarDoc] produtos capturados:', JSON.stringify(dados.produtos));
+    console.log('[DEBUG salvarDoc] linhas no DOM:', document.querySelectorAll('.prod-orc-linha').length);
+    document.querySelectorAll('.prod-orc-linha').forEach((div,i)=>{
+      const sel=div.querySelector('.prod-orc-sel');
+      console.log(`[DEBUG] linha ${i}: sel.value="${sel?.value}" qtd="${div.querySelector('.prod-orc-qtd')?.value}"`);
+    });
   } else if(tipo==='autorizacao-imagem'){
     dados.rg=document.getElementById('img-rg')?.value||'';
     dados.cpf=document.getElementById('img-cpf')?.value||'';
