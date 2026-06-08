@@ -302,7 +302,7 @@ textarea{resize:vertical}
       <!-- Rodapé de impressão -->
       <div class="orc-print-footer">
         <div style="margin-top:1.5rem;padding:8px 12px;background:#f8f9fa;border-radius:6px;font-size:12px;display:flex;justify-content:space-between">
-          <span>📅 Emitido em: <strong>${new Date().toLocaleDateString('pt-BR')}</strong></span>
+          <span id="orc-print-emissao-texto"></span>
           <span id="orc-print-validade-texto"></span>
         </div>
         <div style="margin-top:2rem;padding-top:1rem;border-top:1px solid #ddd;display:grid;grid-template-columns:1fr 1fr;gap:2rem">
@@ -1967,14 +1967,14 @@ function imprimirOrcamento(){
   } else {
     printDiv.innerHTML = '';
   }
-  // Preencher validade no rodapé
+  // Preencher emissão e validade no rodapé
   const validade = document.getElementById('orc-validade')?.value;
-  const validadeTexto = document.getElementById('orc-print-validade-texto');
-  if(validadeTexto){
-    validadeTexto.innerHTML = validade 
-      ? `⏳ Válido até: <strong>${new Date(validade+'T12:00:00').toLocaleDateString('pt-BR')}</strong>`
-      : '';
-  }
+  const emissaoEl = document.getElementById('orc-print-emissao-texto');
+  const validadeEl = document.getElementById('orc-print-validade-texto');
+  if(emissaoEl) emissaoEl.innerHTML = `📅 Emitido em: <strong>${new Date().toLocaleDateString('pt-BR')}</strong>`;
+  if(validadeEl) validadeEl.innerHTML = validade
+    ? `⏳ Válido até: <strong>${new Date(validade+'T12:00:00').toLocaleDateString('pt-BR')}</strong>`
+    : '';
   window.print();
 }
 
