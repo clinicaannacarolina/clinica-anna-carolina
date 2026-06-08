@@ -1776,7 +1776,7 @@ function adicionarProdutoOrc(dados){
   div.className = 'prod-orc-linha';
   div.style.cssText = 'display:grid;grid-template-columns:1fr 70px 110px 130px auto;gap:6px;align-items:start;margin-bottom:8px;padding:10px;background:var(--bg);border-radius:8px;border:1px solid var(--borda)';
   // Sempre gerar opts do _produtosEstoque atual
-  const opts = _produtosEstoque.map(p=>`<option value="${p.id}" data-codigo="${p.codigo||''}" data-anvisa="${p.anvisa||''}" data-fabricante="${encodeURIComponent(p.fabricante||'')}" data-lote="${p.lote_atual||''}" data-validade="${p.validade_atual||''}">${p.nome}</option>`).join('');
+  const opts = _produtosEstoque.map(p=>`<option value="${p.id}" data-codigo="${p.codigo||''}" data-anvisa="${p.anvisa||''}" data-fabricante="${encodeURIComponent(p.fabricante||'')}" data-lote="${p.lote_atual||''}" data-fabricacao="${p.fabricacao_atual||''}" data-validade="${p.validade_atual||''}">${p.nome}</option>`).join('');
   const qtdVal = (dados&&dados.qtd!=null) ? dados.qtd : 1;
   const loteVal = (dados&&dados.lote) ? dados.lote : '';
   const valVal = (dados&&dados.validade) ? dados.validade : '';
@@ -1814,7 +1814,7 @@ function preencherDadosProduto(sel){
   const opt = sel.options[sel.selectedIndex];
   const div = sel.closest('.prod-orc-linha');
   if(!opt.value){ div.querySelector('.prod-orc-rastro').textContent=''; return; }
-  // Preencher lote/validade a partir do cadastro do produto (lote_atual/validade_atual)
+  // Preencher lote/fabricacao/validade a partir do cadastro do produto
   const loteInput = div.querySelector('.prod-orc-lote');
   const valInput = div.querySelector('.prod-orc-val');
   if(!loteInput.value && opt.dataset.lote) loteInput.value = opt.dataset.lote;
@@ -1832,10 +1832,12 @@ function preencherDadosProduto(sel){
   const codigo = opt.dataset.codigo;
   const anvisa = opt.dataset.anvisa;
   const fabricante = decodeURIComponent(opt.dataset.fabricante||'');
+  const fabricacao = opt.dataset.fabricacao ? `Fab: ${fDt(opt.dataset.fabricacao)}` : '';
   const partes = [];
   if(codigo) partes.push('Cód: '+codigo);
   if(anvisa) partes.push('ANVISA: '+anvisa);
   if(fabricante) partes.push(fabricante);
+  if(fabricacao) partes.push(fabricacao);
   div.querySelector('.prod-orc-rastro').textContent = partes.join(' · ');
 }
 

@@ -265,6 +265,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-
         <div class="fgr full"><label>Fabricante</label><input type="text" id="prod-fabricante" placeholder="Ex: Pharmaesthetics do Brasil Indústria Farmacêutica LTDA"/></div>
         <div style="grid-column:1/-1;margin:4px 0;font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.05em;padding-top:8px;border-top:1px solid var(--borda)">📋 Lote em uso</div>
         <div class="fgr"><label>Lote atual</label><input type="text" id="prod-lote-atual" placeholder="Ex: L2024001"/></div>
+        <div class="fgr"><label>Data de fabricação</label><input type="date" id="prod-fabricacao-atual"/></div>
         <div class="fgr"><label>Validade atual</label><input type="date" id="prod-validade-atual"/></div>
         <div class="fgr full"><label>Observações</label><textarea id="prod-obs" rows="2" placeholder="Referência, notas adicionais..."></textarea></div>
       </div>
@@ -301,6 +302,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-
         </div>
         <div class="fgr"><label>Quantidade *</label><input type="number" id="mov-qtd" min="0.01" step="0.01" placeholder="0"/></div>
         <div class="fgr"><label>Lote</label><input type="text" id="mov-lote" placeholder="Ex: Faa2404"/></div>
+        <div class="fgr"><label>Data de fabricação</label><input type="date" id="mov-fabricacao"/></div>
         <div class="fgr"><label>Validade</label><input type="date" id="mov-validade"/></div>
         <div class="fgr full" id="mov-paciente-row" style="display:none"><label>Paciente (opcional)</label>
           <select id="mov-paciente"><option value="">Sem vínculo</option></select>
@@ -353,6 +355,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-
       <div class="fg">
         <div class="fgr"><label>Quantidade *</label><input type="number" id="er-qtd" min="0.01" step="0.01" placeholder="0"/></div>
         <div class="fgr"><label>Lote</label><input type="text" id="er-lote" placeholder="Ex: Faa2404"/></div>
+        <div class="fgr"><label>Data de fabricação</label><input type="date" id="er-fabricacao"/></div>
         <div class="fgr"><label>Validade</label><input type="date" id="er-validade"/></div>
         <div class="fgr"><label>Fornecedor</label><select id="er-forn"><option value="">Sem vínculo</option></select></div>
         <div class="fgr full"><label>Observações</label><input type="text" id="er-obs" placeholder="NF, pedido, etc..."/></div>
@@ -549,6 +552,7 @@ function abrirModalProduto(id){
   document.getElementById('prod-anvisa').value='';
   document.getElementById('prod-fabricante').value='';
   document.getElementById('prod-lote-atual').value='';
+  document.getElementById('prod-fabricacao-atual').value='';
   document.getElementById('prod-validade-atual').value='';
   document.getElementById('prod-obs').value='';
   // Popular fornecedores
@@ -570,6 +574,7 @@ function editarProduto(id){
   document.getElementById('prod-anvisa').value=p.anvisa||'';
   document.getElementById('prod-fabricante').value=p.fabricante||'';
   document.getElementById('prod-lote-atual').value=p.lote_atual||'';
+  document.getElementById('prod-fabricacao-atual').value=p.fabricacao_atual||'';
   document.getElementById('prod-validade-atual').value=p.validade_atual||'';
   document.getElementById('prod-obs').value=p.obs||'';
   const sel=document.getElementById('prod-forn');
@@ -592,6 +597,7 @@ async function salvarProduto(){
     anvisa:document.getElementById('prod-anvisa').value.trim()||null,
     fabricante:document.getElementById('prod-fabricante').value.trim()||null,
     lote_atual:document.getElementById('prod-lote-atual').value.trim()||null,
+    fabricacao_atual:document.getElementById('prod-fabricacao-atual').value||null,
     validade_atual:document.getElementById('prod-validade-atual').value||null,
     obs:document.getElementById('prod-obs').value.trim()||null
   };
@@ -620,6 +626,7 @@ function abrirEntradaRapida(prodId,prodNome){
   document.getElementById('er-produto-nome').textContent='📦 '+prodNome;
   document.getElementById('er-qtd').value='';
   document.getElementById('er-lote').value='';
+  document.getElementById('er-fabricacao').value='';
   document.getElementById('er-validade').value='';
   document.getElementById('er-obs').value='';
   const sel=document.getElementById('er-forn');
@@ -632,6 +639,7 @@ async function salvarEntradaRapida(){
   const qtd=parseFloat(document.getElementById('er-qtd').value)||0;
   if(!qtd){toast('Informe a quantidade','vermelho');return;}
   const lote=document.getElementById('er-lote').value.trim()||null;
+  const fabricacao=document.getElementById('er-fabricacao').value||null;
   const validade=document.getElementById('er-validade').value||null;
   const obs=document.getElementById('er-obs').value.trim()||null;
   // Registrar movimento
@@ -644,6 +652,7 @@ async function salvarEntradaRapida(){
   const novaQtd=(prod?.quantidade||0)+qtd;
   const atualizacao={quantidade:novaQtd};
   if(lote) atualizacao.lote_atual=lote;
+  if(fabricacao) atualizacao.fabricacao_atual=fabricacao;
   if(validade) atualizacao.validade_atual=validade;
   await db.from('produtos').update(atualizacao).eq('id',prodId);
   toast('Entrada registrada ✅','verde');
@@ -659,6 +668,7 @@ function abrirModalMovimento(tipo){
   document.getElementById('mov-tipo').value=tipo;
   document.getElementById('mov-qtd').value='';
   document.getElementById('mov-lote').value='';
+  document.getElementById('mov-fabricacao').value='';
   document.getElementById('mov-validade').value='';
   document.getElementById('mov-obs').value='';
   const sel=document.getElementById('mov-produto');
@@ -680,6 +690,7 @@ async function salvarMovimento(){
   if(!prodId){toast('Selecione um produto','vermelho');return;}
   if(!qtd){toast('Informe a quantidade','vermelho');return;}
   const lote=document.getElementById('mov-lote').value.trim()||null;
+  const fabricacao=document.getElementById('mov-fabricacao').value||null;
   const validade=document.getElementById('mov-validade').value||null;
   const pacId=document.getElementById('mov-paciente').value||null;
   const obs=document.getElementById('mov-obs').value.trim()||null;
@@ -693,6 +704,7 @@ async function salvarMovimento(){
   const novaQtd=Math.max(0,(prod?.quantidade||0)+delta);
   const atualizacaoMov={quantidade:novaQtd};
   if(tipo==='entrada'&&lote) atualizacaoMov.lote_atual=lote;
+  if(tipo==='entrada'&&fabricacao) atualizacaoMov.fabricacao_atual=fabricacao;
   if(tipo==='entrada'&&validade) atualizacaoMov.validade_atual=validade;
   await db.from('produtos').update(atualizacaoMov).eq('id',prodId);
   toast('Movimentação registrada ✓','verde');
