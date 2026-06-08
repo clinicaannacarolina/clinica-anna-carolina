@@ -1776,7 +1776,7 @@ function adicionarProdutoOrc(dados){
   div.className = 'prod-orc-linha';
   div.style.cssText = 'display:grid;grid-template-columns:1fr 70px 110px 130px auto;gap:6px;align-items:start;margin-bottom:8px;padding:10px;background:var(--bg);border-radius:8px;border:1px solid var(--borda)';
   // Sempre gerar opts do _produtosEstoque atual
-  const opts = _produtosEstoque.map(p=>`<option value="${p.id}" data-codigo="${p.codigo||''}" data-anvisa="${p.anvisa||''}" data-fabricante="${encodeURIComponent(p.fabricante||'')}">${p.nome}</option>`).join('');
+  const opts = _produtosEstoque.map(p=>`<option value="${p.id}" data-codigo="${p.codigo||''}" data-anvisa="${p.anvisa||''}" data-fabricante="${encodeURIComponent(p.fabricante||'')}" data-lote="${p.lote_atual||''}" data-validade="${p.validade_atual||''}">${p.nome}</option>`).join('');
   const qtdVal = (dados&&dados.qtd!=null) ? dados.qtd : 1;
   const loteVal = (dados&&dados.lote) ? dados.lote : '';
   const valVal = (dados&&dados.validade) ? dados.validade : '';
@@ -1814,16 +1814,20 @@ function preencherDadosProduto(sel){
   const opt = sel.options[sel.selectedIndex];
   const div = sel.closest('.prod-orc-linha');
   if(!opt.value){ div.querySelector('.prod-orc-rastro').textContent=''; return; }
-  const prodId = opt.value;
-  // Buscar último lote/validade
-  db.from('estoque_movimentos').select('lote,validade').eq('produto_id',prodId).eq('tipo','entrada').not('lote','is',null).order('criado_em',{ascending:false}).limit(1).then(({data})=>{
-    if(data&&data[0]){
-      const loteInput = div.querySelector('.prod-orc-lote');
-      const valInput = div.querySelector('.prod-orc-val');
-      if(!loteInput.value) loteInput.value = data[0].lote||'';
-      if(!valInput.value) valInput.value = data[0].validade||'';
-    }
-  });
+  // Preencher lote/validade a partir do cadastro do produto (lote_atual/validade_atual)
+  const loteInput = div.querySelector('.prod-orc-lote');
+  const valInput = div.querySelector('.prod-orc-val');
+  if(!loteInput.value && opt.dataset.lote) loteInput.value = opt.dataset.lote;
+  if(!valInput.value && opt.dataset.validade) valInput.value = opt.dataset.validade;
+  // Se não tem no cadastro, buscar último movimento de entrada
+  if(!loteInput.value && !valInput.value){
+    db.from('estoque_movimentos').select('lote,validade').eq('produto_id',opt.value).eq('tipo','entrada').not('lote','is',null).order('criado_em',{ascending:false}).limit(1).then(({data})=>{
+      if(data&&data[0]){
+        if(!loteInput.value) loteInput.value = data[0].lote||'';
+        if(!valInput.value) valInput.value = data[0].validade||'';
+      }
+    });
+  }
   // Info rastreabilidade
   const codigo = opt.dataset.codigo;
   const anvisa = opt.dataset.anvisa;

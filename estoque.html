@@ -263,6 +263,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-
         <div class="fgr"><label>Código do produto</label><input type="text" id="prod-codigo" placeholder="Ex: PA0019"/></div>
         <div class="fgr"><label>Registro ANVISA</label><input type="text" id="prod-anvisa" placeholder="Ex: 81872460010"/></div>
         <div class="fgr full"><label>Fabricante</label><input type="text" id="prod-fabricante" placeholder="Ex: Pharmaesthetics do Brasil Indústria Farmacêutica LTDA"/></div>
+        <div style="grid-column:1/-1;margin:4px 0;font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.05em;padding-top:8px;border-top:1px solid var(--borda)">📋 Lote em uso</div>
+        <div class="fgr"><label>Lote atual</label><input type="text" id="prod-lote-atual" placeholder="Ex: L2024001"/></div>
+        <div class="fgr"><label>Validade atual</label><input type="date" id="prod-validade-atual"/></div>
         <div class="fgr full"><label>Observações</label><textarea id="prod-obs" rows="2" placeholder="Referência, notas adicionais..."></textarea></div>
       </div>
     </div>
@@ -545,6 +548,8 @@ function abrirModalProduto(id){
   document.getElementById('prod-codigo').value='';
   document.getElementById('prod-anvisa').value='';
   document.getElementById('prod-fabricante').value='';
+  document.getElementById('prod-lote-atual').value='';
+  document.getElementById('prod-validade-atual').value='';
   document.getElementById('prod-obs').value='';
   // Popular fornecedores
   const sel=document.getElementById('prod-forn');
@@ -564,6 +569,8 @@ function editarProduto(id){
   document.getElementById('prod-codigo').value=p.codigo||'';
   document.getElementById('prod-anvisa').value=p.anvisa||'';
   document.getElementById('prod-fabricante').value=p.fabricante||'';
+  document.getElementById('prod-lote-atual').value=p.lote_atual||'';
+  document.getElementById('prod-validade-atual').value=p.validade_atual||'';
   document.getElementById('prod-obs').value=p.obs||'';
   const sel=document.getElementById('prod-forn');
   sel.innerHTML='<option value="">Sem fornecedor</option>'+_fornecedores.map(f=>`<option value="${f.id}"${f.id===p.fornecedor_id?' selected':''}>${f.nome}</option>`).join('');
@@ -584,6 +591,8 @@ async function salvarProduto(){
     codigo:document.getElementById('prod-codigo').value.trim()||null,
     anvisa:document.getElementById('prod-anvisa').value.trim()||null,
     fabricante:document.getElementById('prod-fabricante').value.trim()||null,
+    lote_atual:document.getElementById('prod-lote-atual').value.trim()||null,
+    validade_atual:document.getElementById('prod-validade-atual').value||null,
     obs:document.getElementById('prod-obs').value.trim()||null
   };
   const{error}=id
@@ -630,10 +639,13 @@ async function salvarEntradaRapida(){
     produto_id:prodId,tipo:'entrada',quantidade:qtd,lote,validade,obs
   });
   if(eM){toast('Erro ao registrar','vermelho');return;}
-  // Atualizar quantidade
+  // Atualizar quantidade + lote atual se fornecido
   const prod=_produtos.find(p=>p.id===prodId);
   const novaQtd=(prod?.quantidade||0)+qtd;
-  await db.from('produtos').update({quantidade:novaQtd}).eq('id',prodId);
+  const atualizacao={quantidade:novaQtd};
+  if(lote) atualizacao.lote_atual=lote;
+  if(validade) atualizacao.validade_atual=validade;
+  await db.from('produtos').update(atualizacao).eq('id',prodId);
   toast('Entrada registrada ✅','verde');
   fecharModal('modal-entrada-rapida');
   await carregar();
@@ -675,11 +687,14 @@ async function salvarMovimento(){
     produto_id:prodId,tipo,quantidade:qtd,lote,validade,paciente_id:pacId,obs
   });
   if(eM){toast('Erro: '+eM.message,'vermelho');return;}
-  // Atualizar quantidade do produto
+  // Atualizar quantidade do produto + lote atual se entrada
   const prod=_produtos.find(p=>p.id===prodId);
   const delta=tipo==='entrada'?qtd:-qtd;
   const novaQtd=Math.max(0,(prod?.quantidade||0)+delta);
-  await db.from('produtos').update({quantidade:novaQtd}).eq('id',prodId);
+  const atualizacaoMov={quantidade:novaQtd};
+  if(tipo==='entrada'&&lote) atualizacaoMov.lote_atual=lote;
+  if(tipo==='entrada'&&validade) atualizacaoMov.validade_atual=validade;
+  await db.from('produtos').update(atualizacaoMov).eq('id',prodId);
   toast('Movimentação registrada ✓','verde');
   fecharModal('modal-movimento');
   await carregar();
