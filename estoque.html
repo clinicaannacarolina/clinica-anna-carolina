@@ -586,29 +586,62 @@ async function salvarProduto(){
   const id=document.getElementById('prod-id').value;
   const nome=document.getElementById('prod-nome').value.trim();
   if(!nome){toast('Informe o nome do produto','vermelho');return;}
+  const qtdNova=parseFloat(document.getElementById('prod-qtd').value)||0;
+  const lote=document.getElementById('prod-lote-atual').value.trim()||null;
+  const fabricacao=document.getElementById('prod-fabricacao-atual').value||null;
+  const validade=document.getElementById('prod-validade-atual').value||null;
   const obj={
     nome,
     categoria:document.getElementById('prod-cat').value||null,
     unidade:document.getElementById('prod-unidade').value,
-    quantidade:parseFloat(document.getElementById('prod-qtd').value)||0,
+    quantidade:qtdNova,
     estoque_minimo:parseFloat(document.getElementById('prod-min').value)||0,
     fornecedor_id:document.getElementById('prod-forn').value||null,
     codigo:document.getElementById('prod-codigo').value.trim()||null,
     anvisa:document.getElementById('prod-anvisa').value.trim()||null,
     fabricante:document.getElementById('prod-fabricante').value.trim()||null,
-    lote_atual:document.getElementById('prod-lote-atual').value.trim()||null,
-    fabricacao_atual:document.getElementById('prod-fabricacao-atual').value||null,
-    validade_atual:document.getElementById('prod-validade-atual').value||null,
+    lote_atual:lote,
+    fabricacao_atual:fabricacao,
+    validade_atual:validade,
     obs:document.getElementById('prod-obs').value.trim()||null
   };
-  const{error}=id
-    ?await db.from('produtos').update(obj).eq('id',id)
-    :await db.from('produtos').insert(obj);
-  if(error){toast('Erro ao salvar: '+error.message,'vermelho');return;}
+  if(id){
+    // Edição — verificar se quantidade mudou
+    const prodAnterior=_produtos.find(p=>p.id===id);
+    const qtdAnterior=prodAnterior?.quantidade||0;
+    const{error}=await db.from('produtos').update(obj).eq('id',id);
+    if(error){toast('Erro ao salvar: '+error.message,'vermelho');return;}
+    // Lançar ajuste se quantidade foi alterada manualmente
+    if(qtdNova!==qtdAnterior){
+      const diff=qtdNova-qtdAnterior;
+      await db.from('estoque_movimentos').insert({
+        produto_id:id,
+        tipo:'ajuste',
+        quantidade:Math.abs(diff),
+        lote,fabricacao,validade,
+        obs:`Ajuste manual: ${diff>0?'+':''}${diff} unidade(s)`
+      });
+    }
+  } else {
+    // Novo produto
+    const{data,error}=await db.from('produtos').insert(obj).select().single();
+    if(error){toast('Erro ao salvar: '+error.message,'vermelho');return;}
+    // Lançar entrada inicial se quantidade > 0
+    if(qtdNova>0&&data?.id){
+      await db.from('estoque_movimentos').insert({
+        produto_id:data.id,
+        tipo:'entrada',
+        quantidade:qtdNova,
+        lote,fabricacao,validade,
+        obs:'Estoque inicial'
+      });
+    }
+  }
   toast(id?'Produto atualizado ✓':'Produto cadastrado ✓','verde');
   fecharModal('modal-produto');
   await carregar();
   if(_tabAtual==='produtos')renderProdutos();
+  else if(_tabAtual==='movimentos')renderMovimentos();
 }
 
 async function excluirProduto(id){
