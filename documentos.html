@@ -1432,23 +1432,40 @@ async function verDoc(id,tipo){
         const inputs=tr.querySelectorAll('input');
         row.forEach((v,i)=>{if(inputs[i])inputs[i].value=v;});
       });
-      // Completar com linhas vazias até 5
       const atual=document.querySelectorAll('#ao-historico tr').length;
       for(let i=atual;i<5;i++) addLinhaHistorico();
     }
-    // Restaurar perguntas Sim/Não
     if(d.perguntas){
       Object.entries(d.perguntas).forEach(([i,v])=>{
         const radio=document.querySelector(`input[name="ao-${i}"][value="${v}"]`);
         if(radio) radio.checked=true;
       });
     }
-    // Restaurar saúde bucal
     if(d.bucal){
       Object.entries(d.bucal).forEach(([i,v])=>{
         const radio=document.querySelector(`input[name="aob-${i}"][value="${v}"]`);
         if(radio) radio.checked=true;
       });
+    }
+  } else if(tipo==='receituario'){
+    if(d.data) document.getElementById('rec-data').value=d.data;
+    if(d.cid)  document.getElementById('rec-cid').value=d.cid;
+    if(d.obs)  document.getElementById('rec-obs').value=d.obs;
+    if(d.medicamentos&&d.medicamentos.length){
+      document.getElementById('rec-medicamentos').innerHTML='';
+      d.medicamentos.forEach(m=>addMedicamento(m));
+    }
+  } else if(tipo==='receituario-estetico'){
+    if(d.data)         document.getElementById('rece-data').value=d.data;
+    if(d.procedimento) document.getElementById('rece-procedimento').value=d.procedimento;
+    if(d.obs)          document.getElementById('rece-obs').value=d.obs;
+    if(d.retorno)      document.getElementById('rece-retorno').value=d.retorno;
+    if(d.produtos&&d.produtos.length){
+      document.getElementById('rece-produtos').innerHTML='';
+      d.produtos.forEach(p=>addProdutoEstetico(p));
+    }
+    if(d.cuidados){
+      d.cuidados.forEach((v,i)=>{const el=document.getElementById('rece-c'+(i+1));if(el)el.checked=v;});
     }
   }
 
