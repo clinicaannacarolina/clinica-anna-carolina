@@ -880,12 +880,18 @@ function popularSelects(){
 }
 
 // ── EXPORT EXCEL ──
-function exportarEstoqueExcel(){
+async function exportarEstoqueExcel(){
+  // Buscar nomes dos pacientes vinculados às movimentações
+  const pacIds=[...new Set(_movimentos.filter(m=>m.paciente_id).map(m=>m.paciente_id))];
+  let pacMap={};
+  if(pacIds.length){
+    const{data:pacs}=await db.from('pacientes').select('id,nome').in('id',pacIds);
+    if(pacs) pacs.forEach(p=>pacMap[p.id]=p.nome);
+  }
   // Criar CSV com BOM para Excel reconhecer UTF-8
   const bom='\uFEFF';
   const sep=';';
   const linhas=[];
-  // Cabeçalho — Produtos
   linhas.push(['RELATÓRIO DE ESTOQUE — Clínica Dra. Anna Carolina','','','','','','','',''].join(sep));
   linhas.push(['Gerado em: '+new Date().toLocaleDateString('pt-BR')+' '+new Date().toLocaleTimeString('pt-BR'),'','','','','','','',''].join(sep));
   linhas.push([]);
@@ -911,12 +917,12 @@ function exportarEstoqueExcel(){
     ].join(sep));
   });
   linhas.push([]);
-  // Movimentações
   linhas.push(['MOVIMENTAÇÕES','','','','','','','',''].join(sep));
   linhas.push(['Data','Produto','Tipo','Quantidade','Lote','Fabricação','Validade','Paciente','Observações'].join(sep));
   const tipoLabel={entrada:'Entrada',saida:'Saída',uso:'Uso em procedimento',descarte:'Descarte',ajuste:'Ajuste'};
   _movimentos.forEach(m=>{
     const prod=_produtos.find(p=>p.id===m.produto_id);
+    const nomePac=m.paciente_id?pacMap[m.paciente_id]||'':'';
     linhas.push([
       m.criado_em?new Date(m.criado_em).toLocaleDateString('pt-BR'):'',
       prod?.nome||'',
@@ -925,7 +931,7 @@ function exportarEstoqueExcel(){
       m.lote||'',
       m.fabricacao?new Date(m.fabricacao+'T12:00:00').toLocaleDateString('pt-BR'):'',
       m.validade?new Date(m.validade+'T12:00:00').toLocaleDateString('pt-BR'):'',
-      m.paciente_nome||'',
+      nomePac,
       m.obs||''
     ].join(sep));
   });
