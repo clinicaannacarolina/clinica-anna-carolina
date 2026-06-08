@@ -469,6 +469,7 @@ function renderDashboard(){
   if(vencidos.length){
     alertas+=`<div class="alerta verm">❌ <strong>${vencidos.length} produto${vencidos.length>1?'s':''} vencido${vencidos.length>1?'s':''}:</strong> ${vencidos.map(p=>p.nome).join(', ')} — descarte imediato!</div>`;
   }
+  cont.innerHTML=alertas||'';
 
   // Lista de produtos com barra de estoque
   if(!_produtos.length){
