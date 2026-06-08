@@ -259,7 +259,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-
             <option value="">Sem fornecedor</option>
           </select>
         </div>
-        <div class="fgr full"><label>Observações</label><textarea id="prod-obs" rows="2" placeholder="Referência, código, observações..."></textarea></div>
+        <div style="grid-column:1/-1;margin:4px 0;font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.05em;padding-top:8px;border-top:1px solid var(--borda)">🏷️ Rastreabilidade ANVISA</div>
+        <div class="fgr"><label>Código do produto</label><input type="text" id="prod-codigo" placeholder="Ex: PA0019"/></div>
+        <div class="fgr"><label>Registro ANVISA</label><input type="text" id="prod-anvisa" placeholder="Ex: 81872460010"/></div>
+        <div class="fgr full"><label>Fabricante</label><input type="text" id="prod-fabricante" placeholder="Ex: Pharmaesthetics do Brasil Indústria Farmacêutica LTDA"/></div>
+        <div class="fgr full"><label>Observações</label><textarea id="prod-obs" rows="2" placeholder="Referência, notas adicionais..."></textarea></div>
       </div>
     </div>
     <div class="mb-foot">
@@ -515,7 +519,7 @@ function renderTblProdutos(lista){
     const critico=p.estoque_minimo>0&&p.quantidade<=p.estoque_minimo;
     const ok=!critico;
     return`<tr>
-      <td><div style="font-weight:600">${p.nome}</div>${p.obs?`<div style="font-size:11px;color:var(--ct)">${p.obs}</div>`:''}</td>
+      <td><div style="font-weight:600">${p.nome}</div>${p.codigo?`<div style="font-size:11px;color:var(--ct)">Cód: ${p.codigo}${p.anvisa?' · ANVISA: '+p.anvisa:''}</div>`:''} ${p.fabricante?`<div style="font-size:11px;color:var(--ct)">${p.fabricante}</div>`:''}</td>
       <td><span class="badge azul">${p.categoria||'—'}</span></td>
       <td style="font-weight:700;color:${critico?'var(--vermelho)':'var(--txt)'}">${p.quantidade} <span style="font-size:11px;font-weight:400;color:var(--ct)">${p.unidade||''}</span></td>
       <td style="color:var(--ct)">${p.estoque_minimo||'—'}</td>
@@ -538,6 +542,9 @@ function abrirModalProduto(id){
   document.getElementById('prod-unidade').value='unidade';
   document.getElementById('prod-qtd').value='';
   document.getElementById('prod-min').value='';
+  document.getElementById('prod-codigo').value='';
+  document.getElementById('prod-anvisa').value='';
+  document.getElementById('prod-fabricante').value='';
   document.getElementById('prod-obs').value='';
   // Popular fornecedores
   const sel=document.getElementById('prod-forn');
@@ -554,6 +561,9 @@ function editarProduto(id){
   document.getElementById('prod-unidade').value=p.unidade||'unidade';
   document.getElementById('prod-qtd').value=p.quantidade||0;
   document.getElementById('prod-min').value=p.estoque_minimo||0;
+  document.getElementById('prod-codigo').value=p.codigo||'';
+  document.getElementById('prod-anvisa').value=p.anvisa||'';
+  document.getElementById('prod-fabricante').value=p.fabricante||'';
   document.getElementById('prod-obs').value=p.obs||'';
   const sel=document.getElementById('prod-forn');
   sel.innerHTML='<option value="">Sem fornecedor</option>'+_fornecedores.map(f=>`<option value="${f.id}"${f.id===p.fornecedor_id?' selected':''}>${f.nome}</option>`).join('');
@@ -571,6 +581,9 @@ async function salvarProduto(){
     quantidade:parseFloat(document.getElementById('prod-qtd').value)||0,
     estoque_minimo:parseFloat(document.getElementById('prod-min').value)||0,
     fornecedor_id:document.getElementById('prod-forn').value||null,
+    codigo:document.getElementById('prod-codigo').value.trim()||null,
+    anvisa:document.getElementById('prod-anvisa').value.trim()||null,
+    fabricante:document.getElementById('prod-fabricante').value.trim()||null,
     obs:document.getElementById('prod-obs').value.trim()||null
   };
   const{error}=id

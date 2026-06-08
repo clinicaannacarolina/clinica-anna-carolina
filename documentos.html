@@ -266,6 +266,13 @@ textarea{resize:vertical}
         <span style="font-weight:600;color:var(--verde-e)">TOTAL:</span>
         <span style="font-size:18px;font-weight:600;color:var(--verde-e)" id="orc-total">R$ 0,00</span>
       </div>
+      <!-- SEÇÃO PRODUTOS UTILIZADOS -->
+      <div class="sec-title" style="margin-top:1rem;display:flex;align-items:center;justify-content:space-between">
+        <span>📦 Produtos Utilizados</span>
+        <button class="btn sm" onclick="adicionarProdutoOrc()" style="font-size:12px">+ Adicionar produto</button>
+      </div>
+      <div id="orc-produtos" style="margin-bottom:1rem"></div>
+      <!-- FIM SEÇÃO PRODUTOS -->
       <div class="sec-title">Condições de Pagamento</div>
       <textarea id="orc-pagamento" rows="3" placeholder="Ex: À vista com 10% de desconto. Parcelado em até 6x sem juros no cartão."></textarea>
       <div class="sec-title">Outras Informações</div>
@@ -585,6 +592,7 @@ function fmtBRL(v){return'R$ '+parseFloat(v||0).toLocaleString('pt-BR',{minimumF
 async function carregar(){
   const{data}=await db.from('pacientes').select('*').order('nome');
   pacs=data||[];
+  await carregarProdutosEstoque();
 }
 
 // BUSCA PACIENTE
@@ -799,6 +807,7 @@ async function abrirOrcamento(){
     document.getElementById('orc-validade').value=HOJE;
     document.getElementById('orc-pagamento').value='';
     document.getElementById('orc-obs').value='';
+    limparProdutosOrc();
     addItemOrc();addItemOrc();addItemOrc();
     esconderBannerPlanoAtivo();
   }
@@ -944,6 +953,7 @@ async function salvarDoc(tipo){
     dados.pagamento=document.getElementById('orc-pagamento')?.value||'';
     dados.obs=document.getElementById('orc-obs')?.value||'';
     dados.validade=document.getElementById('orc-validade')?.value||'';
+    dados.produtos=getProdutosOrcamento();
   } else if(tipo==='autorizacao-imagem'){
     dados.rg=document.getElementById('img-rg')?.value||'';
     dados.cpf=document.getElementById('img-cpf')?.value||'';
@@ -1050,6 +1060,11 @@ async function verDoc(id,tipo){
     if(d.pagamento) document.getElementById('orc-pagamento').value=d.pagamento;
     if(d.obs) document.getElementById('orc-obs').value=d.obs;
     if(d.validade) document.getElementById('orc-validade').value=d.validade;
+    // Carregar produtos utilizados salvos
+    limparProdutosOrc();
+    if(d.produtos&&d.produtos.length){
+      d.produtos.forEach(p=>adicionarProdutoOrc(p));
+    }
     // Se não tem plano ativo, carregar itens do histórico
     if(!window._planoAtual?.id){
       document.getElementById('orc-itens').innerHTML='';
@@ -1716,8 +1731,15 @@ if(!selecionados.length){toast('Marque ao menos um tratamento!','vermelho');retu
     }
   }
 
+  // Dar baixa automática nos produtos utilizados (se houver)
+  const produtosUsados = getProdutosOrcamento();
+  if(produtosUsados.length > 0){
+    await baixarProdutosEstoque(produtosUsados, pacSelecionada?.id, planoId);
+  }
+
   btn.disabled=false;btn.textContent='✅ Confirmar e registrar';
   fecharModalRealizado();
+  limparProdutosOrc();
   toast('Atendimento e lançamento financeiro registrados! ✓','verde');
   carregarDocsSalvos();
 }
@@ -1726,6 +1748,97 @@ if(!selecionados.length){toast('Marque ao menos um tratamento!','vermelho');retu
 document.getElementById('modal-realizado').addEventListener('click',e=>{
   if(e.target===e.currentTarget) fecharModalRealizado();
 });
+
+// ── PRODUTOS NO ORÇAMENTO ──
+let _produtosEstoque = [];
+
+async function carregarProdutosEstoque(){
+  const {data} = await db.from('produtos').select('*').order('nome');
+  _produtosEstoque = data || [];
+}
+
+function adicionarProdutoOrc(dados){
+  const cont = document.getElementById('orc-produtos');
+  const div = document.createElement('div');
+  div.className = 'prod-orc-linha';
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 70px 110px 130px auto;gap:6px;align-items:start;margin-bottom:8px;padding:10px;background:var(--bg);border-radius:8px;border:1px solid var(--borda)';
+  const opts = _produtosEstoque.map(p=>`<option value="${p.id}" data-codigo="${p.codigo||''}" data-anvisa="${p.anvisa||''}" data-fabricante="${encodeURIComponent(p.fabricante||'')}">${p.nome}</option>`).join('');
+  div.innerHTML = `
+    <div>
+      <select class="prod-orc-sel" onchange="preencherDadosProduto(this)" style="width:100%;padding:7px 9px;border:1.5px solid var(--borda);border-radius:7px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--card);color:var(--txt)">
+        <option value="">Selecionar produto...</option>${opts}
+      </select>
+      <div class="prod-orc-rastro" style="font-size:11px;color:var(--ct);margin-top:3px;min-height:14px"></div>
+    </div>
+    <input type="number" class="prod-orc-qtd" placeholder="Qtd" min="0.01" step="0.01" value="${dados&&dados.qtd?dados.qtd:1}" style="padding:7px 9px;border:1.5px solid var(--borda);border-radius:7px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--card);color:var(--txt);width:100%;text-align:center"/>
+    <input type="text" class="prod-orc-lote" placeholder="Lote" value="${dados&&dados.lote?dados.lote:''}" style="padding:7px 9px;border:1.5px solid var(--borda);border-radius:7px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--card);color:var(--txt);width:100%"/>
+    <input type="date" class="prod-orc-val" value="${dados&&dados.validade?dados.validade:''}" style="padding:7px 9px;border:1.5px solid var(--borda);border-radius:7px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--card);color:var(--txt);width:100%"/>
+    <button onclick="this.closest('.prod-orc-linha').remove()" style="background:none;border:none;cursor:pointer;color:var(--vermelho);font-size:18px;padding:4px 2px;line-height:1;margin-top:6px">✕</button>
+  `;
+  cont.appendChild(div);
+  if(dados&&dados.produto_id){
+    div.querySelector('.prod-orc-sel').value = dados.produto_id;
+    preencherDadosProduto(div.querySelector('.prod-orc-sel'));
+  }
+}
+
+function preencherDadosProduto(sel){
+  const opt = sel.options[sel.selectedIndex];
+  const div = sel.closest('.prod-orc-linha');
+  if(!opt.value){ div.querySelector('.prod-orc-rastro').textContent=''; return; }
+  const prodId = opt.value;
+  // Buscar último lote/validade
+  db.from('estoque_movimentos').select('lote,validade').eq('produto_id',prodId).eq('tipo','entrada').not('lote','is',null).order('criado_em',{ascending:false}).limit(1).then(({data})=>{
+    if(data&&data[0]){
+      const loteInput = div.querySelector('.prod-orc-lote');
+      const valInput = div.querySelector('.prod-orc-val');
+      if(!loteInput.value) loteInput.value = data[0].lote||'';
+      if(!valInput.value) valInput.value = data[0].validade||'';
+    }
+  });
+  // Info rastreabilidade
+  const codigo = opt.dataset.codigo;
+  const anvisa = opt.dataset.anvisa;
+  const fabricante = decodeURIComponent(opt.dataset.fabricante||'');
+  const partes = [];
+  if(codigo) partes.push('Cód: '+codigo);
+  if(anvisa) partes.push('ANVISA: '+anvisa);
+  if(fabricante) partes.push(fabricante);
+  div.querySelector('.prod-orc-rastro').textContent = partes.join(' · ');
+}
+
+function getProdutosOrcamento(){
+  const result = [];
+  document.querySelectorAll('.prod-orc-linha').forEach(div=>{
+    const prodId = div.querySelector('.prod-orc-sel').value;
+    const qtd = parseFloat(div.querySelector('.prod-orc-qtd').value)||0;
+    const lote = div.querySelector('.prod-orc-lote').value.trim();
+    const validade = div.querySelector('.prod-orc-val').value;
+    if(prodId&&qtd>0) result.push({produto_id:prodId,qtd,lote:lote||null,validade:validade||null});
+  });
+  return result;
+}
+
+async function baixarProdutosEstoque(produtosUsados, pacienteId, planoId){
+  for(const item of produtosUsados){
+    await db.from('estoque_movimentos').insert({
+      produto_id:item.produto_id, tipo:'uso', quantidade:item.qtd,
+      lote:item.lote||null, validade:item.validade||null,
+      paciente_id:pacienteId||null, plano_id:planoId||null,
+      obs:'Baixa automática — procedimento realizado'
+    });
+    const prod = _produtosEstoque.find(p=>p.id===item.produto_id);
+    if(prod){
+      const novaQtd = Math.max(0,(prod.quantidade||0)-item.qtd);
+      await db.from('produtos').update({quantidade:novaQtd}).eq('id',item.produto_id);
+      prod.quantidade = novaQtd; // atualizar local
+    }
+  }
+}
+
+function limparProdutosOrc(){
+  document.getElementById('orc-produtos').innerHTML='';
+}
 
 // INICIAR
 carregar().then(()=>{
