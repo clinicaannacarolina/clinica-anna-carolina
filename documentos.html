@@ -813,9 +813,9 @@ async function abrirOrcamento(){
     addItemOrc();addItemOrc();addItemOrc();
     esconderBannerPlanoAtivo();
   }
-  // Restaurar produtos do último orçamento salvo
+  // Restaurar produtos do último orçamento salvo (apenas se não foram baixados)
   limparProdutosOrc();
-  if(ultimoOrc.produtos&&ultimoOrc.produtos.length){
+  if(ultimoOrc.produtos&&ultimoOrc.produtos.length&&!ultimoOrc.produtos_baixados){
     ultimoOrc.produtos.forEach(prod=>adicionarProdutoOrc(prod));
   }
   calcTotal();
@@ -1742,10 +1742,10 @@ if(!selecionados.length){toast('Marque ao menos um tratamento!','vermelho');retu
   const produtosUsados = getProdutosOrcamento();
   if(produtosUsados.length > 0){
     await baixarProdutosEstoque(produtosUsados, pacSelecionada?.id, planoId);
-    // Zerar produtos no último orçamento salvo (já foram usados/baixados)
+    // Marcar orçamento como baixado — preserva produtos para histórico
     const{data:docOrc}=await db.from('documentos').select('id,dados').eq('paciente_id',pacSelecionada.id).eq('tipo','orcamento').order('criado_em',{ascending:false}).limit(1);
     if(docOrc&&docOrc[0]){
-      const dadosAtualiz={...docOrc[0].dados, produtos:[]};
+      const dadosAtualiz={...docOrc[0].dados, produtos_baixados:true};
       await db.from('documentos').update({dados:dadosAtualiz}).eq('id',docOrc[0].id);
     }
   }
@@ -2521,10 +2521,10 @@ window.confirmarRealizado = async function() {
     const produtosUsados = getProdutosOrcamento();
     if(produtosUsados.length > 0){
       await baixarProdutosEstoque(produtosUsados, pacSelecionada.id, planoId);
-      // Zerar produtos no último orçamento salvo
+      // Marcar orçamento como baixado (preserva produtos para histórico, mas não restaura no próximo)
       const{data:docOrc}=await db.from('documentos').select('id,dados').eq('paciente_id',pacSelecionada.id).eq('tipo','orcamento').order('criado_em',{ascending:false}).limit(1);
       if(docOrc&&docOrc[0]){
-        await db.from('documentos').update({dados:{...docOrc[0].dados,produtos:[]}}).eq('id',docOrc[0].id);
+        await db.from('documentos').update({dados:{...docOrc[0].dados,produtos_baixados:true}}).eq('id',docOrc[0].id);
       }
     }
     limparProdutosOrc();
