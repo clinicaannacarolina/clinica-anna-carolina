@@ -922,13 +922,13 @@ function renderHoje(){
   const ch=consultas.filter(c=>c.data===HOJE_STR&&c.status!=='cancelado').sort((a,b)=>a.hora.localeCompare(b.hora));
   document.getElementById('l-cons-hoje').innerHTML=ch.length===0
     ?`<div class="empty" style="padding:1rem"><div class="empty-icon">📋</div><p>Nenhuma consulta hoje.</p></div>`
-    :ch.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';return`<div class="ci"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${c.nome}</div><div class="cd">${c.procedimento||''}${c.telefone?' · '+c.telefone:''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬</a>`:''}</div></div>`;}).join('');
+    :ch.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';return`<div class="ci" data-cid="${c.id}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${c.nome}</div><div class="cd">${c.procedimento||''}${c.telefone?' · '+c.telefone:''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬</a>`:''}${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:5px 8px;font-size:13px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">👤</a>`:`<button class="btn btn-vincular" style="padding:5px 8px;font-size:13px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="Vincular ao cadastro de paciente">🔗</button>`}</div></div>`;}).join('');
 
   // Consultas amanhã
   const ca=consultas.filter(c=>c.data===AMANHA_STR&&c.status!=='cancelado').sort((a,b)=>a.hora.localeCompare(b.hora));
   document.getElementById('l-cons-amanha').innerHTML=ca.length===0
     ?`<div class="empty" style="padding:1rem"><div class="empty-icon">📋</div><p>Nenhuma consulta amanhã.</p></div>`
-    :ca.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';return`<div class="ci"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${c.nome}</div><div class="cd">${c.procedimento||''}${c.telefone?' · '+c.telefone:''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬 Confirmar</a>`:''} ${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">Ficha</a>`:''}</div></div>`;}).join('');
+    :ca.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';return`<div class="ci" data-cid="${c.id}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${c.nome}</div><div class="cd">${c.procedimento||''}${c.telefone?' · '+c.telefone:''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬 Confirmar</a>`:''} ${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">Ficha</a>`:`<button class="btn btn-vincular" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="Vincular ao cadastro de paciente">🔗 Vincular</button>`}</div></div>`;}).join('');
 
   // Verificações
   const vers=[];
@@ -1392,14 +1392,16 @@ function injetarBtnFicha(){
     let p=pacs.find(x=>x.nome===nome||(x.apelido&&x.apelido===nome));
     if(!p&&tel){const tl=tel.replace(/\D/g,'');p=pacs.find(x=>(x.telefone||'').replace(/\D/g,'').endsWith(tl)||tl.endsWith((x.telefone||'').replace(/\D/g,'')));}
     if(!p&&nome){const nl=nome.toLowerCase().trim();p=pacs.find(x=>x.nome.toLowerCase().trim()===nl||(x.apelido&&x.apelido.toLowerCase().trim()===nl));}
-    if(!p) return;
-    // Botão 👤 Ficha — vai para a ficha do paciente
+    if(!p) return; // sem match — 🔗 do render permanece (se houver)
+    // Achou o paciente → remover 🔗 se presente e adicionar 👤 + 🩺
+    ca.querySelectorAll('.btn-vincular').forEach(b=>b.remove());
+    // Botão 👤 Ficha
     const btn=document.createElement('a');
     btn.className='btn';btn.style.cssText='padding:5px 8px;font-size:13px;flex-shrink:0;text-decoration:none';
     btn.title='Abrir ficha do paciente';btn.textContent='👤';
     btn.href=`paciente.html?id=${p.id}`;
     ca.insertBefore(btn,ca.firstChild);
-    // Botão 🩺 Atendimento — abre modal de registrar atendimento
+    // Botão 🩺 Atendimento
     const btnAt=document.createElement('button');
     btnAt.className='btn';btnAt.style.cssText='padding:5px 8px;font-size:13px;flex-shrink:0';
     btnAt.title='Registrar atendimento';btnAt.textContent='🩺';
@@ -2139,7 +2141,7 @@ function renderConsDia(ds){
   const el=document.getElementById('ag-cons');
   const cs=consultas.filter(c=>c.data===ds).sort((a,b)=>a.hora.localeCompare(b.hora));
   if(!cs.length){el.innerHTML=`<div class="empty" style="padding:1.5rem"><div class="empty-icon">📋</div><p>Nenhuma consulta. Clique em "+ Agendar".</p></div>`;renderConsMes();return;}
-  el.innerHTML=cs.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';const cls=c.status==='cancelado'?'can':c.status==='pendente'?'pen':'';return`<div class="ci ${cls}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${c.nome}${c.status==='cancelado'?' <span style="font-size:11px;color:var(--vermelho)">(cancelado)</span>':''}</div><div class="cd">${c.procedimento||'Sem procedimento'}${c.telefone?' · '+c.telefone:''}${c.observacao?' · '+c.observacao:''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬</a>`:''}<a href="${urlGcal(c)}" target="_blank" class="btn gcal">📆</a><button class="btn" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})'>✏️</button>${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">Ficha</a>`:''}</div></div>`;}).join('');
+  el.innerHTML=cs.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';const cls=c.status==='cancelado'?'can':c.status==='pendente'?'pen':'';return`<div class="ci ${cls}" data-cid="${c.id}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${c.nome}${c.status==='cancelado'?' <span style="font-size:11px;color:var(--vermelho)">(cancelado)</span>':''}</div><div class="cd">${c.procedimento||'Sem procedimento'}${c.telefone?' · '+c.telefone:''}${c.observacao?' · '+c.observacao:''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬</a>`:''}<a href="${urlGcal(c)}" target="_blank" class="btn gcal">📆</a><button class="btn" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})'>✏️</button>${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">Ficha</a>`:`<button class="btn btn-vincular" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="Vincular ao cadastro">🔗</button>`}</div></div>`;}).join('');
   renderConsMes();
   setTimeout(injetarBtnFicha,300);
   setTimeout(injetarBtnFicha,1200);
@@ -2166,7 +2168,7 @@ function renderTimeline(ds){
             ${c.procedimento?`<div class="ev-proc">${c.procedimento}</div>`:''}
             <div class="ev-acoes">
               ${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" style="padding:4px 8px;font-size:11px" onclick="event.stopPropagation()">💬 WhatsApp</a>`:''}
-              ${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:4px 8px;font-size:11px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600" onclick="event.stopPropagation()">👤 Ficha</a>`:''}
+              ${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:4px 8px;font-size:11px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600" onclick="event.stopPropagation()">👤 Ficha</a>`:`<button class="btn btn-vincular" style="padding:4px 8px;font-size:11px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick="event.stopPropagation();abrirVincular(${J(c)})" title="Vincular ao cadastro">🔗 Vincular</button>`}
               <button class="btn" style="padding:4px 8px;font-size:11px" onclick="event.stopPropagation();editCons(${J(c)})">✏️ Editar</button>
             </div>
           </div>`;
@@ -2230,7 +2232,7 @@ function renderConsMes(){
   const cs=consultas.filter(c=>c.data.startsWith(`${ano}-${mesStr}`)&&c.status!=='cancelado').sort((a,b)=>a.data.localeCompare(b.data)||a.hora.localeCompare(b.hora));
   if(!cs.length){el.innerHTML=`<div class="empty" style="padding:1rem"><div class="empty-icon">📋</div><p>Nenhuma consulta em ${MESES_N[mes]}.</p></div>`;return;}
   const grupos={};cs.forEach(c=>{if(!grupos[c.data])grupos[c.data]=[];grupos[c.data].push(c);});
-  el.innerHTML=Object.entries(grupos).map(([data,cons])=>{const[y,m,d]=data.split('-');const isH=data===HOJE_STR;return`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:${isH?'var(--verde-e)':'var(--ct)'};text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;cursor:pointer" onclick="selDia('${data}')">${DIAS[new Date(data+'T12:00:00').getDay()]}, ${d}/${m}/${y}${isH?' · hoje':''}</div>${cons.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';return`<div class="ci" style="margin-bottom:5px"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${c.nome}</div><div class="cd">${c.procedimento||''}${c.telefone?' · '+c.telefone:''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" style="padding:6px 9px">💬</a>`:''}<button class="btn" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})'>✏️</button>${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">Ficha</a>`:''}</div></div>`;}).join('')}</div>`;}).join('');
+  el.innerHTML=Object.entries(grupos).map(([data,cons])=>{const[y,m,d]=data.split('-');const isH=data===HOJE_STR;return`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:${isH?'var(--verde-e)':'var(--ct)'};text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;cursor:pointer" onclick="selDia('${data}')">${DIAS[new Date(data+'T12:00:00').getDay()]}, ${d}/${m}/${y}${isH?' · hoje':''}</div>${cons.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';return`<div class="ci" data-cid="${c.id}" style="margin-bottom:5px"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${c.nome}</div><div class="cd">${c.procedimento||''}${c.telefone?' · '+c.telefone:''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" style="padding:6px 9px">💬</a>`:''}<button class="btn" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})'>✏️</button>${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">Ficha</a>`:`<button class="btn btn-vincular" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="Vincular ao cadastro">🔗</button>`}</div></div>`;}).join('')}</div>`;}).join('');
 }
 
 function abrAg(data){
@@ -2654,7 +2656,77 @@ document.addEventListener('DOMContentLoaded', ()=>{
   setTimeout(iniciarNotificacoes, 3000);
 });
 </script>
-<script>
+<!-- MODAL VINCULAR PACIENTE -->
+<div class="mb" id="m-vincular">
+  <div class="mx" style="max-width:460px">
+    <h3 style="margin-bottom:4px">🔗 Vincular ao cadastro</h3>
+    <p style="font-size:13px;color:var(--ct);margin-bottom:14px">Consulta agendada para: <strong id="vinc-nome-ag" style="color:var(--txt)"></strong></p>
+    <div style="position:relative;margin-bottom:10px">
+      <input type="text" id="vinc-busca" placeholder="🔍 Buscar por nome ou telefone..." oninput="filtrarVincular()" autocomplete="off"/>
+    </div>
+    <div id="vinc-lista" style="max-height:300px;overflow-y:auto;border:1px solid var(--borda);border-radius:10px"></div>
+    <div class="br" style="margin-top:14px">
+      <button class="btn" onclick="fchVincular()">Fechar</button>
+    </div>
+  </div>
+</div>
 
+<script>
+// ── VINCULAR PACIENTE AO AGENDAMENTO ──
+let _vincConsultaId=null;
+
+function abrirVincular(c){
+  _vincConsultaId=c.id;
+  document.getElementById('vinc-nome-ag').textContent=c.nome+(c.procedimento?' · '+c.procedimento:'');
+  const busca=document.getElementById('vinc-busca');
+  busca.value='';
+  filtrarVincular();
+  document.getElementById('m-vincular').classList.add('open');
+  setTimeout(()=>busca.focus(),150);
+}
+
+function fchVincular(){
+  document.getElementById('m-vincular').classList.remove('open');
+  _vincConsultaId=null;
+}
+
+function filtrarVincular(){
+  const q=(document.getElementById('vinc-busca').value||'').toLowerCase().trim();
+  const lista=document.getElementById('vinc-lista');
+  const r=q.length<1
+    ?pacs.slice(0,25)
+    :pacs.filter(p=>
+        p.nome.toLowerCase().includes(q)||
+        (p.apelido||'').toLowerCase().includes(q)||
+        (p.telefone||'').replace(/\D/g,'').includes(q.replace(/\D/g,''))
+      );
+  if(!r.length){
+    lista.innerHTML='<div style="padding:16px;text-align:center;color:var(--ct);font-size:13px">Nenhum paciente encontrado</div>';
+    return;
+  }
+  lista.innerHTML=r.map(p=>`
+    <div onclick='confirmarVinculo(${J(p)})'
+      style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--borda);transition:background .15s"
+      onmouseover="this.style.background='var(--verde-c)'" onmouseout="this.style.background=''">
+      <div style="font-weight:600;font-size:13px;color:var(--txt)">${p.nome}${p.apelido?` <span style="font-weight:400;color:var(--ct);font-size:12px">(${p.apelido})</span>`:''}</div>
+      <div style="font-size:12px;color:var(--ct);margin-top:2px">${p.telefone||'Sem telefone'}${p.data_nascimento?' · '+fDt(p.data_nascimento):''}</div>
+    </div>`).join('');
+}
+
+async function confirmarVinculo(pac){
+  if(!_vincConsultaId){toast('Erro: consulta não identificada','vermelho');return;}
+  const{error}=await db.from('agenda').update({
+    paciente_id:pac.id,
+    nome:pac.nome,
+    telefone:pac.telefone||null
+  }).eq('id',_vincConsultaId);
+  if(error){toast('Erro ao vincular: '+error.message,'vermelho');return;}
+  toast(`✅ Vinculado a ${pac.nome}`,'verde');
+  fchVincular();
+  await carregarAgenda();
+}
+
+document.getElementById('m-vincular').addEventListener('click',e=>{if(e.target===e.currentTarget)fchVincular();});
+</script>
 </body>
 </html>
