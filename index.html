@@ -2662,7 +2662,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     <h3 style="margin-bottom:4px">🔗 Vincular ao cadastro</h3>
     <p style="font-size:13px;color:var(--ct);margin-bottom:14px">Consulta agendada para: <strong id="vinc-nome-ag" style="color:var(--txt)"></strong></p>
     <div style="position:relative;margin-bottom:10px">
-      <input type="text" id="vinc-busca" placeholder="🔍 Buscar por nome ou telefone..." oninput="filtrarVincular()" autocomplete="off"/>
+      <input type="text" id="vinc-busca" placeholder="🔍 Buscar por nome ou telefone..." autocomplete="off"/>
     </div>
     <div id="vinc-lista" style="max-height:300px;overflow-y:auto;border:1px solid var(--borda);border-radius:10px"></div>
     <div class="br" style="margin-top:14px">
@@ -2674,6 +2674,11 @@ document.addEventListener('DOMContentLoaded', ()=>{
 <script>
 // ── VINCULAR PACIENTE AO AGENDAMENTO ──
 let _vincConsultaId=null;
+
+// Listener de busca — registrado uma vez
+document.getElementById('vinc-busca').addEventListener('input',function(){
+  try{ filtrarVincular(); }catch(e){ console.error('Erro filtrarVincular:',e); }
+});
 
 function abrirVincular(c){
   _vincConsultaId=c.id;
@@ -2693,24 +2698,32 @@ function fchVincular(){
 function filtrarVincular(){
   const q=(document.getElementById('vinc-busca').value||'').toLowerCase().trim();
   const lista=document.getElementById('vinc-lista');
+  const todos=Array.isArray(pacs)?pacs:[];
   const r=q.length<1
-    ?pacs.slice(0,25)
-    :pacs.filter(p=>
-        p.nome.toLowerCase().includes(q)||
-        (p.apelido||'').toLowerCase().includes(q)||
-        (p.telefone||'').replace(/\D/g,'').includes(q.replace(/\D/g,''))
-      );
+    ?todos.slice(0,25)
+    :todos.filter(p=>{
+        const nome=(p.nome||'').toLowerCase();
+        const apelido=(p.apelido||'').toLowerCase();
+        const tel=(p.telefone||'').replace(/\D/g,'');
+        const qTel=q.replace(/\D/g,'');
+        return nome.includes(q)||apelido.includes(q)||(qTel.length>2&&tel.includes(qTel));
+      });
   if(!r.length){
     lista.innerHTML='<div style="padding:16px;text-align:center;color:var(--ct);font-size:13px">Nenhum paciente encontrado</div>';
     return;
   }
-  lista.innerHTML=r.map(p=>`
-    <div onclick='confirmarVinculo(${J(p)})'
-      style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--borda);transition:background .15s"
-      onmouseover="this.style.background='var(--verde-c)'" onmouseout="this.style.background=''">
+  lista.innerHTML=r.map((p,i)=>`
+    <div data-vidx="${i}" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--borda)">
       <div style="font-weight:600;font-size:13px;color:var(--txt)">${p.nome}${p.apelido?` <span style="font-weight:400;color:var(--ct);font-size:12px">(${p.apelido})</span>`:''}</div>
       <div style="font-size:12px;color:var(--ct);margin-top:2px">${p.telefone||'Sem telefone'}${p.data_nascimento?' · '+fDt(p.data_nascimento):''}</div>
     </div>`).join('');
+  // Evento via delegação — sem JSON no onclick
+  lista.querySelectorAll('[data-vidx]').forEach(el=>{
+    const pac=r[parseInt(el.dataset.vidx)];
+    el.addEventListener('mouseenter',()=>el.style.background='var(--verde-c)');
+    el.addEventListener('mouseleave',()=>el.style.background='');
+    el.addEventListener('click',()=>confirmarVinculo(pac));
+  });
 }
 
 async function confirmarVinculo(pac){
