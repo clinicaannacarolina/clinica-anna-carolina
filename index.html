@@ -339,7 +339,8 @@ textarea{resize:vertical;min-height:70px}
       <button class="filtro-btn" onclick="setFiltro('instagram',this)">📷 Com Instagram</button>
       <button class="filtro-btn" onclick="setFiltro('aguardando',this)">💬 Aguardando</button>
       <button class="filtro-btn" onclick="setFiltro('atrasado',this)">⚠️ Atrasados</button>
-      <select id="alerta-periodo" onchange="renderAlertas()" style="margin-left:auto;padding:6px 10px;font-size:12px;border:1.5px solid var(--borda);border-radius:20px;background:var(--card)">
+      <button class="filtro-btn" id="btn-campanha" onclick="abrirCampanha()" style="background:var(--verde);color:white;border-color:var(--verde);margin-left:auto">📣 Campanhas</button>
+      <select id="alerta-periodo" onchange="renderAlertas()" style="padding:6px 10px;font-size:12px;border:1.5px solid var(--borda);border-radius:20px;background:var(--card)">
         <option value="30">Próx. 30 dias</option>
         <option value="60">Próx. 60 dias</option>
         <option value="90">Próx. 90 dias</option>
@@ -349,6 +350,108 @@ textarea{resize:vertical;min-height:70px}
       </select>
     </div>
     <div id="l-alertas"></div>
+
+    <!-- ══════ CAMPANHAS ══════ -->
+    <div id="sec-campanha" style="display:none">
+
+      <!-- STEP 1: ALVO -->
+      <div id="camp-step1">
+        <div style="font-size:15px;font-weight:700;margin-bottom:12px;color:var(--txt)">
+          📣 Campanha de Retorno via WhatsApp
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--ct);display:block;margin-bottom:4px">PROCEDIMENTO</label>
+            <select id="camp-proc" onchange="renderCampanha()" style="width:100%;padding:8px;font-size:13px;border-radius:8px;border:1.5px solid var(--borda)">
+              <option value="">Todos os procedimentos</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:600;color:var(--ct);display:block;margin-bottom:4px">PRAZO DE RETORNO</label>
+            <select id="camp-prazo" onchange="renderCampanha()" style="width:100%;padding:8px;font-size:13px;border-radius:8px;border:1.5px solid var(--borda)">
+              <option value="todos">Todos</option>
+              <option value="vencido">⚠️ Vencidos</option>
+              <option value="15">Próx. 15 dias</option>
+              <option value="30" selected>Próx. 30 dias</option>
+              <option value="60">Próx. 60 dias</option>
+              <option value="90">Próx. 90 dias</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Lista de pacientes com checkboxes -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div id="camp-count" style="font-size:12px;color:var(--ct)">Carregando...</div>
+          <button class="btn" style="font-size:12px;padding:5px 12px" onclick="selecionarTodosCamp()">☑️ Selec. todos</button>
+        </div>
+        <div id="camp-lista" style="max-height:320px;overflow-y:auto;border:1px solid var(--borda);border-radius:10px;margin-bottom:14px"></div>
+
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn" onclick="fecharCampanha()">Cancelar</button>
+          <button class="btn pri" onclick="irParaStep2()">Próximo: Mensagem →</button>
+        </div>
+      </div>
+
+      <!-- STEP 2: MENSAGEM -->
+      <div id="camp-step2" style="display:none">
+        <div style="font-size:15px;font-weight:700;margin-bottom:12px">✍️ Escolher mensagem</div>
+        <div style="margin-bottom:10px">
+          <label style="font-size:11px;font-weight:600;color:var(--ct);display:block;margin-bottom:4px">TEMPLATE</label>
+          <select id="camp-template" onchange="atualizarPreview()" style="width:100%;padding:8px;font-size:13px;border-radius:8px;border:1.5px solid var(--borda);margin-bottom:10px">
+            <option value="retorno">🔔 Lembrete de retorno (padrão)</option>
+            <option value="botox">💉 Botox / Toxina Botulínica</option>
+            <option value="preenchimento">💧 Preenchimento Facial</option>
+            <option value="aniversario">🎉 Mensagem especial de retorno</option>
+            <option value="custom">✏️ Mensagem personalizada</option>
+          </select>
+          <textarea id="camp-msg" rows="7" style="width:100%;padding:10px;font-size:13px;border-radius:8px;border:1.5px solid var(--borda);resize:vertical;line-height:1.5;font-family:inherit"></textarea>
+          <div style="font-size:11px;color:var(--ct);margin-top:4px">Use {nome} para o nome da paciente, {procedimento} para o tratamento.</div>
+        </div>
+        <div style="background:var(--verde-c);border-radius:10px;padding:12px;margin-bottom:14px">
+          <div style="font-size:11px;font-weight:700;color:var(--verde-e);margin-bottom:4px">👁 PRÉVIA (1ª paciente selecionada)</div>
+          <div id="camp-preview" style="font-size:12px;color:var(--txt);white-space:pre-wrap;line-height:1.5"></div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn" onclick="voltarStep1()">← Voltar</button>
+          <button class="btn pri" onclick="irParaStep3()">Próximo: Disparar →</button>
+        </div>
+      </div>
+
+      <!-- STEP 3: DISPARAR -->
+      <div id="camp-step3" style="display:none">
+        <div style="font-size:15px;font-weight:700;margin-bottom:8px">📲 Disparar campanha</div>
+        <div id="camp-resumo" style="background:var(--bg);border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px"></div>
+
+        <!-- Contador -->
+        <div style="text-align:center;margin-bottom:16px">
+          <div style="font-size:36px;font-weight:700;color:var(--verde-e)" id="camp-contador-num">0</div>
+          <div style="font-size:13px;color:var(--ct)" id="camp-contador-txt">de 0 enviados</div>
+          <div style="background:var(--borda);border-radius:99px;height:8px;margin:8px auto;max-width:300px">
+            <div id="camp-barra" style="background:var(--verde);height:8px;border-radius:99px;width:0%;transition:.3s"></div>
+          </div>
+        </div>
+
+        <!-- Paciente atual -->
+        <div id="camp-atual" style="background:var(--verde-c);border:1.5px solid var(--verde);border-radius:12px;padding:14px;margin-bottom:14px;display:none">
+          <div style="font-size:11px;font-weight:700;color:var(--verde-e);margin-bottom:4px">PRÓXIMA PACIENTE</div>
+          <div id="camp-atual-nome" style="font-size:15px;font-weight:700"></div>
+          <div id="camp-atual-tel" style="font-size:12px;color:var(--ct)"></div>
+          <div id="camp-atual-msg" style="font-size:12px;white-space:pre-wrap;margin-top:8px;background:white;border-radius:8px;padding:8px;max-height:100px;overflow-y:auto"></div>
+        </div>
+
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+          <button class="btn" onclick="voltarStep2()">← Voltar</button>
+          <button class="btn pri" id="camp-btn-enviar" onclick="enviarProximoCamp()" style="font-size:15px;padding:10px 24px">
+            📲 Enviar próximo
+          </button>
+          <button class="btn dan" onclick="fecharCampanha()">Encerrar</button>
+        </div>
+
+        <!-- Lista completa -->
+        <div id="camp-lista-step3" style="margin-top:16px;max-height:250px;overflow-y:auto"></div>
+      </div>
+
+    </div><!-- /sec-campanha -->
   </div>
 
   <!-- PACIENTES -->
@@ -2571,6 +2674,270 @@ function abrirCarteiraReceber(){
 
 // marcarRecebidoCarteira unificado com regime de caixa
 async function marcarRecebidoCarteira(id){ abrirMarcarRecebido(id); }
+
+// ══════════════════════════════════════════════════════
+// MÓDULO CAMPANHAS DE RETORNO VIA WHATSAPP
+// ══════════════════════════════════════════════════════
+let _campPacs = [];      // pacientes filtrados
+let _campSel  = new Set(); // IDs selecionados
+let _campIdx  = 0;       // índice atual no disparo
+
+// ── Templates de mensagem ──
+const CAMP_TEMPLATES = {
+  retorno: p => `Olá ${chamada(p)}, bom dia, tudo bem com você? 😊
+
+Já faz um tempo desde o seu último procedimento aqui na clínica da Dra. Anna Carolina Dias.
+
+Gostaríamos de te convidar para marcar seu retorno e manter os melhores resultados! 🌿✨
+
+Vamos agendar um horário para você?
+
+Aguardo seu retorno 💚
+*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*`,
+  botox: p => `Olá ${chamada(p)}! 😊
+
+Passou o prazo do seu *Botox / Toxina Botulínica* e é hora de manter os resultados em alta! 💉✨
+
+Aproveite para agendar seu retorno antes que o efeito diminua.
+
+Te esperamos! 💚
+*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*`,
+  preenchimento: p => `Olá ${chamada(p)}! 😊
+
+Já passou o prazo do seu *Preenchimento Facial* e é hora de renovar seus resultados! 💧✨
+
+Agende seu retorno e mantenha a beleza em dia!
+
+Te esperamos! 💚
+*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*`,
+  aniversario: p => `Olá ${chamada(p)}! 😊
+
+Estamos com saudades e gostaríamos de te ver por aqui! 🌸
+
+Que tal agendar um horário para cuidar ainda mais de você?
+
+Te esperamos com muito carinho! 💚
+*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*`,
+  custom: p => '',
+};
+
+function abrirCampanha(){
+  // Esconder lista de alertas, mostrar campanha
+  document.getElementById('l-alertas').style.display='none';
+  document.getElementById('sec-campanha').style.display='block';
+  document.getElementById('camp-step1').style.display='block';
+  document.getElementById('camp-step2').style.display='none';
+  document.getElementById('camp-step3').style.display='none';
+  // Preencher procedimentos únicos
+  const procs = new Set();
+  pacs.forEach(p=>(p.tratamentos_adicionais||[]).forEach(t=>{ if(t.nome) procs.add(t.nome); }));
+  const sel = document.getElementById('camp-proc');
+  sel.innerHTML = '<option value="">Todos os procedimentos</option>' +
+    [...procs].sort().map(p=>`<option value="${p}">${p}</option>`).join('');
+  renderCampanha();
+}
+
+function fecharCampanha(){
+  document.getElementById('l-alertas').style.display='block';
+  document.getElementById('sec-campanha').style.display='none';
+  _campPacs=[];_campSel=new Set();_campIdx=0;
+}
+
+function renderCampanha(){
+  const proc  = document.getElementById('camp-proc')?.value||'';
+  const prazo = document.getElementById('camp-prazo')?.value||'todos';
+  const hoje  = new Date(); hoje.setHours(0,0,0,0);
+
+  // Coletar todos os alvos (1 entrada por tratamento por paciente)
+  const alvos = [];
+  pacs.forEach(p=>{
+    if(!p.telefone) return;
+    const trats = (p.tratamentos_adicionais||[]).filter(t=>t.dataRetorno);
+    trats.forEach(t=>{
+      if(proc && t.nome !== proc) return;
+      const dtRet = new Date(t.dataRetorno+'T12:00:00');
+      const diffDias = Math.round((dtRet - hoje)/(1000*60*60*24));
+      if(prazo==='vencido'  && diffDias >= 0) return;
+      if(prazo==='15'       && (diffDias < 0 || diffDias > 15)) return;
+      if(prazo==='30'       && (diffDias < 0 || diffDias > 30)) return;
+      if(prazo==='60'       && (diffDias < 0 || diffDias > 60)) return;
+      if(prazo==='90'       && (diffDias < 0 || diffDias > 90)) return;
+      alvos.push({ p, t, diffDias });
+    });
+  });
+
+  // Remover duplicatas de paciente (manter o mais urgente)
+  const porPac = {};
+  alvos.forEach(a=>{
+    if(!porPac[a.p.id] || a.diffDias < porPac[a.p.id].diffDias) porPac[a.p.id] = a;
+  });
+  _campPacs = Object.values(porPac).sort((a,b)=>a.diffDias-b.diffDias);
+
+  const lista = document.getElementById('camp-lista');
+  const count = document.getElementById('camp-count');
+  if(!_campPacs.length){
+    lista.innerHTML='<div style="padding:16px;text-align:center;color:var(--ct);font-size:13px">Nenhuma paciente encontrada com esses filtros.</div>';
+    count.textContent='0 pacientes encontradas';
+    return;
+  }
+  count.textContent=`${_campPacs.length} paciente${_campPacs.length!==1?'s':''} encontrada${_campPacs.length!==1?'s':''}`;
+
+  lista.innerHTML = _campPacs.map((a,i)=>{
+    const atrasado = a.diffDias < 0;
+    const cor = atrasado ? 'var(--vermelho)' : a.diffDias<=15 ? '#8a6000' : 'var(--ct)';
+    const txt = atrasado ? `${Math.abs(a.diffDias)}d atrasada` : a.diffDias===0 ? 'Hoje!' : `em ${a.diffDias}d`;
+    const chk = _campSel.has(a.p.id) ? 'checked' : '';
+    return `<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--borda);cursor:pointer" onclick="toggleCampSel('${a.p.id}',this)">
+      <input type="checkbox" ${chk} style="width:17px;height:17px;cursor:pointer;accent-color:var(--verde)" onclick="event.stopPropagation()"/>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600">${a.p.nome}</div>
+        <div style="font-size:11px;color:var(--ct)">${a.t.nome} · ${a.p.telefone}</div>
+      </div>
+      <span style="font-size:11px;font-weight:600;color:${cor};white-space:nowrap">⏰ ${txt}</span>
+    </label>`;
+  }).join('');
+}
+
+function toggleCampSel(id, label){
+  const cb = label.querySelector('input[type=checkbox]');
+  if(_campSel.has(id)){ _campSel.delete(id); if(cb) cb.checked=false; }
+  else { _campSel.add(id); if(cb) cb.checked=true; }
+  atualizarContadorSel();
+}
+
+function atualizarContadorSel(){
+  const el = document.getElementById('camp-count');
+  const total = _campPacs.length;
+  const sel = _campSel.size;
+  el.textContent = `${total} encontrada${total!==1?'s':''} · ${sel} selecionada${sel!==1?'s':''}`;
+}
+
+function selecionarTodosCamp(){
+  const todos = _campPacs.every(a=>_campSel.has(a.p.id));
+  if(todos){ _campSel.clear(); }
+  else { _campPacs.forEach(a=>_campSel.add(a.p.id)); }
+  renderCampanha();
+  // Marcar todos os checkboxes
+  document.getElementById('camp-lista').querySelectorAll('input[type=checkbox]').forEach((cb,i)=>{
+    cb.checked = _campSel.has(_campPacs[i]?.p.id);
+  });
+  atualizarContadorSel();
+}
+
+function irParaStep2(){
+  if(!_campSel.size){ toast('Selecione ao menos uma paciente','vermelho'); return; }
+  document.getElementById('camp-step1').style.display='none';
+  document.getElementById('camp-step2').style.display='block';
+  // Definir template padrão
+  atualizarMsgTemplate();
+  atualizarPreview();
+}
+
+function voltarStep1(){
+  document.getElementById('camp-step2').style.display='none';
+  document.getElementById('camp-step1').style.display='block';
+}
+
+function atualizarMsgTemplate(){
+  const tmpl = document.getElementById('camp-template').value;
+  const priPac = _campPacs.find(a=>_campSel.has(a.p.id));
+  if(!priPac) return;
+  if(tmpl !== 'custom'){
+    const fn = CAMP_TEMPLATES[tmpl];
+    document.getElementById('camp-msg').value = fn ? fn(priPac.p) : '';
+  }
+}
+
+function atualizarPreview(){
+  const tmpl = document.getElementById('camp-template').value;
+  const priPac = _campPacs.find(a=>_campSel.has(a.p.id));
+  if(!priPac){ document.getElementById('camp-preview').textContent='—'; return; }
+  if(tmpl !== 'custom') atualizarMsgTemplate();
+  const msg = document.getElementById('camp-msg').value
+    .replace(/{nome}/g, chamada(priPac.p))
+    .replace(/{procedimento}/g, priPac.t.nome);
+  document.getElementById('camp-preview').textContent = msg;
+}
+
+function irParaStep3(){
+  const msg = document.getElementById('camp-msg').value.trim();
+  if(!msg){ toast('Digite uma mensagem','vermelho'); return; }
+  document.getElementById('camp-step2').style.display='none';
+  document.getElementById('camp-step3').style.display='block';
+
+  _campIdx = 0;
+  const selecionadas = _campPacs.filter(a=>_campSel.has(a.p.id));
+
+  // Resumo
+  document.getElementById('camp-resumo').innerHTML =
+    `<strong>${selecionadas.length} pacientes</strong> selecionadas para receber mensagem de retorno.<br>
+     <span style="font-size:12px;color:var(--ct)">Clique em "📲 Enviar próximo" para abrir o WhatsApp de cada uma em sequência.</span>`;
+
+  // Contador
+  document.getElementById('camp-contador-num').textContent='0';
+  document.getElementById('camp-contador-txt').textContent=`de ${selecionadas.length} enviadas`;
+  document.getElementById('camp-barra').style.width='0%';
+
+  // Lista completa
+  document.getElementById('camp-lista-step3').innerHTML = selecionadas.map((a,i)=>
+    `<div id="camp-item-${i}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--borda);font-size:12px;opacity:.5">
+      <span id="camp-status-${i}">⬜</span>
+      <div style="flex:1"><strong>${a.p.nome}</strong> · ${a.t.nome}</div>
+      <span style="color:var(--ct)">${a.p.telefone}</span>
+    </div>`).join('');
+
+  mostrarAtualCamp(selecionadas, 0);
+}
+
+function voltarStep2(){
+  document.getElementById('camp-step3').style.display='none';
+  document.getElementById('camp-step2').style.display='block';
+  _campIdx=0;
+}
+
+function mostrarAtualCamp(selecionadas, idx){
+  const el = document.getElementById('camp-atual');
+  if(idx >= selecionadas.length){
+    el.style.display='none';
+    document.getElementById('camp-btn-enviar').disabled=true;
+    document.getElementById('camp-btn-enviar').textContent='✅ Campanha concluída!';
+    toast('Campanha concluída! ✅','verde');
+    return;
+  }
+  const a = selecionadas[idx];
+  const msg = document.getElementById('camp-msg').value
+    .replace(/{nome}/g, chamada(a.p))
+    .replace(/{procedimento}/g, a.t.nome);
+  el.style.display='block';
+  document.getElementById('camp-atual-nome').textContent=a.p.nome;
+  document.getElementById('camp-atual-tel').textContent=a.t.nome+' · '+a.p.telefone;
+  document.getElementById('camp-atual-msg').textContent=msg;
+}
+
+function enviarProximoCamp(){
+  const selecionadas = _campPacs.filter(a=>_campSel.has(a.p.id));
+  if(_campIdx >= selecionadas.length) return;
+
+  const a = selecionadas[_campIdx];
+  const msg = document.getElementById('camp-msg').value
+    .replace(/{nome}/g, chamada(a.p))
+    .replace(/{procedimento}/g, a.t.nome);
+  const tel = '55'+a.p.telefone.replace(/\D/g,'');
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`,'_blank');
+
+  // Marcar como enviado
+  const statusEl = document.getElementById(`camp-status-${_campIdx}`);
+  if(statusEl) statusEl.textContent='✅';
+  const itemEl = document.getElementById(`camp-item-${_campIdx}`);
+  if(itemEl){ itemEl.style.opacity='1'; itemEl.style.background='var(--verde-c)'; }
+
+  _campIdx++;
+  const pct = Math.round(_campIdx/selecionadas.length*100);
+  document.getElementById('camp-contador-num').textContent=_campIdx;
+  document.getElementById('camp-barra').style.width=pct+'%';
+
+  mostrarAtualCamp(selecionadas, _campIdx);
+}
 
 // PWA
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js'));
