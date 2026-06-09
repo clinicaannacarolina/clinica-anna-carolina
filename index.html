@@ -2675,16 +2675,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
 // ── VINCULAR PACIENTE AO AGENDAMENTO ──
 let _vincConsultaId=null;
 
-// Listener de busca — registrado uma vez
-document.getElementById('vinc-busca').addEventListener('input',function(){
-  try{ filtrarVincular(); }catch(e){ console.error('Erro filtrarVincular:',e); }
-});
-
 function abrirVincular(c){
   _vincConsultaId=c.id;
   document.getElementById('vinc-nome-ag').textContent=c.nome+(c.procedimento?' · '+c.procedimento:'');
   const busca=document.getElementById('vinc-busca');
   busca.value='';
+  busca.oninput=filtrarVincular;
   filtrarVincular();
   document.getElementById('m-vincular').classList.add('open');
   setTimeout(()=>busca.focus(),150);
