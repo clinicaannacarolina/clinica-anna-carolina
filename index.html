@@ -133,6 +133,36 @@ textarea{resize:vertical;min-height:70px}
 .ag-dia.sel{background:var(--verde);border-color:var(--verde-e)}
 .ag-dia.sel .dn{color:white}
 .ag-dia.sel .dp span{background:white}
+/* AGENDA VISUAL */
+.ag-view-tabs{display:flex;gap:6px;margin-bottom:12px}
+.ag-view-tab{padding:6px 14px;border-radius:20px;border:1.5px solid var(--borda);font-size:13px;cursor:pointer;font-weight:500;background:var(--card);color:var(--ct);transition:all .15s}
+.ag-view-tab.active{background:var(--verde);color:white;border-color:var(--verde)}
+/* TIMELINE DIA */
+.ag-timeline{display:flex;flex-direction:column}
+.ag-tl-hora{display:grid;grid-template-columns:48px 1fr;min-height:56px;border-top:1px solid var(--borda);position:relative}
+.ag-tl-lbl{font-size:11px;color:var(--ct);padding:4px 8px 0 0;text-align:right;font-weight:500;line-height:1}
+.ag-tl-slot{position:relative;min-height:56px;cursor:pointer;transition:background .1s;border-left:1px solid var(--borda)}
+.ag-tl-slot:hover{background:var(--verde-c)}
+.ag-tl-evento{border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;border-left:3px solid var(--verde-e);margin:2px 4px 4px;transition:transform .1s}
+.ag-tl-evento:hover{transform:translateX(2px)}
+.ag-tl-evento.can{opacity:.5;border-left-color:#ef4444}
+.ag-tl-evento .ev-hora{font-size:10px;font-weight:700;color:var(--verde-e);margin-bottom:2px}
+.ag-tl-evento.can .ev-hora{color:#ef4444}
+.ag-tl-evento .ev-nome{font-weight:600;font-size:13px;color:var(--txt)}
+.ag-tl-evento .ev-proc{font-size:11px;color:var(--ct);margin-top:1px}
+.ag-tl-evento .ev-acoes{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+/* SEMANA */
+.ag-semana-wrap{overflow-x:auto}
+.ag-semana{display:grid;grid-template-columns:44px repeat(7,1fr);min-width:580px}
+.ag-sem-cab{font-size:11px;font-weight:700;text-align:center;padding:6px 2px;border-bottom:2px solid var(--borda);background:var(--card);position:sticky;top:0;z-index:3;color:var(--ct)}
+.ag-sem-cab.hj{color:var(--verde-e);background:var(--verde-c);border-radius:8px 8px 0 0}
+.ag-sem-cab.sel{color:white;background:var(--verde)}
+.ag-sem-hora{font-size:10px;color:var(--ct);padding:3px 5px 0 0;text-align:right;border-top:1px solid var(--borda);min-height:44px}
+.ag-sem-slot{border-top:1px solid var(--borda);border-left:1px solid var(--borda);min-height:44px;cursor:pointer;position:relative;transition:background .1s}
+.ag-sem-slot:hover{background:var(--verde-c)}
+.ag-sem-slot.hj-col{background:rgba(74,183,102,.05)}
+.ag-sem-ev{border-radius:5px;padding:2px 5px;font-size:11px;font-weight:600;margin:2px;cursor:pointer;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;border-left:2px solid var(--verde-e);display:block}
+.ag-sem-ev.can{opacity:.4}
 .dn{font-size:12px;font-weight:500;text-align:center;color:var(--txt)}
 .hj .dn{color:var(--verde-e);font-weight:700}
 .dp{display:flex;gap:2px;justify-content:center;margin-top:3px;flex-wrap:wrap}
@@ -275,9 +305,16 @@ textarea{resize:vertical;min-height:70px}
       <div class="ag-grid" id="ag-grid"></div>
     </div>
     <div class="card">
-      <div class="dsl">
-        <span id="ag-dia-lbl">Selecione um dia</span>
-        <button class="btn pri" style="padding:7px 13px;font-size:13px" onclick="abrAg()">+ Agendar</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <span id="ag-dia-lbl" style="font-size:15px;font-weight:600;color:var(--txt)">Selecione um dia</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <div class="ag-view-tabs">
+            <button class="ag-view-tab active" id="ag-tab-lista" onclick="setAgView('lista')">☰ Lista</button>
+            <button class="ag-view-tab" id="ag-tab-timeline" onclick="setAgView('timeline')">🕐 Dia</button>
+            <button class="ag-view-tab" id="ag-tab-semana" onclick="setAgView('semana')">📅 Semana</button>
+          </div>
+          <button class="btn pri" style="padding:7px 13px;font-size:13px" onclick="abrAg()">+ Agendar</button>
+        </div>
       </div>
       <div id="ag-cons"></div>
     </div>
@@ -2073,9 +2110,21 @@ function renderCal(){
 function selDia(ds){agDia=ds;renderCal();renderConsDia(ds);}
 function mvMes(dir){agMes.setMonth(agMes.getMonth()+dir);renderCal();renderConsMes();}
 
+let agView='lista'; // 'lista' | 'timeline' | 'semana'
+
+function setAgView(v){
+  agView=v;
+  document.querySelectorAll('.ag-view-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('ag-tab-'+v)?.classList.add('active');
+  renderConsDia(agDia);
+}
+
 function renderConsDia(ds){
   const[y,m,d]=ds.split('-');
   document.getElementById('ag-dia-lbl').textContent=`${DIAS[new Date(ds+'T12:00:00').getDay()]}, ${d}/${m}/${y}`;
+  if(agView==='timeline') return renderTimeline(ds);
+  if(agView==='semana') return renderSemana(ds);
+  // LISTA (padrão)
   const el=document.getElementById('ag-cons');
   const cs=consultas.filter(c=>c.data===ds).sort((a,b)=>a.hora.localeCompare(b.hora));
   if(!cs.length){el.innerHTML=`<div class="empty" style="padding:1.5rem"><div class="empty-icon">📋</div><p>Nenhuma consulta. Clique em "+ Agendar".</p></div>`;renderConsMes();return;}
@@ -2083,6 +2132,85 @@ function renderConsDia(ds){
   renderConsMes();
   setTimeout(injetarBtnFicha,300);
   setTimeout(injetarBtnFicha,1200);
+}
+
+function renderTimeline(ds){
+  const el=document.getElementById('ag-cons');
+  const cs=consultas.filter(c=>c.data===ds).sort((a,b)=>a.hora.localeCompare(b.hora));
+  const horas=[];
+  for(let h=7;h<=20;h++) horas.push(h);
+  let html=`<div class="ag-timeline">`;
+  horas.forEach(h=>{
+    const hStr=String(h).padStart(2,'0');
+    const evs=cs.filter(c=>parseInt(c.hora.split(':')[0])===h);
+    html+=`<div class="ag-tl-hora">
+      <div class="ag-tl-lbl">${hStr}:00</div>
+      <div class="ag-tl-slot" onclick="abrAg('${ds}');document.getElementById('ag-hora').value='${hStr}:00'">
+        ${evs.map(c=>{
+          const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';
+          const cls=c.status==='cancelado'?'can':'';
+          return`<div class="ag-tl-evento ${cls}" style="background:var(--verde-c)" onclick="event.stopPropagation();editCons(${J(c)})">
+            <div class="ev-hora">🕐 ${c.hora.slice(0,5)}${c.status==='cancelado'?' · CANCELADO':''}</div>
+            <div class="ev-nome">${c.nome}</div>
+            ${c.procedimento?`<div class="ev-proc">${c.procedimento}</div>`:''}
+            <div class="ev-acoes">
+              ${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" style="padding:4px 8px;font-size:11px" onclick="event.stopPropagation()">💬 WhatsApp</a>`:''}
+              ${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:4px 8px;font-size:11px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600" onclick="event.stopPropagation()">👤 Ficha</a>`:''}
+              <button class="btn" style="padding:4px 8px;font-size:11px" onclick="event.stopPropagation();editCons(${J(c)})">✏️ Editar</button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  });
+  html+=`</div>`;
+  el.innerHTML=html;
+  if(!cs.length){
+    el.innerHTML+=`<div style="text-align:center;padding:1rem;font-size:13px;color:var(--ct)">Nenhuma consulta — clique em um horário para agendar</div>`;
+  }
+  renderConsMes();
+}
+
+function renderSemana(ds){
+  const el=document.getElementById('ag-cons');
+  // Calcular início da semana (domingo)
+  const data=new Date(ds+'T12:00:00');
+  const diaSemana=data.getDay();
+  const inicio=new Date(data); inicio.setDate(data.getDate()-diaSemana);
+  const dias=[];
+  for(let i=0;i<7;i++){
+    const d=new Date(inicio); d.setDate(inicio.getDate()+i);
+    dias.push(d.toISOString().split('T')[0]);
+  }
+  const horas=[];
+  for(let h=7;h<=20;h++) horas.push(h);
+  let html=`<div class="ag-semana-wrap"><div class="ag-semana">`;
+  // Cabeçalho
+  html+=`<div class="ag-sem-cab"></div>`;
+  dias.forEach(d=>{
+    const[y,m,dd]=d.split('-');
+    const dObj=new Date(d+'T12:00:00');
+    const isHj=d===HOJE_STR; const isSel=d===ds;
+    html+=`<div class="ag-sem-cab${isHj?' hj':isSel?' sel':''}" onclick="selDia('${d}')" style="cursor:pointer">
+      <div>${DIAS[dObj.getDay()].slice(0,3)}</div>
+      <div style="font-size:15px;font-weight:700">${dd}</div>
+    </div>`;
+  });
+  // Linhas de hora
+  horas.forEach(h=>{
+    const hStr=String(h).padStart(2,'0');
+    html+=`<div class="ag-sem-hora">${hStr}h</div>`;
+    dias.forEach(d=>{
+      const isHj=d===HOJE_STR;
+      const evs=consultas.filter(c=>c.data===d&&parseInt(c.hora.split(':')[0])===h).sort((a,b)=>a.hora.localeCompare(b.hora));
+      html+=`<div class="ag-sem-slot${isHj?' hj-col':''}" onclick="selDia('${d}');setAgView('timeline');document.getElementById('ag-hora').value='${hStr}:00'">
+        ${evs.map(c=>`<span class="ag-sem-ev${c.status==='cancelado'?' can':''}" style="background:var(--verde-c);color:var(--verde-e)" onclick="event.stopPropagation();selDia('${d}');setAgView('timeline')" title="${c.nome} — ${c.hora.slice(0,5)}${c.procedimento?' — '+c.procedimento:''}">${c.hora.slice(0,5)} ${c.nome}</span>`).join('')}
+      </div>`;
+    });
+  });
+  html+=`</div></div>`;
+  el.innerHTML=html;
+  renderConsMes();
 }
 
 function renderConsMes(){
