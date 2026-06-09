@@ -1352,7 +1352,6 @@ const DOCS_TIPOS=[
 // ── ABRIR FICHA DO PACIENTE PELA AGENDA ──
 function abrFichaDaAgenda(pacId, nomeFallback, telFallback){
   let p = pacId ? pacs.find(x=>x.id===pacId) : null;
-  // Se não achou por ID, tenta por telefone ou nome
   if(!p && telFallback){
     const telL=telFallback.replace(/\D/g,'');
     p=pacs.find(x=>x.telefone.replace(/\D/g,'')===telL);
@@ -1362,7 +1361,8 @@ function abrFichaDaAgenda(pacId, nomeFallback, telFallback){
     p=pacs.find(x=>x.nome.toLowerCase().trim()===nL||(x.apelido&&x.apelido.toLowerCase().trim()===nL));
   }
   if(!p){toast('Paciente não vinculado ao cadastro','vermelho');return;}
-  abrAtend(p);
+  // Ir para a ficha do paciente
+  window.location.href=`paciente.html?id=${p.id}`;
 }
 
 
@@ -1381,19 +1381,18 @@ function injetarBtnFicha(){
     if(!p&&tel){const tl=tel.replace(/\D/g,'');p=pacs.find(x=>(x.telefone||'').replace(/\D/g,'').endsWith(tl)||tl.endsWith((x.telefone||'').replace(/\D/g,'')));}
     if(!p&&nome){const nl=nome.toLowerCase().trim();p=pacs.find(x=>x.nome.toLowerCase().trim()===nl||(x.apelido&&x.apelido.toLowerCase().trim()===nl));}
     if(!p) return;
-    // Botão ficha
-    const btn=document.createElement('button');
-    btn.className='btn';btn.style.cssText='padding:5px 8px;font-size:13px;flex-shrink:0';
-    btn.title='Abrir ficha';btn.textContent='\u{1F464}';
-    btn.addEventListener('click',()=>abrAtend(p));
+    // Botão 👤 Ficha — vai para a ficha do paciente
+    const btn=document.createElement('a');
+    btn.className='btn';btn.style.cssText='padding:5px 8px;font-size:13px;flex-shrink:0;text-decoration:none';
+    btn.title='Abrir ficha do paciente';btn.textContent='👤';
+    btn.href=`paciente.html?id=${p.id}`;
     ca.insertBefore(btn,ca.firstChild);
-    // Botão informativo
-    const btnInf=document.createElement('button');
-    btnInf.className='btn';btnInf.style.cssText='padding:5px 8px;font-size:13px;flex-shrink:0';
-    btnInf.title='Enviar informativo pós-procedimento';btnInf.textContent='\u{1F4F2}';
-    const tratamento=(ci.querySelector('.cd')||{}).textContent?.split('·')[0]?.trim()||'';
-    btnInf.addEventListener('click',()=>abrirInformativosConsulta(p.nome,p.telefone,tratamento));
-    ca.insertBefore(btnInf,ca.firstChild);
+    // Botão 🩺 Atendimento — abre modal de registrar atendimento
+    const btnAt=document.createElement('button');
+    btnAt.className='btn';btnAt.style.cssText='padding:5px 8px;font-size:13px;flex-shrink:0';
+    btnAt.title='Registrar atendimento';btnAt.textContent='🩺';
+    btnAt.addEventListener('click',()=>abrAtend(p));
+    ca.insertBefore(btnAt,ca.firstChild);
   });
 }
 
