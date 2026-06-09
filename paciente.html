@@ -403,6 +403,8 @@ textarea{resize:vertical;min-height:70px}
       <div class="fgr"><label>Cidade</label><input type="text" id="e-cidade"/></div>
       <div class="fgr"><label>📁 Link Google Drive</label><input type="url" id="e-drive"/></div>
       <div class="fgr"><label>Indicação</label><input type="text" id="e-indic"/></div>
+      <div class="fgr"><label>📷 Instagram</label><input type="text" id="e-instagram" placeholder="@perfil_instagram"/></div>
+      <div class="fgr"><label>👥 Facebook</label><input type="text" id="e-facebook" placeholder="Nome ou link do perfil"/></div>
       <div class="fgr"><label>Como conheceu</label>
         <select id="e-conheceu">
           <option value="">Selecione...</option>
@@ -663,6 +665,8 @@ function renderHero(){
   const actions=[];
   actions.push(`<a href="https://wa.me/${tel}" target="_blank" class="btn-hero">💬 WhatsApp</a>`);
   if(p.link_drive) actions.push(`<a href="${p.link_drive}" target="_blank" class="btn-hero">📁 Drive</a>`);
+  if(p.instagram) actions.push(`<a href="https://instagram.com/${p.instagram.replace('@','').trim()}" target="_blank" class="btn-hero" style="background:#E1306C">📷 Instagram</a>`);
+  if(p.facebook) actions.push(`<a href="${(p.facebook||'').startsWith('http')?p.facebook:'https://facebook.com/'+(p.facebook||'').trim()}" target="_blank" class="btn-hero" style="background:#1877F2">👥 Facebook</a>`);
   actions.push(`<a href="documentos.html?pac=${p.id}" class="btn-hero">📄 Documentos</a>`);
   document.getElementById('hero-actions').innerHTML=actions.join('');
 }
@@ -707,6 +711,8 @@ function renderResumo(){
     <div class="dado-item"><div class="dado-label">Indicação</div><div class="dado-val">${p.indicacao||'—'}</div></div>
     <div class="dado-item full"><div class="dado-label">Endereço</div><div class="dado-val">${endereco}</div></div>
     ${p.link_drive?`<div class="dado-item full"><div class="dado-label">Google Drive</div><div class="dado-val"><a href="${p.link_drive}" target="_blank" style="color:var(--verde)">Abrir pasta</a></div></div>`:''}
+    ${p.instagram?`<div class="dado-item"><div class="dado-label">📷 Instagram</div><div class="dado-val"><a href="https://instagram.com/${p.instagram.replace('@','').trim()}" target="_blank" style="color:#E1306C;font-weight:500">${p.instagram}</a></div></div>`:''}
+    ${p.facebook?`<div class="dado-item"><div class="dado-label">👥 Facebook</div><div class="dado-val"><a href="${(p.facebook||'').startsWith('http')?p.facebook:'https://facebook.com/'+(p.facebook||'').trim()}" target="_blank" style="color:#1877F2;font-weight:500">${p.facebook}</a></div></div>`:''}
     ${p.como_conheceu?`<div class="dado-item"><div class="dado-label">Como conheceu</div><div class="dado-val">${p.como_conheceu}</div></div>`:''}
     <div class="dado-item"><div class="dado-label">Cadastro</div><div class="dado-val">${fDt(p.data_atendimento||p.criado_em?.split('T')[0])}</div></div>
   `;
@@ -1138,6 +1144,8 @@ function abrirEditarDados(){
   document.getElementById('e-cidade').value=p.cidade||'';
   document.getElementById('e-drive').value=p.link_drive||'';
   document.getElementById('e-indic').value=p.indicacao||'';
+  document.getElementById('e-instagram').value=p.instagram||'';
+  document.getElementById('e-facebook').value=p.facebook||'';
   document.getElementById('e-conheceu').value=p.como_conheceu||'';
   document.getElementById('e-obs').value=p.observacoes||'';
   document.getElementById('m-edit').classList.add('open');
@@ -1164,6 +1172,8 @@ async function salvarEdit(){
     link_drive:document.getElementById('e-drive').value||null,
     indicacao:document.getElementById('e-indic').value||null,
     como_conheceu:document.getElementById('e-conheceu').value||null,
+    instagram:document.getElementById('e-instagram').value.trim()||null,
+    facebook:document.getElementById('e-facebook').value.trim()||null,
     observacoes:document.getElementById('e-obs').value||null,
   };
   const{error}=await db.from('pacientes').update(updates).eq('id',pac.id);

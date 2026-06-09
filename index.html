@@ -336,6 +336,7 @@ textarea{resize:vertical;min-height:70px}
     <div class="filtro-row">
       <button class="filtro-btn active" onclick="setFiltro('todos',this)">Todos</button>
       <button class="filtro-btn" onclick="setFiltro('pendente',this)">🔔 Pendentes</button>
+      <button class="filtro-btn" onclick="setFiltro('instagram',this)">📷 Com Instagram</button>
       <button class="filtro-btn" onclick="setFiltro('aguardando',this)">💬 Aguardando</button>
       <button class="filtro-btn" onclick="setFiltro('atrasado',this)">⚠️ Atrasados</button>
       <select id="alerta-periodo" onchange="renderAlertas()" style="margin-left:auto;padding:6px 10px;font-size:12px;border:1.5px solid var(--borda);border-radius:20px;background:var(--card)">
@@ -407,6 +408,8 @@ textarea{resize:vertical;min-height:70px}
         <div class="fgr"><label>📁 Link Google Drive</label><input type="url" id="f-drive" placeholder="Cole o link..."/></div>
         <div class="fgr"><label>Indicação (quem indicou)</label><input type="text" id="f-indic" placeholder="Ex: Ana Piffer"/></div>
         <div class="fgr"><label>Como conheceu a clínica</label><select id="f-conheceu"><option value="">Selecione...</option><option>Indicação de paciente</option><option>Instagram</option><option>Facebook</option><option>Google</option><option>WhatsApp</option><option>Panfleto / Material impresso</option><option>Evento / Feira</option><option>Já era paciente</option><option>Outro</option></select></div>
+        <div class="fgr"><label>📷 Instagram</label><input type="text" id="f-instagram" placeholder="@perfil_instagram"/></div>
+        <div class="fgr"><label>👥 Facebook</label><input type="text" id="f-facebook" placeholder="Nome ou link do perfil"/></div>
         <div class="fgr full"><label>Observações</label><textarea id="f-obs" placeholder="Anotações..."></textarea></div>
       </div>
       <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--borda)">
@@ -455,6 +458,8 @@ textarea{resize:vertical;min-height:70px}
       <div class="fgr"><label>Data do atendimento</label><input type="date" id="e-data"/></div>
       <div class="fgr"><label>📁 Link Google Drive</label><input type="url" id="e-drive"/></div>
       <div class="fgr"><label>Indicação</label><input type="text" id="e-indic"/></div>
+      <div class="fgr"><label>📷 Instagram</label><input type="text" id="e-instagram" placeholder="@perfil_instagram"/></div>
+      <div class="fgr"><label>👥 Facebook</label><input type="text" id="e-facebook" placeholder="Nome ou link do perfil"/></div>
       <div class="fgr full"><label>Observações</label><textarea id="e-obs"></textarea></div>
     </div>
     <div class="br">
@@ -1082,6 +1087,7 @@ function renderAlertas(){
   todos.sort((a,b)=>a._d-b._d);
   let filtrados=todos;
   if(filtroAtivo==='pendente') filtrados=todos.filter(p=>p._status==='pendente'&&p._d>=0);
+  if(filtroAtivo==='instagram') lista=lista.filter(p=>p.instagram);
   else if(filtroAtivo==='aguardando') filtrados=todos.filter(p=>p._status==='aguardando');
   else if(filtroAtivo==='atrasado') filtrados=todos.filter(p=>p._d<0);
   if(!filtrados.length){el.innerHTML=`<div class="empty"><div class="empty-icon">✅</div><p>Nenhum alerta${filtroAtivo!=='todos'?' nesta categoria':''}.</p></div>`;return;}
@@ -1093,6 +1099,7 @@ function renderPac(){
   const el=document.getElementById('l-pac');
   const q=(document.getElementById('busca')?.value||'').toLowerCase().trim();
   let lista=q?pacs.filter(p=>p.nome.toLowerCase().includes(q)||(p.apelido&&p.apelido.toLowerCase().includes(q))):[...pacs];
+  if(filtroAtivo==='instagram') lista=lista.filter(p=>p.instagram);
   if(!lista.length){el.innerHTML=`<div class="empty"><div class="empty-icon">${q?'🔍':'👤'}</div><p>${q?`Nenhuma paciente para "${q}"`:'Nenhum paciente cadastrado ainda.'}</p></div>`;return;}
   el.innerHTML=lista.map(p=>{
     const trats=p.tratamentos_adicionais||[];
@@ -1114,6 +1121,8 @@ function renderPac(){
         <a href="paciente.html?id=${p.id}" class="btn" style="padding:6px 10px;font-size:12px">👤 Ficha</a>
           ${isPend?`<button class="btn" style="padding:6px 10px;color:var(--amarelo);border-color:var(--amarelo);font-weight:600" onclick='completarCad(${J(p)})'>✏️ Completar</button>`:''}
           ${p.link_drive&&!isPend?`<button class="btn" style="padding:6px 10px;color:var(--verde-e)" onclick="window.open('${p.link_drive}','_blank')">📁</button>`:''}
+          ${p.instagram&&!isPend?`<a href="https://instagram.com/${p.instagram.replace('@','').trim()}" target="_blank" class="btn" style="padding:6px 10px;background:#E1306C;color:white;border-color:#E1306C" title="Instagram: ${p.instagram}">📷</a>`:''}
+          ${p.facebook&&!isPend?`<a href="${(p.facebook||'').startsWith('http')?p.facebook:'https://facebook.com/'+(p.facebook||'').trim()}" target="_blank" class="btn" style="padding:6px 10px;background:#1877F2;color:white;border-color:#1877F2" title="Facebook: ${p.facebook}">👥</a>`:''}
           <a href="tel:${p.telefone.replace(/\D/g,'')}" class="btn" style="padding:6px 10px;color:var(--azul)">📞</a>
           <a href="https://wa.me/${tel55}" target="_blank" class="btn wpp" style="padding:6px 10px">💬</a>
           ${prox&&!isPend?`<button class="btn" style="padding:6px 10px;background:var(--amarelo);color:white;border-color:var(--amarelo)" onclick='abrRet(${J(p)},${JSON.stringify(prox.nome)})'>🔔</button>`:''}
@@ -1203,7 +1212,7 @@ document.getElementById('m-wpp').addEventListener('click',e=>{if(e.target===e.cu
 
 // EDITAR
 function abrEdit(p){
-  document.getElementById('e-id').value=p.id;document.getElementById('e-nome').value=p.nome;document.getElementById('e-apelido').value=p.apelido||'';document.getElementById('e-tel').value=p.telefone;document.getElementById('e-nasc').value=p.data_nascimento||'';document.getElementById('e-cpf').value=p.cpf||'';document.getElementById('e-rg').value=p.rg||'';document.getElementById('e-sexo').value=p.sexo||'';document.getElementById('e-end').value=p.endereco||'';document.getElementById('e-data').value=p.data_atendimento||'';document.getElementById('e-obs').value=p.observacoes||'';document.getElementById('e-drive').value=p.link_drive||'';document.getElementById('e-indic').value=p.indicacao||'';
+  document.getElementById('e-id').value=p.id;document.getElementById('e-nome').value=p.nome;document.getElementById('e-apelido').value=p.apelido||'';document.getElementById('e-tel').value=p.telefone;document.getElementById('e-nasc').value=p.data_nascimento||'';document.getElementById('e-cpf').value=p.cpf||'';document.getElementById('e-rg').value=p.rg||'';document.getElementById('e-sexo').value=p.sexo||'';document.getElementById('e-end').value=p.endereco||'';document.getElementById('e-data').value=p.data_atendimento||'';document.getElementById('e-obs').value=p.observacoes||'';document.getElementById('e-drive').value=p.link_drive||'';document.getElementById('e-indic').value=p.indicacao||'';if(document.getElementById('e-instagram'))document.getElementById('e-instagram').value=p.instagram||'';if(document.getElementById('e-facebook'))document.getElementById('e-facebook').value=p.facebook||'';
   document.getElementById('m-edit-titulo').textContent='✏️ Editar dados pessoais';
   document.getElementById('m-edit').classList.add('open');
 }
@@ -1212,7 +1221,7 @@ async function salvarEdit(){
   const id=document.getElementById('e-id').value;const nome=document.getElementById('e-nome').value.trim();const tel=document.getElementById('e-tel').value.trim();
   if(!nome||!tel){toast('Preencha nome e telefone!','vermelho');return;}
   const btn=document.getElementById('btn-edit-salvar');btn.disabled=true;btn.textContent='Salvando...';
-  const{error}=await db.from('pacientes').update({nome,telefone:tel,apelido:document.getElementById('e-apelido').value.trim()||null,data_nascimento:document.getElementById('e-nasc').value||null,cpf:document.getElementById('e-cpf').value.trim()||null,rg:document.getElementById('e-rg').value.trim()||null,sexo:document.getElementById('e-sexo').value||null,endereco:document.getElementById('e-end').value.trim()||null,data_atendimento:document.getElementById('e-data').value||null,observacoes:document.getElementById('e-obs').value.trim()||null,link_drive:document.getElementById('e-drive').value.trim()||null,indicacao:document.getElementById('e-indic').value.trim()||null,cadastro_pendente:false}).eq('id',id);
+  const{error}=await db.from('pacientes').update({nome,telefone:tel,apelido:document.getElementById('e-apelido').value.trim()||null,data_nascimento:document.getElementById('e-nasc').value||null,cpf:document.getElementById('e-cpf').value.trim()||null,rg:document.getElementById('e-rg').value.trim()||null,sexo:document.getElementById('e-sexo').value||null,endereco:document.getElementById('e-end').value.trim()||null,data_atendimento:document.getElementById('e-data').value||null,observacoes:document.getElementById('e-obs').value.trim()||null,link_drive:document.getElementById('e-drive').value.trim()||null,indicacao:document.getElementById('e-indic').value.trim()||null,instagram:(document.getElementById('e-instagram')?.value.trim()||null),facebook:(document.getElementById('e-facebook')?.value.trim()||null),cadastro_pendente:false}).eq('id',id);
   btn.disabled=false;btn.innerHTML='✓ Salvar dados';
   if(error){toast('Erro: '+error.message,'vermelho');return;}
   toast(`${nome} atualizado!`,'verde');fchEdit();carregar();
@@ -2210,7 +2219,7 @@ document.getElementById('m-lembr').addEventListener('click',e=>{if(e.target===e.
 
 // SALVAR PACIENTE
 function limpar(){
-  ['f-nome','f-apelido','f-tel','f-nasc','f-cpf','f-rg','f-rua','f-numero','f-bairro','f-cidade','f-cep','f-obs','f-drive','f-indic'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['f-nome','f-apelido','f-tel','f-nasc','f-cpf','f-rg','f-rua','f-numero','f-bairro','f-cidade','f-cep','f-obs','f-drive','f-indic','f-instagram','f-facebook'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('f-sexo').value='';
   document.getElementById('f-data').value=HOJE_STR;document.getElementById('f-trats').innerHTML='';addTrat('f-trats');
 }
@@ -2240,7 +2249,7 @@ async function salvar(){
   if(!nome||!tel||!trats.length){toast('Preencha nome, telefone e ao menos um tratamento!','vermelho');return;}
   const dataAtend=document.getElementById('f-data').value;const tc=tratsComDatas(trats,dataAtend);
   const btn=document.getElementById('btn-salvar');btn.disabled=true;btn.textContent='Salvando...';
-  const{error}=await db.from('pacientes').insert({nome,telefone:tel,apelido:document.getElementById('f-apelido').value.trim()||null,data_nascimento:document.getElementById('f-nasc').value||null,cpf:document.getElementById('f-cpf').value.trim()||null,rg:document.getElementById('f-rg').value.trim()||null,sexo:document.getElementById('f-sexo').value||null,endereco:[document.getElementById('f-rua').value.trim()+(document.getElementById('f-numero').value.trim()?' '+document.getElementById('f-numero').value.trim():''),document.getElementById('f-bairro').value.trim(),document.getElementById('f-cidade').value.trim()].filter(Boolean).join(', ')||null,rua:(document.getElementById('f-rua').value.trim()+(document.getElementById('f-numero').value.trim()?' '+document.getElementById('f-numero').value.trim():'')).trim()||null,bairro:document.getElementById('f-bairro').value.trim()||null,cidade:document.getElementById('f-cidade').value.trim()||null,cep:document.getElementById('f-cep').value.trim()||null,data_atendimento:dataAtend||null,observacoes:document.getElementById('f-obs').value.trim()||null,link_drive:document.getElementById('f-drive').value.trim()||null,indicacao:document.getElementById('f-indic').value.trim()||null,como_conheceu:document.getElementById('f-conheceu').value||null,tratamentos_adicionais:tc,tratamento:tc[0]?.nome||null});
+  const{error}=await db.from('pacientes').insert({nome,telefone:tel,apelido:document.getElementById('f-apelido').value.trim()||null,data_nascimento:document.getElementById('f-nasc').value||null,cpf:document.getElementById('f-cpf').value.trim()||null,rg:document.getElementById('f-rg').value.trim()||null,sexo:document.getElementById('f-sexo').value||null,endereco:[document.getElementById('f-rua').value.trim()+(document.getElementById('f-numero').value.trim()?' '+document.getElementById('f-numero').value.trim():''),document.getElementById('f-bairro').value.trim(),document.getElementById('f-cidade').value.trim()].filter(Boolean).join(', ')||null,rua:(document.getElementById('f-rua').value.trim()+(document.getElementById('f-numero').value.trim()?' '+document.getElementById('f-numero').value.trim():'')).trim()||null,bairro:document.getElementById('f-bairro').value.trim()||null,cidade:document.getElementById('f-cidade').value.trim()||null,cep:document.getElementById('f-cep').value.trim()||null,data_atendimento:dataAtend||null,observacoes:document.getElementById('f-obs').value.trim()||null,link_drive:document.getElementById('f-drive').value.trim()||null,indicacao:document.getElementById('f-indic').value.trim()||null,como_conheceu:document.getElementById('f-conheceu').value||null,instagram:document.getElementById('f-instagram').value.trim()||null,facebook:document.getElementById('f-facebook').value.trim()||null,tratamentos_adicionais:tc,tratamento:tc[0]?.nome||null});
   btn.disabled=false;btn.innerHTML='✓ Salvar paciente';
   if(error){toast('Erro: '+error.message,'vermelho');return;}
   toast(`${nome} cadastrado!`,'verde');limpar();await carregar();aba('hoje',document.querySelector('.tb'));
