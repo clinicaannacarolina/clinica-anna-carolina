@@ -922,7 +922,7 @@ function renderHoje(){
   const ch=consultas.filter(c=>c.data===HOJE_STR&&c.status!=='cancelado').sort((a,b)=>a.hora.localeCompare(b.hora));
   document.getElementById('l-cons-hoje').innerHTML=ch.length===0
     ?`<div class="empty" style="padding:1rem"><div class="empty-icon">📋</div><p>Nenhuma consulta hoje.</p></div>`
-    :ch.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';return`<div class="ci" data-cid="${c.id}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${c.nome}</div><div class="cd">${c.procedimento||''}${c.telefone?' · '+c.telefone:''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬</a>`:''}${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:5px 8px;font-size:13px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">👤</a>`:''}<button class="btn btn-vincular" style="padding:5px 8px;font-size:13px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('');
+    :ch.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';return`<div class="ci" data-cid="${c.id}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${c.nome}</div><div class="cd">${c.procedimento||''}${c.telefone?' · '+c.telefone:''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬</a>`:''}<button class="btn btn-vincular" style="padding:5px 8px;font-size:13px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('');
 
   // Consultas amanhã
   const ca=consultas.filter(c=>c.data===AMANHA_STR&&c.status!=='cancelado').sort((a,b)=>a.hora.localeCompare(b.hora));
@@ -1392,6 +1392,11 @@ function injetarBtnFicha(){
     let p=pacs.find(x=>x.nome===nome||(x.apelido&&x.apelido===nome));
     if(!p&&tel){const tl=tel.replace(/\D/g,'');p=pacs.find(x=>(x.telefone||'').replace(/\D/g,'').endsWith(tl)||tl.endsWith((x.telefone||'').replace(/\D/g,'')));}
     if(!p&&nome){const nl=nome.toLowerCase().trim();p=pacs.find(x=>x.nome.toLowerCase().trim()===nl||(x.apelido&&x.apelido.toLowerCase().trim()===nl));}
+    // Se o card já tem link Ficha explícito (renders com paciente_id), só remove 🔗
+    if(ca.querySelector('a[href*="paciente.html"]')){
+      ca.querySelectorAll('.btn-vincular').forEach(b=>b.remove());
+      return;
+    }
     if(!p) return; // sem match — 🔗 do render permanece (se houver)
     // Achou o paciente → remover 🔗 se presente e adicionar 👤 + 🩺
     ca.querySelectorAll('.btn-vincular').forEach(b=>b.remove());
