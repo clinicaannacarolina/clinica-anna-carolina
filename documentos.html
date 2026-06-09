@@ -119,6 +119,14 @@ textarea{resize:vertical}
   .toast { display: none !important; }
   /* Esconder banner de plano ativo */
   #banner-plano-ativo { display: none !important; }
+  /* Receituário estético — mostrar só cuidados marcados */
+  #rece-cuidados label { display: none !important; }
+  #rece-cuidados label:has(input:checked) { display: flex !important; }
+  /* Esconder botões de remover */
+  #rece-produtos button, #rec-medicamentos button { display: none !important; }
+  /* Evitar página em branco inicial */
+  body > * { page-break-before: avoid; }
+  .panel.active > .card { margin-top: 0 !important; }
 }
 .orc-print-produtos { display: none; margin-top: 1rem; }
 .orc-print-footer { display: none; margin-top: 2rem; }
