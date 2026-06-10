@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+  <title>Ficha de Anamnese — Dra. Anna Carolina Dias</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{
+      --verde:#2D9B6F;--verde-c:#e8f5f0;--verde-e:#1a6e4a;
+      --vermelho:#E24B4A;--amarelo:#ef9f27;
+      --txt:#1a1a2e;--ct:#6b7280;--bg:#f5f7fa;--card:#fff;--borda:#e5e7eb;
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;padding-bottom:3rem}
+    .header{background:var(--verde);color:white;text-align:center;padding:1.25rem 1rem;position:sticky;top:0;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+    .header img{height:52px;object-fit:contain;filter:brightness(0) invert(1);margin-bottom:4px}
+    .header h1{font-size:15px;font-weight:600;margin:2px 0}
+    .header p{font-size:11px;opacity:.85}
+    .container{max-width:600px;margin:0 auto;padding:1rem}
+    .card{background:var(--card);border-radius:14px;padding:1.25rem;margin-bottom:1rem;border:1px solid var(--borda);box-shadow:0 1px 4px rgba(0,0,0,.05)}
+    .sec-title{font-size:13px;font-weight:700;color:var(--verde-e);text-transform:uppercase;letter-spacing:.04em;margin:1.25rem 0 .75rem;border-bottom:2px solid var(--verde-c);padding-bottom:4px}
+    label{font-size:12px;font-weight:600;color:var(--ct);display:block;margin-bottom:4px}
+    input[type=text],input[type=date],select,textarea{width:100%;padding:10px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;font-family:inherit;color:var(--txt);background:var(--card);transition:border-color .15s}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:var(--verde)}
+    .fg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .fg .full{grid-column:1/-1}
+    .resp-row{margin-bottom:1rem;padding:10px 12px;background:var(--bg);border-radius:10px;border:1px solid var(--borda)}
+    .resp-label{font-size:13px;font-weight:500;margin-bottom:8px;display:block}
+    .resp-opts{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+    .resp-opts label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;color:var(--txt);cursor:pointer;margin:0}
+    .resp-opts input[type=radio]{accent-color:var(--verde);width:16px;height:16px}
+    .qual-input{margin-top:6px;width:100%;padding:8px 10px;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;font-family:inherit}
+    .qual-input:focus{outline:none;border-color:var(--verde)}
+    .check-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .check-item{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:var(--bg);border-radius:8px;border:1px solid var(--borda)}
+    .check-item input[type=checkbox]{accent-color:var(--verde);width:17px;height:17px;flex-shrink:0;margin-top:1px}
+    .check-item label{font-size:12px;font-weight:400;color:var(--txt);cursor:pointer;line-height:1.4;margin:0}
+    .btn-submit{width:100%;padding:14px;background:var(--verde);color:white;border:none;border-radius:12px;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:.5rem;transition:opacity .15s}
+    .btn-submit:disabled{opacity:.6;cursor:not-allowed}
+    /* Estados */
+    .state{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;padding:2rem}
+    .state.active{display:flex}
+    .state-icon{font-size:56px;margin-bottom:1rem}
+    .state h2{font-size:20px;font-weight:700;margin-bottom:.5rem}
+    .state p{font-size:14px;color:var(--ct);line-height:1.5;max-width:320px}
+    .pac-banner{background:var(--verde-c);border:1.5px solid var(--verde);border-radius:12px;padding:12px 16px;margin-bottom:1.25rem;display:flex;align-items:center;gap:12px}
+    .pac-avatar{width:40px;height:40px;border-radius:50%;background:var(--verde);color:white;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0}
+    .pac-info-nome{font-size:15px;font-weight:700;color:var(--verde-e)}
+    .pac-info-sub{font-size:12px;color:var(--ct)}
+    textarea{min-height:80px;resize:vertical}
+    @media(max-width:480px){.fg{grid-template-columns:1fr}.check-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <img src="https://claudiogallegoadv.github.io/clinica-anna-carolina/logo.jpg" alt="Dra. Anna Carolina"/>
+  <h1>Dra. Anna Carolina Dias</h1>
+  <p>HARMONIZAÇÃO OROFACIAL · CRO 82281 · (17) 98211-3940</p>
+</div>
+
+<!-- ESTADO: CARREGANDO -->
+<div class="state active" id="st-loading">
+  <div class="state-icon">⏳</div>
+  <h2>Carregando...</h2>
+  <p>Aguarde um momento.</p>
+</div>
+
+<!-- ESTADO: ERRO -->
+<div class="state" id="st-erro">
+  <div class="state-icon">❌</div>
+  <h2>Link inválido ou expirado</h2>
+  <p>Este link de anamnese não está disponível. Solicite um novo link à Dra. Anna Carolina.</p>
+</div>
+
+<!-- ESTADO: JÁ PREENCHIDO -->
+<div class="state" id="st-preenchido">
+  <div class="state-icon">✅</div>
+  <h2>Anamnese já preenchida</h2>
+  <p>Você já enviou sua anamnese anteriormente. Não é necessário preencher novamente.</p>
+</div>
+
+<!-- ESTADO: SUCESSO -->
+<div class="state" id="st-sucesso">
+  <div class="state-icon">🎉</div>
+  <h2>Anamnese enviada com sucesso!</h2>
+  <p>Suas informações foram recebidas. A Dra. Anna Carolina terá acesso antes da sua consulta.<br><br>Obrigada pela sua confiança! 💚</p>
+  <div style="margin-top:1.5rem;font-size:13px;color:var(--ct)">Rua Capitão Daniel da Cunha Morais, 632 · Tanabi/SP</div>
+</div>
+
+<!-- FORMULÁRIO -->
+<div id="st-form" style="display:none">
+  <div class="container">
+
+    <!-- Título -->
+    <div style="text-align:center;margin-bottom:1rem">
+      <div style="font-size:20px;font-weight:700;color:var(--txt)">📋 Ficha de Anamnese</div>
+      <div style="font-size:13px;color:var(--ct);margin-top:4px">Preencha com atenção antes da sua consulta</div>
+    </div>
+
+    <!-- Paciente -->
+    <div class="pac-banner">
+      <div class="pac-avatar" id="pac-avatar">?</div>
+      <div>
+        <div class="pac-info-nome" id="pac-nome-display">Carregando...</div>
+        <div class="pac-info-sub" id="pac-sub-display"></div>
+      </div>
+    </div>
+
+    <!-- Dados pessoais -->
+    <div class="card">
+      <div class="sec-title">Dados Pessoais</div>
+      <div class="fg">
+        <div class="full"><label>Endereço completo</label><input type="text" id="f-endereco" placeholder="Rua, número, bairro, cidade"/></div>
+        <div><label>RG</label><input type="text" id="f-rg" placeholder="00.000.000-0"/></div>
+        <div><label>CPF</label><input type="text" id="f-cpf" placeholder="000.000.000-00"/></div>
+        <div><label>Sexo</label>
+          <select id="f-sexo">
+            <option value="">Selecione</option>
+            <option>Feminino</option>
+            <option>Masculino</option>
+          </select>
+        </div>
+        <div><label>Data de nascimento</label><input type="date" id="f-nasc"/></div>
+      </div>
+    </div>
+
+    <!-- Histórico de Saúde -->
+    <div class="card">
+      <div class="sec-title">Histórico de Saúde</div>
+      <div id="form-perguntas"></div>
+    </div>
+
+    <!-- Informações Complementares -->
+    <div class="card">
+      <div class="sec-title">Informações Complementares</div>
+      <p style="font-size:12px;color:var(--ct);margin-bottom:10px">Marque todos que se aplicam:</p>
+      <div class="check-grid" id="form-checks"></div>
+    </div>
+
+    <!-- Observações -->
+    <div class="card">
+      <div class="sec-title">Observações Adicionais</div>
+      <textarea id="f-obs" placeholder="Informe qualquer outra informação que considere importante para o seu atendimento..."></textarea>
+    </div>
+
+    <!-- Termos -->
+    <div class="card" style="background:var(--verde-c);border-color:var(--verde)">
+      <p style="font-size:13px;color:var(--verde-e);line-height:1.5">
+        Ao enviar esta ficha, declaro que as informações acima são verdadeiras e estou ciente de que serão utilizadas exclusivamente para fins de tratamento pela Dra. Anna Carolina Dias (CRO 82281), de acordo com a LGPD (Lei 13.709/2018).
+      </p>
+      <label style="display:flex;align-items:flex-start;gap:10px;margin-top:10px;cursor:pointer">
+        <input type="checkbox" id="f-aceito" style="accent-color:var(--verde);width:18px;height:18px;flex-shrink:0;margin-top:1px"/>
+        <span style="font-size:13px;font-weight:600;color:var(--verde-e)">Li e concordo com os termos acima</span>
+      </label>
+    </div>
+
+    <button class="btn-submit" id="btn-enviar" onclick="enviarAnamnese()">
+      ✅ Enviar Anamnese
+    </button>
+    <div style="text-align:center;font-size:11px;color:var(--ct);margin-top:8px">
+      Seus dados são protegidos e usados apenas para seu atendimento.
+    </div>
+  </div>
+</div>
+
+<script>
+const SB_URL = 'https://nathaeuqbeqlvkftbmes.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hdGhhZXVxYmVxbHZrZnRibWVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4OTc4MzYsImV4cCI6MjA5NTQ3MzgzNn0.9t3q5C_h1pRb11gqRtpGGVpOUGey5TBzvMgal8h6wtg';
+const {createClient} = supabase;
+const db = createClient(SB_URL, SB_KEY);
+
+const AN_PERGUNTAS = [
+  {id:'trat-estetico',  label:'Já fez algum tipo de tratamento estético?'},
+  {id:'medicamento',    label:'Faz uso de algum medicamento?'},
+  {id:'alergia',        label:'Tem alguma alergia (medicamentos, anestesia, etc)?'},
+  {id:'acidos',         label:'Usa ou já usou ácidos na pele?'},
+  {id:'cuidado-diario', label:'Faz algum tipo de cuidado diário estético facial ou corporal?'},
+  {id:'trat-medico',    label:'Está sob algum tipo de tratamento médico?'},
+  {id:'cirurgia',       label:'Já fez alguma cirurgia ou procedimento de harmonização?'},
+  {id:'patologia-derm', label:'Alguma patologia dermatológica?'},
+  {id:'alteracao-vasc', label:'Tem alguma alteração vascular? (petéquias, cianose, eritema, etc)'},
+];
+
+const AN_CHECKS = [
+  'É lactante?','Possui alergia a ovo?','Possui alergia a picada de abelha?',
+  'Já teve ou tem herpes?','É ou já foi fumante?','Possui muita exposição ao sol?',
+  'É gestante?','Pratica algum exercício físico?','Tem uma alimentação balanceada?',
+  'Método anticoncepcional?','Ciclo menstrual regular?','Reposição Hormonal?',
+  'Tem alguma prótese?','Hereditariedade de acne?','Tem hematomas com facilidade?',
+  'Tem varizes e/ou varicose?','Possui manchas na pele?','Tem alguma formação sólida na pele?',
+  'Tem alguma doença infectocontagiosa?','Tem alguma doença nos órgãos essenciais?',
+  'Já sofreu algum desmaio ou convulsão?','Já sofreu algum trauma na face?',
+  'Tem alguma doença cardiovascular?','Tem ou já teve algum distúrbio respiratório?',
+  'Faz uso de bebida alcoólica com frequência?','Perdeu ou ganhou peso ultimamente?',
+  'Tem diabetes?','Faz uso de roacutan?','Possui predisposição para queloides?',
+];
+
+let linkData = null;
+let pacData  = null;
+
+function setState(id){
+  ['st-loading','st-erro','st-preenchido','st-sucesso','st-form'].forEach(s=>{
+    const el = document.getElementById(s);
+    if(s === id){
+      el.style.display = s === 'st-form' ? 'block' : 'flex';
+      if(s !== 'st-form') el.classList.add('active');
+    } else {
+      el.style.display = 'none';
+      el.classList.remove('active');
+    }
+  });
+}
+
+function fDt(s){ if(!s) return ''; const [y,m,d]=s.split('-'); return `${d}/${m}/${y}`; }
+function calcIdade(nasc){ if(!nasc)return null; const d=new Date(nasc+'T12:00:00'); const hoje=new Date(); let age=hoje.getFullYear()-d.getFullYear(); if(hoje<new Date(hoje.getFullYear(),d.getMonth(),d.getDate())) age--; return age; }
+
+async function init(){
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+  if(!token){ setState('st-erro'); return; }
+
+  // Buscar link
+  const {data:link, error} = await db.from('anamnese_links').select('*').eq('token',token).single();
+  if(error || !link){ setState('st-erro'); return; }
+  if(link.status === 'preenchido'){ setState('st-preenchido'); return; }
+
+  linkData = link;
+
+  // Buscar paciente
+  const {data:pac} = await db.from('pacientes').select('nome,apelido,telefone,data_nascimento,cpf,rg,sexo,endereco').eq('id',link.paciente_id).single();
+  if(!pac){ setState('st-erro'); return; }
+  pacData = pac;
+
+  // Preencher header paciente
+  const nome = pac.apelido || pac.nome.split(' ')[0];
+  document.getElementById('pac-nome-display').textContent = pac.nome;
+  document.getElementById('pac-sub-display').textContent  = [pac.telefone, pac.data_nascimento ? fDt(pac.data_nascimento)+(calcIdade(pac.data_nascimento)?' · '+calcIdade(pac.data_nascimento)+' anos':'') : ''].filter(Boolean).join(' · ');
+  document.getElementById('pac-avatar').textContent = pac.nome.charAt(0).toUpperCase();
+
+  // Pré-preencher campos pessoais
+  if(pac.endereco)      document.getElementById('f-endereco').value = pac.endereco;
+  if(pac.rg)            document.getElementById('f-rg').value = pac.rg;
+  if(pac.cpf)           document.getElementById('f-cpf').value = pac.cpf;
+  if(pac.sexo)          document.getElementById('f-sexo').value = pac.sexo;
+  if(pac.data_nascimento) document.getElementById('f-nasc').value = pac.data_nascimento;
+
+  // Renderizar perguntas
+  document.getElementById('form-perguntas').innerHTML = AN_PERGUNTAS.map(q=>`
+    <div class="resp-row">
+      <span class="resp-label">${q.label}</span>
+      <div class="resp-opts">
+        <label><input type="radio" name="${q.id}" value="sim"> Sim</label>
+        <label><input type="radio" name="${q.id}" value="nao" checked> Não</label>
+        <input type="text" class="qual-input" id="qual-${q.id}" placeholder="Qual?" style="display:none;width:100%;margin-top:6px"/>
+      </div>
+    </div>`).join('');
+
+  AN_PERGUNTAS.forEach(q=>{
+    document.querySelectorAll(`input[name="${q.id}"]`).forEach(r=>{
+      r.addEventListener('change',()=>{
+        const qi = document.getElementById('qual-'+q.id);
+        if(qi) qi.style.display = r.value==='sim' ? 'block' : 'none';
+      });
+    });
+  });
+
+  // Renderizar checks
+  document.getElementById('form-checks').innerHTML = AN_CHECKS.map((c,i)=>`
+    <div class="check-item">
+      <input type="checkbox" id="ck-${i}"/>
+      <label for="ck-${i}">${c}</label>
+    </div>`).join('');
+
+  setState('st-form');
+}
+
+async function enviarAnamnese(){
+  if(!document.getElementById('f-aceito').checked){
+    alert('Por favor, confirme que leu e concordou com os termos antes de enviar.');
+    return;
+  }
+
+  const btn = document.getElementById('btn-enviar');
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+
+  // Coletar dados
+  const dados = {
+    endereco:  document.getElementById('f-endereco').value.trim(),
+    rg:        document.getElementById('f-rg').value.trim(),
+    cpf:       document.getElementById('f-cpf').value.trim(),
+    sexo:      document.getElementById('f-sexo').value,
+    nasc:      document.getElementById('f-nasc').value,
+    perguntas: {},
+    checks:    {},
+    obs:       document.getElementById('f-obs').value.trim(),
+    preenchido_via: 'link',
+    data_preenchimento: new Date().toISOString(),
+  };
+
+  AN_PERGUNTAS.forEach(q=>{
+    const r = document.querySelector(`input[name="${q.id}"]:checked`);
+    dados.perguntas[q.id] = r ? r.value : 'nao';
+    const qual = document.getElementById('qual-'+q.id);
+    if(qual && qual.value) dados.perguntas[q.id+'_qual'] = qual.value;
+  });
+
+  AN_CHECKS.forEach((_,i)=>{
+    dados.checks[i] = document.getElementById('ck-'+i)?.checked || false;
+  });
+
+  // Atualizar link como preenchido
+  const {error: e1} = await db.from('anamnese_links').update({
+    status: 'preenchido',
+    dados: dados,
+    preenchido_em: new Date().toISOString()
+  }).eq('id', linkData.id);
+
+  if(e1){ btn.disabled=false; btn.textContent='✅ Enviar Anamnese'; alert('Erro ao enviar. Tente novamente.'); return; }
+
+  // Salvar também como documento na ficha
+  await db.from('documentos').insert({
+    paciente_id: linkData.paciente_id,
+    tipo: 'anamnese',
+    dados: dados,
+    criado_em: new Date().toISOString()
+  });
+
+  // Atualizar dados do paciente com as novas informações
+  const updatePac = {};
+  if(dados.endereco) updatePac.endereco = dados.endereco;
+  if(dados.rg)       updatePac.rg = dados.rg;
+  if(dados.cpf)      updatePac.cpf = dados.cpf;
+  if(dados.sexo)     updatePac.sexo = dados.sexo;
+  if(dados.nasc)     updatePac.data_nascimento = dados.nasc;
+  if(Object.keys(updatePac).length > 0){
+    await db.from('pacientes').update(updatePac).eq('id', linkData.paciente_id);
+  }
+
+  setState('st-sucesso');
+}
+
+// Iniciar
+init();
+</script>
+</body>
+</html>

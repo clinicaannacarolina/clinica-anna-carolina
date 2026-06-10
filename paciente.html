@@ -718,6 +718,7 @@ function renderHero(){
   if(p.link_drive) actions.push(`<a href="${p.link_drive}" target="_blank" class="btn-hero">📁 Drive</a>`);
   if(p.instagram) actions.push(`<a href="https://instagram.com/${p.instagram.replace('@','').trim()}" target="_blank" class="btn-hero" style="background:#E1306C">📷 Instagram</a>`);
   if(p.facebook) actions.push(`<a href="${(p.facebook||'').startsWith('http')?p.facebook:'https://facebook.com/'+(p.facebook||'').trim()}" target="_blank" class="btn-hero" style="background:#1877F2">👥 Facebook</a>`);
+  actions.push(`<button class="btn-hero" style="background:#7c3aed" onclick="gerarLinkAnamnese()">📋 Anamnese</button>`);
   actions.push(`<a href="documentos.html?pac=${p.id}" class="btn-hero">📄 Documentos</a>`);
   document.getElementById('hero-actions').innerHTML=actions.join('');
 }
@@ -1763,6 +1764,76 @@ async function marcarRecebidoPaciente(lancId) {
 
 // ─── INICIAR ───
 iniciar();
+</script>
+<!-- MODAL LINK ANAMNESE -->
+<div class="mb" id="m-anamnese-link">
+  <div class="mx" style="max-width:420px">
+    <h3>📋 Link de Anamnese</h3>
+    <p style="font-size:13px;color:var(--ct);margin-bottom:1rem">Envie este link para a paciente preencher a anamnese no celular antes da consulta.</p>
+    <div id="anamnese-link-status" style="text-align:center;padding:1rem;color:var(--ct);font-size:13px">Gerando link...</div>
+    <div id="anamnese-link-content" style="display:none">
+      <div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:12px;border:1px solid var(--borda)">
+        <div style="font-size:10px;color:var(--ct);font-weight:600;margin-bottom:4px">LINK GERADO</div>
+        <div id="anamnese-link-url" style="font-size:11px;color:var(--txt);word-break:break-all;line-height:1.4"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="copiarLinkAnamnese()" style="flex:1">📋 Copiar link</button>
+        <button class="btn pri" onclick="enviarLinkWpp()" style="flex:1;background:#25D366;border-color:#25D366">💬 Enviar WhatsApp</button>
+      </div>
+    </div>
+    <div class="br" style="margin-top:1rem">
+      <button class="btn" onclick="fchAnamneseLink()">Fechar</button>
+    </div>
+  </div>
+</div>
+<script>
+let _anamneseLinkUrl = '';
+document.getElementById('m-anamnese-link').addEventListener('click',e=>{if(e.target===e.currentTarget)fchAnamneseLink();});
+
+function fchAnamneseLink(){ document.getElementById('m-anamnese-link').classList.remove('open'); }
+
+async function gerarLinkAnamnese(){
+  const el = document.getElementById('m-anamnese-link');
+  el.classList.add('open');
+  document.getElementById('anamnese-link-status').style.display='block';
+  document.getElementById('anamnese-link-status').textContent='Gerando link...';
+  document.getElementById('anamnese-link-content').style.display='none';
+
+  // Verificar se já existe link pendente
+  const{data:existing}=await db.from('anamnese_links').select('token,status').eq('paciente_id',pac.id).order('criado_em',{ascending:false}).limit(1);
+  let token;
+  if(existing&&existing.length&&existing[0].status==='pendente'){
+    token = existing[0].token;
+  } else {
+    // Gerar novo token
+    token = crypto.randomUUID ? crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
+    const{error}=await db.from('anamnese_links').insert({
+      paciente_id: pac.id,
+      token: token,
+      status: 'pendente'
+    });
+    if(error){ document.getElementById('anamnese-link-status').textContent='Erro ao gerar link. Tente novamente.'; return; }
+  }
+
+  const baseUrl = window.location.href.replace('paciente.html','').replace(/\?.*$/,'');
+  _anamneseLinkUrl = `${baseUrl}anamnese-link.html?token=${token}`;
+
+  document.getElementById('anamnese-link-url').textContent = _anamneseLinkUrl;
+  document.getElementById('anamnese-link-status').style.display='none';
+  document.getElementById('anamnese-link-content').style.display='block';
+}
+
+function copiarLinkAnamnese(){
+  navigator.clipboard.writeText(_anamneseLinkUrl).then(()=>toast('Link copiado! ✅','verde')).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=_anamneseLinkUrl;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Link copiado! ✅','verde');
+  });
+}
+
+function enviarLinkWpp(){
+  const tel = '55'+pac.telefone.replace(/\D/g,'');
+  const msg = `Olá ${pac.apelido||pac.nome.split(' ')[0]}! 😊\n\nPrecisamos que você preencha sua ficha de anamnese antes da sua próxima consulta na clínica da Dra. Anna Carolina.\n\nÉ rápido e pode ser feito no celular:\n${_anamneseLinkUrl}\n\nObrigada! 💚`;
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`,'_blank');
+}
 </script>
 </body>
 </html>

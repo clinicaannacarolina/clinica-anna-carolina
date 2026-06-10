@@ -299,6 +299,8 @@ textarea{resize:vertical;min-height:70px}
     <div class="sl2">📌 Lembretes</div><div id="l-lembr"></div>
     <div class="sl2">💰 A receber (próx. 7 dias)</div><div id="l-fin-hoje"></div>
     <div class="sl2">🔔 Retornos nos próximos 15 dias</div><div id="l-ret-hoje"></div>
+    <!-- Lembretes automáticos de amanhã -->
+    <div id="sec-lembretes-amanha"></div>
   </div>
 
   <!-- AGENDA -->
@@ -1032,7 +1034,7 @@ async function carregar(){
 
 async function carregarAgenda(){
   const{data}=await db.from('agenda').select('*').order('hora');
-  consultas=data||[];renderCal();renderConsDia(agDia);renderConsMes();renderHoje();renderAgendaStats();
+  consultas=data||[];renderCal();renderConsDia(agDia);renderConsMes();renderHoje();renderAgendaStats();renderLembretesAmanha();
 }
 
 function stats(){
@@ -3266,6 +3268,104 @@ function enviarProximoCamp(){
   mostrarAtualCamp(selecionadas, _campIdx);
 }
 
+// ══════════════════════════════════════════════════
+// LEMBRETES AUTOMÁTICOS PRÉ-CONSULTA
+// ══════════════════════════════════════════════════
+let _lembIdx = 0;
+let _lembPacs = [];
+
+function renderLembretesAmanha(){
+  const el = document.getElementById('sec-lembretes-amanha');
+  if(!el) return;
+  const amanha = new Date(HOJE); amanha.setDate(amanha.getDate()+1);
+  const amanhaStr = amanha.toISOString().split('T')[0];
+  const cs = consultas.filter(c=>c.data===amanhaStr&&c.status!=='cancelado'&&c.telefone);
+  if(!cs.length){el.innerHTML=''; return;}
+  const naoConf = cs.filter(c=>c.status!=='confirmado');
+
+  el.innerHTML=`
+    <div class="card" style="border:1.5px solid var(--verde);background:var(--verde-c)">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--verde-e)">🔔 Lembretes de Amanhã</div>
+          <div style="font-size:11px;color:var(--ct)">${cs.length} consulta${cs.length!==1?'s':''} · ${naoConf.length} sem confirmação</div>
+        </div>
+        ${naoConf.length>0?`<button class="btn" style="background:var(--verde);color:white;border-color:var(--verde);font-size:12px;padding:6px 14px" onclick="abrirDisparoLembretes()">📲 Disparar lembretes (${naoConf.length})</button>`:'<span style="font-size:12px;color:var(--verde-e);font-weight:600">✅ Todas confirmadas</span>'}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${cs.map(c=>`
+          <div style="display:flex;align-items:center;gap:8px;background:var(--card);border-radius:8px;padding:8px 10px;border:1px solid var(--borda)">
+            <span style="font-size:13px;font-weight:700;color:var(--ct);width:40px;flex-shrink:0">${c.hora.slice(0,5)}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.nome}</div>
+              <div style="font-size:11px;color:var(--ct)">${c.procedimento||''}</div>
+            </div>
+            <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:${c.status==='confirmado'?'var(--verde-c)':'var(--amarelo-c)'};color:${c.status==='confirmado'?'var(--verde-e)':'#8a6000'};flex-shrink:0">${c.status==='confirmado'?'✅ Confirmada':'⏳ Pendente'}</span>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+// Modal disparo lembretes
+let _lembConsultas = [];
+
+function abrirDisparoLembretes(){
+  const amanha = new Date(HOJE); amanha.setDate(amanha.getDate()+1);
+  const amanhaStr = amanha.toISOString().split('T')[0];
+  _lembConsultas = consultas.filter(c=>c.data===amanhaStr&&c.status!=='cancelado'&&c.status!=='confirmado'&&c.telefone);
+  if(!_lembConsultas.length){ toast('Todas as consultas já estão confirmadas!','verde'); return; }
+  _lembIdx = 0;
+  document.getElementById('m-lembretes').classList.add('open');
+  renderLembretesModal();
+}
+
+function renderLembretesModal(){
+  const total = _lembConsultas.length;
+  document.getElementById('lemb-total').textContent = `${total} consulta${total!==1?'s':''} para confirmar`;
+  document.getElementById('lemb-contador-num').textContent = _lembIdx;
+  document.getElementById('lemb-contador-total').textContent = total;
+  document.getElementById('lemb-barra').style.width = total>0?Math.round(_lembIdx/total*100)+'%':'0%';
+
+  if(_lembIdx >= total){
+    document.getElementById('lemb-atual').style.display='none';
+    document.getElementById('lemb-btn').disabled=true;
+    document.getElementById('lemb-btn').textContent='✅ Todos os lembretes enviados!';
+    toast('Lembretes enviados! ✅','verde');
+    return;
+  }
+  const c = _lembConsultas[_lembIdx];
+  document.getElementById('lemb-atual').style.display='block';
+  document.getElementById('lemb-atual-nome').textContent = c.nome;
+  document.getElementById('lemb-atual-tel').textContent  = c.hora.slice(0,5)+' · '+(c.procedimento||'Consulta');
+  document.getElementById('lemb-atual-msg').textContent  = msgLembrete(c);
+}
+
+function msgLembrete(c){
+  const amanha = new Date(HOJE); amanha.setDate(amanha.getDate()+1);
+  const DIAS_EX=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+  const diaStr  = DIAS_EX[amanha.getDay()];
+  const [y,m,d] = c.data.split('-');
+  return `Olá ${c.nome.split(' ')[0]}! 😊
+
+Passando para confirmar sua consulta com a Dra. Anna Carolina:
+
+📅 ${diaStr}, ${d}/${m}/${y} às ${c.hora.slice(0,5)}${c.procedimento?' — '+c.procedimento:''}
+📍 Rua Capitão Daniel da Cunha Morais, 632 - Tanabi/SP
+
+Por favor, confirme sua presença respondendo esta mensagem! 🙏
+
+Dra. Anna Carolina Dias — CRO 82281 | (17) 98211-3940`;
+}
+
+function enviarProximoLembrete(){
+  if(_lembIdx >= _lembConsultas.length) return;
+  const c = _lembConsultas[_lembIdx];
+  const tel = '55'+c.telefone.replace(/\D/g,'');
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msgLembrete(c))}`,'_blank');
+  _lembIdx++;
+  renderLembretesModal();
+}
+
 // PWA
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js'));
 
@@ -3512,6 +3612,41 @@ document.addEventListener('DOMContentLoaded', ()=>{
 </div>
 <script>
 document.getElementById('modal-mrec').addEventListener('click',function(e){if(e.target===this)fecharMarcarRecebido();});
+</script>
+
+<!-- MODAL DISPARO LEMBRETES -->
+<div class="mb" id="m-lembretes">
+  <div class="mx" style="max-width:420px">
+    <h3 style="margin-bottom:4px">🔔 Disparar Lembretes</h3>
+    <div id="lemb-total" style="font-size:13px;color:var(--ct);margin-bottom:14px"></div>
+
+    <!-- Progresso -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="font-size:24px;font-weight:700;color:var(--verde-e)" id="lemb-contador-num">0</div>
+      <div style="flex:1">
+        <div style="font-size:12px;color:var(--ct);margin-bottom:4px">de <span id="lemb-contador-total">0</span> enviados</div>
+        <div style="background:var(--borda);border-radius:99px;height:6px">
+          <div id="lemb-barra" style="background:var(--verde);height:6px;border-radius:99px;width:0%;transition:.3s"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Próximo paciente -->
+    <div id="lemb-atual" style="background:var(--verde-c);border:1.5px solid var(--verde);border-radius:12px;padding:12px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--verde-e);margin-bottom:4px">PRÓXIMA PACIENTE</div>
+      <div id="lemb-atual-nome" style="font-size:15px;font-weight:700"></div>
+      <div id="lemb-atual-tel" style="font-size:12px;color:var(--ct)"></div>
+      <div id="lemb-atual-msg" style="font-size:11px;white-space:pre-wrap;margin-top:8px;background:white;border-radius:8px;padding:8px;max-height:120px;overflow-y:auto;line-height:1.4"></div>
+    </div>
+
+    <div style="display:flex;gap:8px">
+      <button class="btn" onclick="document.getElementById('m-lembretes').classList.remove('open')">Fechar</button>
+      <button class="btn pri" id="lemb-btn" onclick="enviarProximoLembrete()" style="flex:1;font-size:14px">📲 Enviar próximo</button>
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById('m-lembretes').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.classList.remove('open');});
 </script>
 
 <!-- MODAL VINCULAR PACIENTE -->
