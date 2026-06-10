@@ -16,7 +16,8 @@
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;padding-bottom:3rem}
     .header{background:var(--verde);color:white;text-align:center;padding:1.25rem 1rem;position:sticky;top:0;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,.15)}
-    .header img{height:52px;object-fit:contain;filter:brightness(0) invert(1);margin-bottom:4px}
+    .header-logo{background:white;border-radius:10px;padding:4px 12px;display:inline-block;margin-bottom:8px}
+    .header-logo img{height:48px;object-fit:contain;display:block}
     .header h1{font-size:15px;font-weight:600;margin:2px 0}
     .header p{font-size:11px;opacity:.85}
     .container{max-width:600px;margin:0 auto;padding:1rem}
@@ -58,7 +59,9 @@
 
 <!-- HEADER -->
 <div class="header">
-  <img src="https://claudiogallegoadv.github.io/clinica-anna-carolina/logo.jpg" alt="Dra. Anna Carolina"/>
+  <div class="header-logo">
+    <img src="https://claudiogallegoadv.github.io/clinica-anna-carolina/logo.jpg" alt="Dra. Anna Carolina"/>
+  </div>
   <h1>Dra. Anna Carolina Dias</h1>
   <p>HARMONIZAÇÃO OROFACIAL · CRO 82281 · (17) 98211-3940</p>
 </div>
