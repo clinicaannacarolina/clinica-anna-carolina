@@ -211,13 +211,17 @@ async function init(){
 
 // ── Passo 1 → 2 ──
 function irPasso2(){
-  const nome=document.getElementById('p-nome').value.trim();
-  const tel=document.getElementById('p-tel').value.trim();
-  if(!nome||!tel){alert('Preencha nome e telefone para continuar.');return;}
-  document.getElementById('passo1').style.display='none';
-  document.getElementById('passo2').style.display='block';
+  const nome=(document.getElementById('p-nome')?.value||'').trim();
+  const tel=(document.getElementById('p-tel')?.value||'').trim();
+  if(!nome||!tel){ alert('Preencha nome e WhatsApp para continuar.'); return; }
+  const p1=document.getElementById('passo1');
+  const p2=document.getElementById('passo2');
+  if(!p1||!p2){ alert('Erro: elementos não encontrados.'); return; }
+  p1.style.display='none';
+  p2.style.display='block';
   setStp(2);
-  renderCal();
+  try{ renderCal(); }catch(e){ console.error('renderCal erro:',e); }
+  window.scrollTo(0,0);
 }
 function voltarPasso1(){
   document.getElementById('passo2').style.display='none';
@@ -243,32 +247,32 @@ function mvMesCal(dir){
 
 function renderCal(){
   const titulo=document.getElementById('cal-titulo');
-  if(!titulo)return;
-  titulo.textContent=`${MESES_N[calMes.getMonth()]} ${calMes.getFullYear()}`;
-  // Cabeçalhos
   const heads=document.getElementById('cal-heads');
-  heads.innerHTML=DIAS_SEM.map(d=>`<div class="cal-head">${d}</div>`).join('');
-  // Dias
-  const hoje=new Date();hoje.setHours(0,0,0,0);
-  const maxData=new Date(hoje);maxData.setDate(maxData.getDate()+CONF.max_dias);
+  const dias=document.getElementById('cal-dias');
+  if(!titulo||!heads||!dias) return;
+
+  titulo.textContent=MESES_N[calMes.getMonth()]+' '+calMes.getFullYear();
+  heads.innerHTML=DIAS_SEM.map(d=>'<div class="cal-head">'+d+'</div>').join('');
+
+  const hoje=new Date(); hoje.setHours(0,0,0,0);
+  const maxData=new Date(hoje); maxData.setDate(maxData.getDate()+CONF.max_dias);
   const priDia=new Date(calMes.getFullYear(),calMes.getMonth(),1);
   const ultDia=new Date(calMes.getFullYear(),calMes.getMonth()+1,0);
   let html='';
-  // Células vazias no início
-  for(let i=0;i<priDia.getDay();i++) html+=`<div class="cal-day vazio"></div>`;
+
+  for(let i=0;i<priDia.getDay();i++) html+='<div class="cal-day vazio"></div>';
+
   for(let d=1;d<=ultDia.getDate();d++){
     const dt=new Date(calMes.getFullYear(),calMes.getMonth(),d);
     const dtStr=dt.toISOString().split('T')[0];
-    const passado=dt<hoje;
-    const futuro=dt>maxData;
-    const diaAtivo=CONF.dias.includes(dt.getDay());
-    const isHoje=dtStr===hoje.toISOString().split('T')[0];
-    const isSel=dtStr===dataSel;
-    const cls=isSel?'sel':isHoje?'hoje':passado||futuro||!diaAtivo?'indisponivel':'';
-    const click=!passado&&!futuro&&diaAtivo?`onclick="selData('${dtStr}')":``;
-    html+=`<div class="cal-day ${cls}" ${click}>${d}</div>`;
+    const passado=dt<hoje, futuro=dt>maxData, diaAtivo=CONF.dias.includes(dt.getDay());
+    const isHoje=dtStr===hoje.toISOString().split('T')[0], isSel=dtStr===dataSel;
+    let cls=isSel?'sel':isHoje?'hoje':passado||futuro||!diaAtivo?'indisponivel':'';
+    let click='';
+    if(!passado&&!futuro&&diaAtivo) click='onclick="selData(\''+dtStr+'\')"';
+    html+='<div class="cal-day '+cls+'" '+click+'>'+d+'</div>';
   }
-  document.getElementById('cal-dias').innerHTML=html;
+  dias.innerHTML=html;
 }
 
 function selData(dtStr){
