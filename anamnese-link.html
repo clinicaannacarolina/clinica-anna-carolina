@@ -254,14 +254,14 @@ async function init(){
     <div class="resp-row">
       <span class="resp-label">${q.label}</span>
       <div class="resp-opts">
-        <label><input type="radio" name="${q.id}" value="sim"> Sim</label>
-        <label><input type="radio" name="${q.id}" value="nao" checked> Não</label>
+        <label><input type="radio" name="q_${q.id}" value="sim"> Sim</label>
+        <label><input type="radio" name="q_${q.id}" value="nao" checked> Não</label>
         <input type="text" class="qual-input" id="qual-${q.id}" placeholder="Qual?" style="display:none;width:100%;margin-top:6px"/>
       </div>
     </div>`).join('');
 
   AN_PERGUNTAS.forEach(q=>{
-    document.querySelectorAll(`input[name="${q.id}"]`).forEach(r=>{
+    document.querySelectorAll(`input[name="q_${q.id}"]`).forEach(r=>{
       r.addEventListener('change',()=>{
         const qi = document.getElementById('qual-'+q.id);
         if(qi) qi.style.display = r.value==='sim' ? 'block' : 'none';
@@ -289,57 +289,68 @@ async function enviarAnamnese(){
   btn.disabled = true;
   btn.textContent = 'Enviando...';
 
-  // Coletar dados
+  // ── Coletar dados ──
   const dados = {
-    endereco:  document.getElementById('f-endereco').value.trim(),
-    rg:        document.getElementById('f-rg').value.trim(),
-    cpf:       document.getElementById('f-cpf').value.trim(),
-    sexo:      document.getElementById('f-sexo').value,
-    nasc:      document.getElementById('f-nasc').value,
+    endereco: document.getElementById('f-endereco').value.trim(),
+    rg:       document.getElementById('f-rg').value.trim(),
+    cpf:      document.getElementById('f-cpf').value.trim(),
+    sexo:     document.getElementById('f-sexo').value,
+    nasc:     document.getElementById('f-nasc').value,
     perguntas: {},
-    checks:    {},
-    obs:       document.getElementById('f-obs').value.trim(),
+    checks:   {},
+    obs:      document.getElementById('f-obs').value.trim(),
     preenchido_via: 'link',
     data_preenchimento: new Date().toISOString(),
   };
 
+  // Coleta robusta: itera todos os radios e verifica .checked diretamente
   AN_PERGUNTAS.forEach(q=>{
-    const r = document.querySelector(`input[name="${q.id}"]:checked`);
-    dados.perguntas[q.id] = r ? r.value : 'nao';
-    const qual = document.getElementById('qual-'+q.id);
-    if(qual && qual.value) dados.perguntas[q.id+'_qual'] = qual.value;
+    let val = 'nao'; // padrão
+    document.querySelectorAll(`input[name="q_${q.id}"]`).forEach(r=>{
+      if(r.checked) val = r.value;
+    });
+    dados.perguntas[q.id] = val;
+    if(val === 'sim'){
+      const qual = document.getElementById('qual-'+q.id);
+      if(qual && qual.value.trim()) dados.perguntas[q.id+'_qual'] = qual.value.trim();
+    }
   });
 
+  // Coleta checkboxes
   AN_CHECKS.forEach((_,i)=>{
     dados.checks[i] = document.getElementById('ck-'+i)?.checked || false;
   });
 
-  // Atualizar link como preenchido
+  // ── Salvar no Supabase ──
   const {error: e1} = await db.from('anamnese_links').update({
     status: 'preenchido',
     dados: dados,
     preenchido_em: new Date().toISOString()
   }).eq('id', linkData.id);
 
-  if(e1){ btn.disabled=false; btn.textContent='✅ Enviar Anamnese'; alert('Erro ao enviar. Tente novamente.'); return; }
+  if(e1){
+    btn.disabled=false;
+    btn.textContent='✅ Enviar Anamnese';
+    alert('Erro ao enviar: '+e1.message+'\nTente novamente.');
+    return;
+  }
 
-  // Salvar também como documento na ficha
+  // Salvar como documento na ficha do paciente
   await db.from('documentos').insert({
     paciente_id: linkData.paciente_id,
     tipo: 'anamnese',
-    dados: dados,
-    criado_em: new Date().toISOString()
+    dados: dados
   });
 
-  // Atualizar dados do paciente com as novas informações
-  const updatePac = {};
-  if(dados.endereco) updatePac.endereco = dados.endereco;
-  if(dados.rg)       updatePac.rg = dados.rg;
-  if(dados.cpf)      updatePac.cpf = dados.cpf;
-  if(dados.sexo)     updatePac.sexo = dados.sexo;
-  if(dados.nasc)     updatePac.data_nascimento = dados.nasc;
-  if(Object.keys(updatePac).length > 0){
-    await db.from('pacientes').update(updatePac).eq('id', linkData.paciente_id);
+  // Atualizar cadastro com dados pessoais preenchidos
+  const upd = {};
+  if(dados.endereco) upd.endereco        = dados.endereco;
+  if(dados.rg)       upd.rg              = dados.rg;
+  if(dados.cpf)      upd.cpf             = dados.cpf;
+  if(dados.sexo)     upd.sexo            = dados.sexo;
+  if(dados.nasc)     upd.data_nascimento = dados.nasc;
+  if(Object.keys(upd).length > 0){
+    await db.from('pacientes').update(upd).eq('id', linkData.paciente_id);
   }
 
   setState('st-sucesso');
