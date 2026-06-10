@@ -303,6 +303,8 @@ textarea{resize:vertical;min-height:70px}
 
   <!-- AGENDA -->
   <div id="p-agenda" class="panel">
+    <!-- Dashboard de ocupação da agenda -->
+    <div id="ag-stats" style="margin-bottom:8px"></div>
     <div class="card">
       <div class="ag-nav">
         <button class="btn" style="padding:6px 11px" onclick="mvMes(-1)">◀</button>
@@ -487,6 +489,14 @@ textarea{resize:vertical;min-height:70px}
     <div class="card">
       <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--txt)">💰 Faturamento estimado</div>
       <div id="rel-fat"></div>
+    </div>
+    <div class="card">
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--txt)">🏅 Programa de Indicação — Embaixadoras</div>
+      <div id="rel-embaixadoras"></div>
+    </div>
+    <div class="card">
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--txt)">📊 Como as pacientes conheceram a clínica</div>
+      <div id="rel-conheceu"></div>
     </div>
   </div>
 
@@ -1019,7 +1029,7 @@ async function carregar(){
 
 async function carregarAgenda(){
   const{data}=await db.from('agenda').select('*').order('hora');
-  consultas=data||[];renderCal();renderConsDia(agDia);renderConsMes();renderHoje();
+  consultas=data||[];renderCal();renderConsDia(agDia);renderConsMes();renderHoje();renderAgendaStats();
 }
 
 function stats(){
@@ -1299,6 +1309,91 @@ async function renderRel(){
 
   // Faturamento
   document.getElementById('rel-fat').innerHTML=totalFat===0?`<div class="empty"><p>Adicione valores nos atendimentos para ver o faturamento.</p></div>`:`<div style="font-size:28px;font-weight:600;color:var(--verde);margin-bottom:4px">${fmtBRL(totalFat)}</div><div style="font-size:13px;color:var(--ct)">em ${totalAtend} atendimento${totalAtend>1?'s':''} · média de ${fmtBRL(totalFat/totalAtend)} por atendimento</div>`;
+
+  // ── Programa de Indicação — Embaixadoras ──
+  // Cruzar p.indicacao com nomes reais de pacientes
+  const embaixadoras = {};
+  pacs.forEach(p=>{
+    if(!p.indicacao) return;
+    const nomeInd = p.indicacao.trim().toLowerCase();
+    // Buscar paciente correspondente
+    const pac = pacs.find(x=>x.nome.toLowerCase().trim()===nomeInd||(x.apelido&&x.apelido.toLowerCase().trim()===nomeInd));
+    const key = pac ? pac.id : p.indicacao.trim();
+    const label = pac ? pac.nome : p.indicacao.trim();
+    if(!embaixadoras[key]) embaixadoras[key]={label, count:0, pacs:[], fatTotal:0, pacObj:pac||null};
+    embaixadoras[key].count++;
+    embaixadoras[key].pacs.push(p);
+    // Somar faturamento dos pacientes indicados
+    const fat = (p.tratamentos_adicionais||[]).reduce((s,t)=>s+(parseFloat(t.valor)||0),0);
+    embaixadoras[key].fatTotal += fat;
+  });
+  const embSort = Object.values(embaixadoras).sort((a,b)=>b.count-a.count).slice(0,10);
+  const maxEmb = embSort[0]?.count || 1;
+
+  const elEmb = document.getElementById('rel-embaixadoras');
+  if(elEmb){
+    if(!embSort.length){
+      elEmb.innerHTML=`<div class="empty"><p>Nenhuma indicação registrada ainda. Cadastre a indicação nos dados do paciente.</p></div>`;
+    } else {
+      const totalInds = embSort.reduce((s,e)=>s+e.count,0);
+      elEmb.innerHTML=`
+        <div style="font-size:12px;color:var(--ct);margin-bottom:12px">${totalInds} paciente${totalInds!==1?'s':''} indicado${totalInds!==1?'s':''} no total</div>
+        ${embSort.map((e,i)=>`
+          <div style="margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <div>
+                <span style="font-size:13px;font-weight:600">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'👥'} ${e.label}</span>
+                ${e.pacObj?`<a href="paciente.html?id=${e.pacObj.id}" style="font-size:11px;color:var(--verde);margin-left:6px">ver ficha →</a>`:''}
+              </div>
+              <div style="text-align:right">
+                <span style="font-weight:700;color:var(--verde-e)">${e.count} indicaç${e.count!==1?'ões':'ão'}</span>
+                ${e.fatTotal>0?`<div style="font-size:10px;color:var(--ct)">${fmtBRL(e.fatTotal)} gerado</div>`:''}
+              </div>
+            </div>
+            <div style="background:var(--borda);border-radius:99px;height:7px">
+              <div style="background:${i===0?'var(--verde)':'var(--verde-c)'};border:1px solid var(--verde);height:7px;border-radius:99px;width:${Math.round(e.count/maxEmb*100)}%;transition:.3s"></div>
+            </div>
+            <div style="font-size:11px;color:var(--ct);margin-top:3px">
+              ${e.pacs.slice(0,3).map(p=>p.nome.split(' ').slice(0,2).join(' ')).join(', ')}${e.pacs.length>3?` e mais ${e.pacs.length-3}`:''}
+            </div>
+          </div>`).join('')}`;
+    }
+  }
+
+  // ── Como conheceu a clínica ──
+  const conheceu = {};
+  pacs.forEach(p=>{
+    const v = (p.como_conheceu||'').trim();
+    if(!v) return;
+    conheceu[v] = (conheceu[v]||0)+1;
+  });
+  // Pacientes com indicação mas sem como_conheceu também contam como "Indicação"
+  pacs.forEach(p=>{
+    if(p.indicacao && !p.como_conheceu) conheceu['Indicação de paciente']=(conheceu['Indicação de paciente']||0)+1;
+  });
+  const conhSort = Object.entries(conheceu).sort((a,b)=>b[1]-a[1]);
+  const totalConh = conhSort.reduce((s,[,v])=>s+v,0);
+  const maxConh = conhSort[0]?.[1]||1;
+
+  const elConh = document.getElementById('rel-conheceu');
+  if(elConh){
+    if(!conhSort.length){
+      elConh.innerHTML=`<div class="empty"><p>Sem dados de como as pacientes conheceram a clínica.</p></div>`;
+    } else {
+      elConh.innerHTML=`
+        <div style="font-size:12px;color:var(--ct);margin-bottom:12px">${totalConh} resposta${totalConh!==1?'s':''} registrada${totalConh!==1?'s':''}</div>
+        ${conhSort.map(([nome,qtd])=>`
+          <div style="margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+              <span>${nome}</span>
+              <span style="font-weight:600">${qtd} (${Math.round(qtd/totalConh*100)}%)</span>
+            </div>
+            <div style="background:var(--borda);border-radius:99px;height:7px">
+              <div style="background:var(--verde);height:7px;border-radius:99px;width:${Math.round(qtd/maxConh*100)}%"></div>
+            </div>
+          </div>`).join('')}`;
+    }
+  }
 }
 
 // WHATSAPP
@@ -2378,7 +2473,68 @@ function renderCal(){
 }
 
 function selDia(ds){agDia=ds;renderCal();renderConsDia(ds);}
-function mvMes(dir){agMes.setMonth(agMes.getMonth()+dir);renderCal();renderConsMes();}
+
+// ── Dashboard de Ocupação da Agenda ──
+function renderAgendaStats(){
+  const el=document.getElementById('ag-stats');
+  if(!el||!consultas) return;
+  const ano=agMes.getFullYear(), mes=agMes.getMonth()+1;
+  const mesStr=String(mes).padStart(2,'0');
+  const csMes=consultas.filter(c=>c.data.startsWith(`${ano}-${mesStr}`));
+  const csAtivas=csMes.filter(c=>c.status!=='cancelado');
+  const csCanceladas=csMes.filter(c=>c.status==='cancelado');
+
+  // Dias disponíveis (excluindo domingos)
+  const diasMes=new Date(ano,mes,0).getDate();
+  let diasDisp=0;
+  for(let d=1;d<=diasMes;d++){if(new Date(ano,mes-1,d).getDay()!==0)diasDisp++;}
+
+  // Dias com consulta
+  const diasComCons=new Set(csAtivas.map(c=>c.data)).size;
+  const taxaOcup=diasDisp>0?Math.round(diasComCons/diasDisp*100):0;
+
+  // Horário mais popular
+  const porHora={};
+  csAtivas.forEach(c=>{const h=c.hora.slice(0,5);porHora[h]=(porHora[h]||0)+1;});
+  const topHora=Object.entries(porHora).sort((a,b)=>b[1]-a[1])[0];
+
+  // Dia da semana mais movimentado
+  const DIAS_SEM=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const porDow={};
+  csAtivas.forEach(c=>{const dow=new Date(c.data+'T12:00:00').getDay();porDow[dow]=(porDow[dow]||0)+1;});
+  const topDow=Object.entries(porDow).sort((a,b)=>b[1]-a[1])[0];
+
+  if(!csAtivas.length){el.innerHTML='';return;}
+
+  el.innerHTML=`
+    <div style="background:var(--card);border-radius:12px;padding:12px;border:1px solid var(--borda);margin-bottom:2px">
+      <div style="font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">📅 Ocupação da Agenda — ${MESES_N[mes-1]} ${ano}</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px">
+        <div style="background:var(--verde-c);border-radius:10px;padding:10px;text-align:center;border:1px solid var(--verde)">
+          <div style="font-size:10px;color:var(--verde-e);font-weight:700;text-transform:uppercase">Consultas</div>
+          <div style="font-size:24px;font-weight:700;color:var(--verde-e)">${csAtivas.length}</div>
+          <div style="font-size:10px;color:var(--verde-e)">no mês</div>
+        </div>
+        <div style="background:var(--bg);border-radius:10px;padding:10px;text-align:center;border:1px solid var(--borda)">
+          <div style="font-size:10px;color:var(--ct);font-weight:700;text-transform:uppercase">Ocupação</div>
+          <div style="font-size:24px;font-weight:700;color:${taxaOcup>=70?'var(--verde-e)':taxaOcup>=40?'#8a6000':'var(--vermelho)'}">${taxaOcup}%</div>
+          <div style="font-size:10px;color:var(--ct)">${diasComCons} de ${diasDisp} dias</div>
+        </div>
+        <div style="background:var(--bg);border-radius:10px;padding:10px;text-align:center;border:1px solid var(--borda)">
+          <div style="font-size:10px;color:var(--ct);font-weight:700;text-transform:uppercase">Top horário</div>
+          <div style="font-size:20px;font-weight:700;color:var(--txt)">${topHora?topHora[0]:'—'}</div>
+          <div style="font-size:10px;color:var(--ct)">${topHora?topHora[1]+' vez'+( topHora[1]!==1?'es':''):''}</div>
+        </div>
+        <div style="background:${csCanceladas.length>0?'var(--vermelho-c)':'var(--bg)'};border-radius:10px;padding:10px;text-align:center;border:1px solid ${csCanceladas.length>0?'var(--vermelho)':'var(--borda)'}">
+          <div style="font-size:10px;color:${csCanceladas.length>0?'var(--vermelho)':'var(--ct)'};font-weight:700;text-transform:uppercase">Cancelam.</div>
+          <div style="font-size:24px;font-weight:700;color:${csCanceladas.length>0?'var(--vermelho)':'var(--txt)'}">${csCanceladas.length}</div>
+          <div style="font-size:10px;color:var(--ct)">${csCanceladas.length>0?Math.round(csCanceladas.length/csMes.length*100)+'% do total':'nenhum'}</div>
+        </div>
+      </div>
+      ${topDow&&topDow[1]>0?`<div style="font-size:11px;color:var(--ct);text-align:center">📊 Dia mais movimentado: <strong style="color:var(--txt)">${DIAS_SEM[topDow[0]]}</strong> (${topDow[1]} consulta${topDow[1]!==1?'s':''})</div>`:''}
+    </div>`;
+}
+function mvMes(dir){agMes.setMonth(agMes.getMonth()+dir);renderCal();renderConsMes();renderAgendaStats();}
 
 let agView='lista'; // 'lista' | 'timeline' | 'semana'
 
