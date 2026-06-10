@@ -171,6 +171,8 @@ textarea{resize:vertical;min-height:70px}
 .ci.pen{border-color:var(--amarelo);background:var(--amarelo-c)}
 .ci.can{border-color:var(--vermelho);background:var(--vermelho-c);opacity:.7}
 .ci.real{border-color:var(--verde);background:var(--verde-c)}
+.ci.online{border-color:#7c3aed;background:#f5f3ff}
+.badge-online{font-size:10px;font-weight:700;color:#7c3aed;background:#ede9fe;padding:2px 7px;border-radius:20px;margin-left:6px}
 .ci.faltou{opacity:.5;border-color:var(--ct);filter:grayscale(.5)}
 .ch{font-size:15px;font-weight:700;color:var(--verde-e);min-width:40px}
 .pen .ch{color:#633806}
@@ -294,6 +296,7 @@ textarea{resize:vertical;min-height:70px}
       <button class="btn pri" style="padding:8px 14px;font-size:13px" onclick="aba('agenda',document.querySelectorAll('.tb')[1]);setTimeout(()=>abrAg(),300)">📅 Agendar consulta</button>
       <button class="btn" style="padding:8px 14px;font-size:13px" onclick="aba('cadastro',document.querySelectorAll('.tb')[5])">➕ Novo paciente</button>
     </div>
+    <div id="sec-pedidos-online" style="display:none;margin-bottom:.75rem"></div>
     <div class="sl2">📅 Consultas de hoje</div><div id="l-cons-hoje"></div>
     <div class="sl2">⏰ Consultas amanhã — confirmar presença</div><div id="l-cons-amanha"></div>
     <div class="sl2">🔬 Verificações pós-procedimento</div><div id="l-verificacoes"></div>
@@ -309,6 +312,8 @@ textarea{resize:vertical;min-height:70px}
   <div id="p-agenda" class="panel">
     <!-- Dashboard de ocupação da agenda -->
     <div id="ag-stats" style="margin-bottom:8px"></div>
+    <!-- Pedidos online pendentes no topo da Agenda -->
+    <div id="ag-pedidos-online" style="margin-bottom:8px"></div>
     <div class="card">
       <div class="ag-nav">
         <button class="btn" style="padding:6px 11px" onclick="mvMes(-1)">◀</button>
@@ -327,6 +332,7 @@ textarea{resize:vertical;min-height:70px}
             <button class="ag-view-tab" id="ag-tab-semana" onclick="setAgView('semana')">📅 Semana</button>
           </div>
           <button class="btn pri" style="padding:7px 13px;font-size:13px" onclick="abrAg()">+ Agendar</button>
+          <button class="btn" style="padding:7px 10px;font-size:12px;background:#7c3aed;color:white;border-color:#7c3aed" onclick="abrirConfAgOnline()" title="Configurar agendamento online">📱</button>
         </div>
       </div>
       <div id="ag-cons"></div>
@@ -2757,7 +2763,7 @@ function renderConsDia(ds){
   const el=document.getElementById('ag-cons');
   const cs=consultas.filter(c=>c.data===ds).sort((a,b)=>a.hora.localeCompare(b.hora));
   if(!cs.length){el.innerHTML=`<div class="empty" style="padding:1.5rem"><div class="empty-icon">📋</div><p>Nenhuma consulta. Clique em "+ Agendar".</p></div>`;renderConsMes();return;}
-  el.innerHTML=cs.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';const cls=c.status==='cancelado'?'can':c.status==='pendente'?'pen':'';return`<div class="ci ${cls}" data-cid="${c.id}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${c.nome}${c.status==='cancelado'?' <span style="font-size:11px;color:var(--vermelho)">(cancelado)</span>':''}</div><div class="cd">${c.procedimento||'Sem procedimento'}${c.telefone?' · '+c.telefone:''}${c.observacao?' · '+c.observacao:''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬</a>`:''}<a href="${urlGcal(c)}" target="_blank" class="btn gcal">📆</a><button class="btn" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})'>✏️</button>${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">Ficha</a>`:''}<button class="btn btn-vincular" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('');
+  el.innerHTML=cs.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';const cls=c.status==='cancelado'?'can':c.status==='pendente'?'pen':c.status==='aguardando'?'online':'';return`<div class="ci ${cls}" data-cid="${c.id}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${c.nome}${c.status==='cancelado'?' <span style="font-size:11px;color:var(--vermelho)">(cancelado)</span>':''}${c.origem==='online'?'<span class="badge-online">📱 Online</span>':''}</div><div class="cd">${c.procedimento||'Sem procedimento'}${c.telefone?' · '+c.telefone:''}${c.observacao?' · '+c.observacao:''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬</a>`:''}<a href="${urlGcal(c)}" target="_blank" class="btn gcal">📆</a><button class="btn" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})'>✏️</button>${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">Ficha</a>`:''}<button class="btn btn-vincular" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('');
   renderConsMes();
   setTimeout(injetarBtnFicha,300);
   setTimeout(injetarBtnFicha,1200);
@@ -3425,6 +3431,117 @@ async function fecharDia(){
   await carregarAgenda();
 }
 
+// ══════════════════════════════════════════════════
+// AGENDAMENTO ONLINE — CONFIGURAÇÃO E APROVAÇÃO
+// ══════════════════════════════════════════════════
+
+// ── Carregar pedidos aguardando aprovação ──
+async function renderPedidosOnline(){
+  const elHoje = document.getElementById('sec-pedidos-online');
+  const elAg   = document.getElementById('ag-pedidos-online');
+  const{data}=await db.from('agenda').select('*').eq('status','aguardando').order('data').order('hora');
+  const pend = data||[];
+
+  // Painel Hoje
+  if(elHoje){
+    if(!pend.length){elHoje.style.display='none';return;}
+    elHoje.style.display='block';
+    elHoje.innerHTML=`
+      <div style="background:#f5f3ff;border:1.5px solid #7c3aed;border-radius:12px;padding:12px 14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+          <div style="font-size:13px;font-weight:700;color:#5b21b6">📱 ${pend.length} pedido${pend.length!==1?'s':''} de agendamento online</div>
+        </div>
+        ${pend.map(c=>`
+          <div style="background:white;border-radius:8px;padding:10px;margin-bottom:6px;border:1px solid #e9d5ff;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <div style="flex:1;min-width:150px">
+              <div style="font-size:13px;font-weight:600">${c.nome}</div>
+              <div style="font-size:11px;color:var(--ct)">${c.data.split('-').reverse().join('/')} às ${c.hora.slice(0,5)}${c.procedimento?' · '+c.procedimento:''}</div>
+              ${c.telefone?`<div style="font-size:11px;color:var(--ct)">${c.telefone}</div>`:''}
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0">
+              <button class="btn" style="padding:5px 12px;font-size:12px;background:var(--verde);color:white;border-color:var(--verde)" onclick="aprovarPedido('${c.id}')">✅ Aprovar</button>
+              <button class="btn" style="padding:5px 12px;font-size:12px;background:var(--vermelho-c);color:var(--vermelho);border-color:var(--vermelho)" onclick="rejeitarPedido('${c.id}','${c.telefone||''}','${c.nome}')">❌ Recusar</button>
+            </div>
+          </div>`).join('')}
+      </div>`;
+  }
+  // Painel Agenda
+  if(elAg){
+    elAg.innerHTML = pend.length ? elHoje?.innerHTML||'' : '';
+  }
+}
+
+async function aprovarPedido(id){
+  await db.from('agenda').update({status:'agendado'}).eq('id',id);
+  toast('✅ Pedido aprovado! Paciente pode ser notificada.','verde');
+  await carregarAgenda();
+  renderPedidosOnline();
+}
+
+async function rejeitarPedido(id, tel, nome){
+  if(!confirm(`Recusar o pedido de ${nome}?`)) return;
+  await db.from('agenda').update({status:'cancelado'}).eq('id',id);
+  if(tel){
+    const telF='55'+tel.replace(/\D/g,'');
+    const msg=`Olá ${nome.split(' ')[0]}! 😊\n\nInfelizmente o horário solicitado não está mais disponível.\n\nPor favor, acesse o link de agendamento para escolher outro horário, ou entre em contato diretamente.\n\nDra. Anna Carolina Dias — (17) 98211-3940`;
+    if(confirm('Abrir WhatsApp para notificar a paciente?'))
+      window.open(`https://wa.me/${telF}?text=${encodeURIComponent(msg)}`,'_blank');
+  }
+  toast('❌ Pedido recusado','vermelho');
+  await carregarAgenda();
+  renderPedidosOnline();
+}
+
+// ── Modal de configuração do agendamento online ──
+function abrirConfAgOnline(){
+  const conf=JSON.parse(localStorage.getItem('conf_ag_online')||'{}');
+  document.getElementById('cao-ativo').checked = conf.ativo !== false;
+  document.getElementById('cao-hora-ini').value = conf.hora_ini||'09:00';
+  document.getElementById('cao-hora-fim').value = conf.hora_fim||'18:00';
+  document.getElementById('cao-duracao').value  = conf.duracao||60;
+  document.getElementById('cao-max-dias').value = conf.max_dias||30;
+  const dias = conf.dias||[1,2,3,4,5,6];
+  document.querySelectorAll('[name="cao-dia"]').forEach(cb=>{
+    cb.checked = dias.includes(parseInt(cb.value));
+  });
+  // Gerar link
+  const link = window.location.href.replace('index.html','').replace(/\?.*$/,'')+'agenda-online.html';
+  document.getElementById('cao-link').value = link;
+  document.getElementById('m-ag-online').classList.add('open');
+}
+
+function salvarConfAgOnline(){
+  const dias=[];
+  document.querySelectorAll('[name="cao-dia"]:checked').forEach(cb=>dias.push(parseInt(cb.value)));
+  const conf={
+    ativo:    document.getElementById('cao-ativo').checked,
+    hora_ini: document.getElementById('cao-hora-ini').value,
+    hora_fim: document.getElementById('cao-hora-fim').value,
+    duracao:  parseInt(document.getElementById('cao-duracao').value),
+    max_dias: parseInt(document.getElementById('cao-max-dias').value),
+    dias,
+  };
+  localStorage.setItem('conf_ag_online', JSON.stringify(conf));
+  document.getElementById('m-ag-online').classList.remove('open');
+  toast('Configurações salvas ✅','verde');
+}
+
+function copiarLinkAgOnline(){
+  const v=document.getElementById('cao-link').value;
+  navigator.clipboard.writeText(v).then(()=>toast('Link copiado! ✅','verde')).catch(()=>{
+    const t=document.createElement('textarea');t.value=v;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);toast('Link copiado! ✅','verde');
+  });
+}
+
+function compartilharWppAgOnline(){
+  const link=document.getElementById('cao-link').value;
+  const msg=`Olá! 😊 Para agendar sua consulta com a Dra. Anna Carolina, acesse o link abaixo e escolha o melhor horário:\n${link}\n\nDra. Anna Carolina Dias — CRO 82281 | (17) 98211-3940`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank');
+}
+
+// Chamar no carregar inicial
+setTimeout(renderPedidosOnline, 1500);
+
 // PWA
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js'));
 
@@ -3671,6 +3788,74 @@ document.addEventListener('DOMContentLoaded', ()=>{
 </div>
 <script>
 document.getElementById('modal-mrec').addEventListener('click',function(e){if(e.target===this)fecharMarcarRecebido();});
+</script>
+
+<!-- MODAL CONFIGURAÇÃO AGENDAMENTO ONLINE -->
+<div class="mb" id="m-ag-online">
+  <div class="mx" style="max-width:460px">
+    <h3 style="margin-bottom:4px">📱 Agendamento Online</h3>
+    <p style="font-size:13px;color:var(--ct);margin-bottom:14px">Configure os horários disponíveis para agendamento pelo paciente.</p>
+
+    <!-- Ativo/inativo -->
+    <label style="display:flex;align-items:center;gap:10px;margin-bottom:14px;cursor:pointer;background:var(--verde-c);border-radius:10px;padding:10px 14px">
+      <input type="checkbox" id="cao-ativo" style="accent-color:var(--verde);width:18px;height:18px"/>
+      <span style="font-size:13px;font-weight:600;color:var(--verde-e)">Agendamento online ativado</span>
+    </label>
+
+    <!-- Dias da semana -->
+    <div style="font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;margin-bottom:8px">Dias disponíveis</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+      ${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map((d,i)=>`
+        <label style="cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <input type="checkbox" name="cao-dia" value="${i}" style="accent-color:var(--verde)"/>
+          <span style="font-size:11px;font-weight:600">${d}</span>
+        </label>`).join('')}
+    </div>
+
+    <!-- Horários e duração -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+      <div><label style="font-size:11px;font-weight:600;color:var(--ct);display:block;margin-bottom:4px">INÍCIO</label>
+        <input type="time" id="cao-hora-ini" style="padding:8px"/></div>
+      <div><label style="font-size:11px;font-weight:600;color:var(--ct);display:block;margin-bottom:4px">FIM</label>
+        <input type="time" id="cao-hora-fim" style="padding:8px"/></div>
+      <div><label style="font-size:11px;font-weight:600;color:var(--ct);display:block;margin-bottom:4px">SLOT (min)</label>
+        <select id="cao-duracao" style="padding:8px">
+          <option value="30">30 min</option>
+          <option value="45">45 min</option>
+          <option value="60">60 min</option>
+          <option value="90">90 min</option>
+        </select></div>
+    </div>
+    <div style="margin-bottom:14px"><label style="font-size:11px;font-weight:600;color:var(--ct);display:block;margin-bottom:4px">ANTECEDÊNCIA MÁXIMA (dias)</label>
+      <input type="number" id="cao-max-dias" min="7" max="90" style="padding:8px;width:100px"/></div>
+
+    <!-- Link -->
+    <div style="font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;margin-bottom:8px">Link para compartilhar</div>
+    <div style="display:flex;gap:6px;margin-bottom:14px">
+      <input type="text" id="cao-link" readonly style="font-size:11px;background:var(--bg);flex:1"/>
+      <button class="btn" onclick="copiarLinkAgOnline()" style="flex-shrink:0;font-size:12px">📋 Copiar</button>
+      <button class="btn" onclick="compartilharWppAgOnline()" style="flex-shrink:0;font-size:12px;background:#25D366;color:white;border-color:#25D366">💬</button>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="document.getElementById('m-ag-online').classList.remove('open')">Cancelar</button>
+      <button class="btn pri" onclick="salvarConfAgOnline()">✅ Salvar configurações</button>
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById('m-ag-online').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.classList.remove('open');});
+// Preencher dias da semana no HTML (innerHTML não funciona em atributos)
+(function(){
+  const DIAS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const cont=document.querySelector('#m-ag-online .mx [style*="flex;gap:6px;flex-wrap"]');
+  if(!cont)return;
+  cont.innerHTML=DIAS.map((d,i)=>`
+    <label style="cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 8px;border:1.5px solid var(--borda);border-radius:8px;min-width:44px;text-align:center">
+      <input type="checkbox" name="cao-dia" value="${i}" style="accent-color:var(--verde)"/>
+      <span style="font-size:11px;font-weight:600">${d}</span>
+    </label>`).join('');
+})();
 </script>
 
 <!-- MODAL DISPARO LEMBRETES -->

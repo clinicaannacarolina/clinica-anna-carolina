@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+  <title>Agendar Consulta — Dra. Anna Carolina Dias</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{
+      --verde:#2D9B6F;--verde-c:#e8f5f0;--verde-e:#1a6e4a;
+      --vermelho:#E24B4A;--amarelo:#ef9f27;--amarelo-c:#fffbea;
+      --txt:#1a1a2e;--ct:#6b7280;--bg:#f5f7fa;--card:#fff;--borda:#e5e7eb;
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;padding-bottom:3rem}
+    .header{background:var(--verde);color:white;text-align:center;padding:1.25rem 1rem;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+    .header-logo{background:white;border-radius:10px;padding:4px 12px;display:inline-block;margin-bottom:8px}
+    .header-logo img{height:48px;object-fit:contain;display:block}
+    .header h1{font-size:16px;font-weight:700;margin:2px 0}
+    .header p{font-size:11px;opacity:.85}
+    .container{max-width:560px;margin:0 auto;padding:1rem}
+    .card{background:var(--card);border-radius:14px;padding:1.25rem;margin-bottom:1rem;border:1px solid var(--borda);box-shadow:0 1px 4px rgba(0,0,0,.05)}
+    .steps{display:flex;gap:6px;margin-bottom:1.25rem;padding:0 .5rem}
+    .step{flex:1;height:4px;border-radius:99px;background:var(--borda);transition:.3s}
+    .step.done{background:var(--verde)}
+    .step.active{background:var(--verde);opacity:.5}
+    .sec-title{font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem}
+    label{font-size:12px;font-weight:600;color:var(--ct);display:block;margin-bottom:4px}
+    input,select,textarea{width:100%;padding:10px 12px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;font-family:inherit;color:var(--txt);background:var(--card)}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:var(--verde)}
+    .fg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .fg .full{grid-column:1/-1}
+    /* Calendário */
+    .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:1rem}
+    .cal-head{font-size:11px;font-weight:700;color:var(--ct);text-align:center;padding:4px 0}
+    .cal-day{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;border:1.5px solid transparent;transition:.15s;font-weight:500}
+    .cal-day:hover{border-color:var(--verde);background:var(--verde-c)}
+    .cal-day.hoje{font-weight:700;border-color:var(--verde);color:var(--verde-e)}
+    .cal-day.sel{background:var(--verde);color:white;border-color:var(--verde)}
+    .cal-day.vazio,.cal-day.passado,.cal-day.indisponivel{color:var(--borda);cursor:default;pointer-events:none}
+    .cal-day.indisponivel{background:var(--bg);color:var(--borda)}
+    /* Slots */
+    .slots-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+    .slot{padding:8px 4px;border-radius:8px;border:1.5px solid var(--borda);text-align:center;font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
+    .slot:hover{border-color:var(--verde);background:var(--verde-c);color:var(--verde-e)}
+    .slot.sel{background:var(--verde);color:white;border-color:var(--verde)}
+    /* Botões */
+    .btn-pri{width:100%;padding:13px;background:var(--verde);color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;transition:opacity .15s}
+    .btn-pri:disabled{opacity:.5;cursor:not-allowed}
+    .btn-sec{padding:10px 18px;background:transparent;color:var(--ct);border:1.5px solid var(--borda);border-radius:10px;font-size:14px;font-family:inherit;cursor:pointer}
+    /* Estados */
+    .state{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:55vh;text-align:center;padding:2rem}
+    .state.active{display:flex}
+    .state-icon{font-size:56px;margin-bottom:1rem}
+    /* Resumo confirmação */
+    .resumo-item{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--borda);font-size:14px}
+    .resumo-item:last-child{border:none}
+    .resumo-icon{font-size:18px;width:28px;flex-shrink:0}
+    @media(max-width:440px){.slots-grid{grid-template-columns:repeat(3,1fr)}}
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">
+    <img src="https://claudiogallegoadv.github.io/clinica-anna-carolina/logo.jpg" alt="Dra. Anna Carolina"/>
+  </div>
+  <h1>Dra. Anna Carolina Dias</h1>
+  <p>HARMONIZAÇÃO OROFACIAL · CRO 82281 · (17) 98211-3940</p>
+</div>
+
+<!-- ESTADO: INATIVO -->
+<div class="state" id="st-inativo">
+  <div class="state-icon">🔒</div>
+  <h2>Agendamento indisponível</h2>
+  <p style="color:var(--ct);font-size:14px;max-width:280px">O agendamento online está temporariamente desativado. Entre em contato diretamente com a clínica.</p>
+  <a href="https://wa.me/5517982113993" target="_blank" style="margin-top:1rem;padding:12px 24px;background:var(--verde);color:white;border-radius:12px;text-decoration:none;font-weight:600;font-size:14px">💬 WhatsApp</a>
+</div>
+
+<!-- ESTADO: SUCESSO -->
+<div class="state" id="st-sucesso">
+  <div class="state-icon">🎉</div>
+  <h2>Solicitação enviada!</h2>
+  <p style="color:var(--ct);font-size:14px;line-height:1.6;max-width:300px">Sua solicitação de agendamento foi recebida. A Dra. Anna Carolina confirmará em breve pelo WhatsApp.</p>
+  <div id="st-suc-resumo" style="margin-top:1.25rem;background:var(--verde-c);border-radius:12px;padding:14px 18px;text-align:left;width:100%;max-width:320px;font-size:13px"></div>
+</div>
+
+<!-- FORMULÁRIO -->
+<div id="st-form">
+  <div class="container">
+    <div style="text-align:center;margin-bottom:1rem;padding-top:.5rem">
+      <div style="font-size:20px;font-weight:700">📅 Agendar Consulta</div>
+      <div style="font-size:13px;color:var(--ct);margin-top:3px">Preencha os dados e escolha o melhor horário</div>
+    </div>
+
+    <!-- Barra de progresso -->
+    <div class="steps">
+      <div class="step active" id="stp1"></div>
+      <div class="step" id="stp2"></div>
+      <div class="step" id="stp3"></div>
+    </div>
+
+    <!-- Passo 1: Dados do paciente -->
+    <div id="passo1" class="card">
+      <div class="sec-title">👤 Seus dados</div>
+      <div class="fg">
+        <div class="full"><label>Nome completo *</label><input type="text" id="p-nome" placeholder="Seu nome completo"/></div>
+        <div class="full"><label>WhatsApp *</label><input type="tel" id="p-tel" placeholder="(17) 99101-6897"/></div>
+        <div class="full"><label>Procedimento desejado</label><input type="text" id="p-proc" placeholder="Ex: Botox, Preenchimento labial..."/></div>
+        <div class="full"><label>Observações (opcional)</label><textarea id="p-obs" rows="2" placeholder="Alguma informação importante para a Dra.?" style="min-height:70px;resize:none"></textarea></div>
+      </div>
+      <button class="btn-pri" onclick="irPasso2()" style="margin-top:.75rem">Próximo: Escolher data →</button>
+    </div>
+
+    <!-- Passo 2: Calendário -->
+    <div id="passo2" style="display:none">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+          <button onclick="mvMesCal(-1)" style="background:none;border:none;cursor:pointer;font-size:18px;padding:4px 8px">◀</button>
+          <div style="font-weight:700;font-size:15px" id="cal-titulo"></div>
+          <button onclick="mvMesCal(1)" style="background:none;border:none;cursor:pointer;font-size:18px;padding:4px 8px">▶</button>
+        </div>
+        <div class="cal-grid" id="cal-heads"></div>
+        <div class="cal-grid" id="cal-dias"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:.75rem">
+        <button class="btn-sec" onclick="voltarPasso1()">← Voltar</button>
+      </div>
+    </div>
+
+    <!-- Passo 3: Horários -->
+    <div id="passo3" style="display:none">
+      <div class="card">
+        <div class="sec-title" id="slots-titulo">Horários disponíveis</div>
+        <div id="slots-lista" class="slots-grid"></div>
+        <div id="slots-empty" style="display:none;text-align:center;padding:1rem;color:var(--ct);font-size:13px">Nenhum horário disponível neste dia.</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-sec" onclick="voltarPasso2()">← Voltar</button>
+      </div>
+    </div>
+
+    <!-- Confirmação -->
+    <div id="passo-confirm" style="display:none">
+      <div class="card" style="border:1.5px solid var(--verde)">
+        <div class="sec-title" style="color:var(--verde-e)">✅ Confirmar agendamento</div>
+        <div id="confirm-resumo"></div>
+      </div>
+      <button class="btn-pri" id="btn-confirmar" onclick="confirmarAgendamento()">✅ Confirmar solicitação</button>
+      <div style="text-align:center;font-size:11px;color:var(--ct);margin-top:8px">A Dra. confirmará via WhatsApp</div>
+      <div style="display:flex;justify-content:center;margin-top:8px">
+        <button class="btn-sec" onclick="voltarPasso3()">← Editar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SB_URL='https://nathaeuqbeqlvkftbmes.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hdGhhZXVxYmVxbHZrZnRibWVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4OTc4MzYsImV4cCI6MjA5NTQ3MzgzNn0.9t3q5C_h1pRb11gqRtpGGVpOUGey5TBzvMgal8h6wtg';
+const{createClient}=supabase;
+const db=createClient(SB_URL,SB_KEY);
+
+// Config padrão — lida do localStorage (configurada no painel da clínica)
+const rawConf=JSON.parse(localStorage.getItem('conf_ag_online')||'{}');
+const CONF={
+  ativo:    rawConf.ativo    !== false,
+  dias:     rawConf.dias     || [1,2,3,4,5,6],
+  hora_ini: rawConf.hora_ini || '09:00',
+  hora_fim: rawConf.hora_fim || '18:00',
+  duracao:  rawConf.duracao  || 60,
+  max_dias: rawConf.max_dias || 30,
+};
+
+const DIAS_SEM=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const MESES_N=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+let consultasExist=[];
+let calMes=new Date();
+let dataSel=null, horaSel=null;
+
+function fDt(s){if(!s)return'';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`;}
+function fDtLong(s){if(!s)return'';const[y,m,d]=s.split('-');const dt=new Date(s+'T12:00:00');return`${DIAS_SEM[dt.getDay()]}, ${d} de ${MESES_N[parseInt(m)-1]} de ${y}`;}
+
+function setState(id){
+  ['st-inativo','st-sucesso','st-form'].forEach(s=>{
+    const el=document.getElementById(s);
+    if(el) el.style.display=s===id?(s==='st-form'?'block':'flex'):'none';
+    if(el&&s===id) el.classList?.[s==='st-form'?'add':'add']('');
+    if(el&&s!=='st-form') el.classList?.remove('active');
+    if(el&&s===id&&s!=='st-form') el.classList?.add('active');
+  });
+}
+
+// ── Iniciar ──
+async function init(){
+  if(!CONF.ativo){setState('st-inativo');return;}
+  calMes=new Date();
+  calMes.setDate(1);
+  // Carregar consultas dos próximos max_dias dias
+  const hoje=new Date().toISOString().split('T')[0];
+  const fim=new Date();fim.setDate(fim.getDate()+CONF.max_dias);
+  const fimStr=fim.toISOString().split('T')[0];
+  const{data}=await db.from('agenda').select('data,hora,status').gte('data',hoje).lte('data',fimStr).neq('status','cancelado');
+  consultasExist=data||[];
+  setState('st-form');
+  renderCal();
+}
+
+// ── Passo 1 → 2 ──
+function irPasso2(){
+  const nome=document.getElementById('p-nome').value.trim();
+  const tel=document.getElementById('p-tel').value.trim();
+  if(!nome||!tel){alert('Preencha nome e telefone para continuar.');return;}
+  document.getElementById('passo1').style.display='none';
+  document.getElementById('passo2').style.display='block';
+  setStp(2);
+  renderCal();
+}
+function voltarPasso1(){
+  document.getElementById('passo2').style.display='none';
+  document.getElementById('passo1').style.display='block';
+  setStp(1);
+}
+
+// ── Calendário ──
+function setStp(n){
+  [1,2,3].forEach(i=>{
+    document.getElementById('stp'+i).className='step'+(i<n?' done':i===n?' active':'');
+  });
+}
+
+function mvMesCal(dir){
+  calMes.setMonth(calMes.getMonth()+dir);
+  const hoje=new Date();
+  const maxMes=new Date(hoje.getFullYear(),hoje.getMonth()+Math.ceil(CONF.max_dias/28),1);
+  if(calMes<new Date(hoje.getFullYear(),hoje.getMonth(),1)){calMes=new Date(hoje.getFullYear(),hoje.getMonth(),1);}
+  if(calMes>maxMes){calMes=new Date(maxMes);}
+  renderCal();
+}
+
+function renderCal(){
+  const titulo=document.getElementById('cal-titulo');
+  if(!titulo)return;
+  titulo.textContent=`${MESES_N[calMes.getMonth()]} ${calMes.getFullYear()}`;
+  // Cabeçalhos
+  const heads=document.getElementById('cal-heads');
+  heads.innerHTML=DIAS_SEM.map(d=>`<div class="cal-head">${d}</div>`).join('');
+  // Dias
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const maxData=new Date(hoje);maxData.setDate(maxData.getDate()+CONF.max_dias);
+  const priDia=new Date(calMes.getFullYear(),calMes.getMonth(),1);
+  const ultDia=new Date(calMes.getFullYear(),calMes.getMonth()+1,0);
+  let html='';
+  // Células vazias no início
+  for(let i=0;i<priDia.getDay();i++) html+=`<div class="cal-day vazio"></div>`;
+  for(let d=1;d<=ultDia.getDate();d++){
+    const dt=new Date(calMes.getFullYear(),calMes.getMonth(),d);
+    const dtStr=dt.toISOString().split('T')[0];
+    const passado=dt<hoje;
+    const futuro=dt>maxData;
+    const diaAtivo=CONF.dias.includes(dt.getDay());
+    const isHoje=dtStr===hoje.toISOString().split('T')[0];
+    const isSel=dtStr===dataSel;
+    const cls=isSel?'sel':isHoje?'hoje':passado||futuro||!diaAtivo?'indisponivel':'';
+    const click=!passado&&!futuro&&diaAtivo?`onclick="selData('${dtStr}')":``;
+    html+=`<div class="cal-day ${cls}" ${click}>${d}</div>`;
+  }
+  document.getElementById('cal-dias').innerHTML=html;
+}
+
+function selData(dtStr){
+  dataSel=dtStr;horaSel=null;
+  renderCal();
+  // Ir para slots
+  document.getElementById('passo2').style.display='none';
+  document.getElementById('passo3').style.display='block';
+  setStp(3);
+  renderSlots(dtStr);
+}
+
+// ── Slots ──
+function renderSlots(dtStr){
+  document.getElementById('slots-titulo').textContent=`Horários — ${fDtLong(dtStr)}`;
+  const[hIni,mIni]=CONF.hora_ini.split(':').map(Number);
+  const[hFim,mFim]=CONF.hora_fim.split(':').map(Number);
+  const iniMin=hIni*60+mIni, fimMin=hFim*60+mFim;
+  const slots=[];
+  for(let min=iniMin;min<fimMin;min+=CONF.duracao){
+    const hh=String(Math.floor(min/60)).padStart(2,'0');
+    const mm=String(min%60).padStart(2,'0');
+    slots.push(`${hh}:${mm}`);
+  }
+  const disponiveis=slots.filter(h=>!consultasExist.some(c=>c.data===dtStr&&c.hora.slice(0,5)===h));
+  const lista=document.getElementById('slots-lista');
+  const empty=document.getElementById('slots-empty');
+  if(!disponiveis.length){lista.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  lista.innerHTML=disponiveis.map(h=>`<div class="slot${h===horaSel?' sel':''}" onclick="selHora('${h}')">${h}</div>`).join('');
+}
+
+function selHora(h){
+  horaSel=h;
+  // Mostrar confirmação
+  document.getElementById('passo3').style.display='none';
+  document.getElementById('passo-confirm').style.display='block';
+  const nome=document.getElementById('p-nome').value.trim();
+  const tel=document.getElementById('p-tel').value.trim();
+  const proc=document.getElementById('p-proc').value.trim();
+  document.getElementById('confirm-resumo').innerHTML=`
+    <div class="resumo-item"><span class="resumo-icon">👤</span><div><strong>${nome}</strong><br><span style="color:var(--ct)">${tel}</span></div></div>
+    <div class="resumo-item"><span class="resumo-icon">📅</span><div>${fDtLong(dataSel)}</div></div>
+    <div class="resumo-item"><span class="resumo-icon">🕐</span><div><strong>${horaSel}</strong></div></div>
+    ${proc?`<div class="resumo-item"><span class="resumo-icon">💉</span><div>${proc}</div></div>`:''}
+  `;
+}
+
+function voltarPasso2(){
+  document.getElementById('passo3').style.display='none';
+  document.getElementById('passo2').style.display='block';
+  setStp(2);
+}
+function voltarPasso3(){
+  document.getElementById('passo-confirm').style.display='none';
+  document.getElementById('passo3').style.display='block';
+  setStp(3);
+  renderSlots(dataSel);
+}
+
+// ── Confirmar ──
+async function confirmarAgendamento(){
+  const btn=document.getElementById('btn-confirmar');
+  btn.disabled=true;btn.textContent='Enviando...';
+  const nome=document.getElementById('p-nome').value.trim();
+  const tel=document.getElementById('p-tel').value.replace(/\D/g,'');
+  const proc=document.getElementById('p-proc').value.trim();
+  const obs=document.getElementById('p-obs').value.trim();
+  const{error}=await db.from('agenda').insert({
+    nome,
+    telefone:tel||null,
+    procedimento:proc||null,
+    data:dataSel,
+    hora:horaSel+':00',
+    observacao:obs||null,
+    status:'aguardando',
+    origem:'online',
+  });
+  if(error){
+    btn.disabled=false;btn.textContent='✅ Confirmar solicitação';
+    alert('Erro ao enviar: '+error.message);return;
+  }
+  // Tela de sucesso
+  document.getElementById('st-suc-resumo').innerHTML=`
+    <div style="font-weight:700;font-size:15px;margin-bottom:8px">📅 ${fDtLong(dataSel)} às ${horaSel}</div>
+    ${proc?`<div style="color:var(--verde-e);margin-bottom:4px">💉 ${proc}</div>`:''}
+    <div style="color:var(--ct);font-size:12px;margin-top:8px">Rua Capitão Daniel da Cunha Morais, 632 · Tanabi/SP</div>
+  `;
+  setState('st-sucesso');
+}
+
+init();
+</script>
+</body>
+</html>
