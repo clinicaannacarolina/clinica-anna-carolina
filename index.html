@@ -239,15 +239,18 @@ textarea{resize:vertical;min-height:70px}
     <div class="sc"><div class="si" style="background:var(--amarelo-c)">🔔</div><div><div class="sn" id="st-alertas">—</div><div class="sl">Alertas (15 dias)</div></div></div>
     <div class="sc"><div class="si" style="background:var(--azul-c)">📌</div><div><div class="sn" id="st-lembr">—</div><div class="sl">Lembretes</div></div></div>
   </div>
-  <div class="tabs">
-    <button class="tb active" onclick="aba('hoje',this)">⭐ Hoje</button>
-    <button class="tb" onclick="aba('agenda',this)">📅 Agenda</button>
-    <button class="tb" onclick="aba('alertas',this)">🔔 Alertas</button>
-    <button class="tb" onclick="aba('pacientes',this)">👥 Pacientes</button>
-    <button class="tb" onclick="aba('relatorio',this)">📊 Relatório</button>
-    <button class="tb" onclick="aba('financeiro',this)">💰 Financeiro</button>
-    <button class="tb" onclick="aba('cadastro',this)">➕ Cadastrar</button>
-    <a href="estoque.html" class="tb" style="text-decoration:none;color:var(--ct)">📦 Estoque</a>
+  <div style="display:flex;align-items:center;gap:0;flex-wrap:wrap">
+    <div class="tabs" style="flex:1">
+      <button class="tb active" onclick="aba('hoje',this)">⭐ Hoje</button>
+      <button class="tb" onclick="aba('agenda',this)">📅 Agenda</button>
+      <button class="tb" onclick="aba('alertas',this)">🔔 Alertas</button>
+      <button class="tb" onclick="aba('pacientes',this)">👥 Pacientes</button>
+      <button class="tb" onclick="aba('relatorio',this)">📊 Relatório</button>
+      <button class="tb" onclick="aba('financeiro',this)">💰 Financeiro</button>
+      <button class="tb" onclick="aba('cadastro',this)">➕ Cadastrar</button>
+      <a href="estoque.html" class="tb" style="text-decoration:none;color:var(--ct)">📦 Estoque</a>
+    </div>
+    <button onclick="abrirBuscaGlobal()" style="padding:6px 10px;border:1.5px solid var(--borda);background:var(--card);border-radius:8px;cursor:pointer;font-size:13px;margin:4px 4px 0 0;white-space:nowrap" title="Busca global (Ctrl+K)">🔍</button>
   </div>
 
 
@@ -361,6 +364,10 @@ textarea{resize:vertical;min-height:70px}
         <option value="9999">Todos</option>
       </select>
     </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+      <div style="flex:1"></div>
+      <button class="btn" style="font-size:12px;padding:5px 12px" onclick="abrirEditorTemplates()" title="Editar mensagens das campanhas">✏️ Editar templates</button>
+    </div>
     <div id="l-alertas"></div>
 
     <!-- ══════ CAMPANHAS ══════ -->
@@ -469,7 +476,10 @@ textarea{resize:vertical;min-height:70px}
   <!-- PACIENTES -->
   <div id="p-pacientes" class="panel">
     <div style="margin-bottom:10px">
-      <input type="text" id="busca" placeholder="🔍 Buscar por nome ou apelido..." oninput="renderPac()" style="border-radius:10px"/>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="text" id="busca" placeholder="🔍 Buscar por nome ou apelido..." oninput="renderPac()" style="border-radius:10px;flex:1"/>
+        <button class="btn" style="font-size:12px;padding:7px 12px;white-space:nowrap" onclick="exportarPacientesCSV()" title="Exportar lista de pacientes">📥 Exportar</button>
+      </div>
     </div>
     <div class="card"><div id="l-pac"><div class="loading">Carregando...</div></div></div>
   </div>
@@ -486,8 +496,13 @@ textarea{resize:vertical;min-height:70px}
         <option value="12">Último ano</option>
         <option value="99">Todos</option>
       </select>
-      <button id="btn-executivo" onclick="toggleRelExec(this)" class="btn" style="margin-left:auto;font-size:12px;padding:6px 14px">📋 Relatório Executivo</button>
+      <div style="margin-left:auto;display:flex;gap:6px">
+        <button id="btn-anual" onclick="toggleRelAnual(this)" class="btn" style="font-size:12px;padding:6px 14px">📊 Anual</button>
+        <button id="btn-executivo" onclick="toggleRelExec(this)" class="btn" style="font-size:12px;padding:6px 14px">📋 Executivo</button>
+      </div>
     </div>
+    <!-- Relatório Anual (oculto por padrão) -->
+    <div id="rel-anual" style="display:none;margin-bottom:1.5rem"></div>
     <!-- Relatório Executivo (oculto por padrão) -->
     <div id="rel-executivo" style="display:none;margin-bottom:1.5rem"></div>
     <div class="rel-grid" id="rel-stats"></div>
@@ -3542,6 +3557,215 @@ function compartilharWppAgOnline(){
 // Chamar no carregar inicial
 setTimeout(renderPedidosOnline, 1500);
 
+// ══════════════════════════════════════════
+// ITEM 5 — RELATÓRIO ANUAL
+// ══════════════════════════════════════════
+let _relAnualAtivo = false;
+
+function toggleRelAnual(btn){
+  _relAnualAtivo = !_relAnualAtivo;
+  const el = document.getElementById('rel-anual');
+  el.style.display = _relAnualAtivo ? 'block' : 'none';
+  btn.style.background = _relAnualAtivo ? 'var(--verde)' : '';
+  btn.style.color = _relAnualAtivo ? 'white' : '';
+  btn.style.borderColor = _relAnualAtivo ? 'var(--verde)' : '';
+  if(_relAnualAtivo) renderRelAnual();
+}
+
+async function renderRelAnual(){
+  const el = document.getElementById('rel-anual');
+  el.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--ct);font-size:13px">Carregando...</div>';
+  const ano = new Date().getFullYear();
+  const {data:fin} = await db.from('financeiro').select('data,valor,tipo,status').gte('data',`${ano}-01-01`).lte('data',`${ano}-12-31`);
+  const finAnual = fin||[];
+  const MESES_AB=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  // Receita por mês
+  const recMes=Array(12).fill(0);
+  finAnual.filter(l=>l.tipo==='receita'&&l.status==='recebido').forEach(l=>{
+    const m=parseInt(l.data.split('-')[1])-1;
+    recMes[m]+=(l.valor||0);
+  });
+  // Novos pacientes por mês
+  const novMes=Array(12).fill(0);
+  pacs.forEach(p=>{
+    const dt=p.data_atendimento||p.criado_em?.split('T')[0];
+    if(dt&&dt.startsWith(ano+'')){const m=parseInt(dt.split('-')[1])-1;novMes[m]++;}
+  });
+  const maxRec=Math.max(...recMes,1);
+  const hoje=new Date();
+  el.innerHTML=`
+    <div style="background:var(--card);border-radius:14px;padding:1.25rem;border:1.5px solid var(--borda);box-shadow:0 2px 8px rgba(0,0,0,.05)">
+      <div style="font-size:16px;font-weight:700;margin-bottom:4px">📊 Visão Anual — ${ano}</div>
+      <div style="font-size:12px;color:var(--ct);margin-bottom:1.25rem">Receita recebida + novos pacientes por mês</div>
+      <!-- Receita por mês -->
+      <div style="font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;margin-bottom:8px">💰 Receita mensal</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:1.25rem">
+        ${recMes.map((v,i)=>{
+          const futuro=i>hoje.getMonth()&&ano===hoje.getFullYear();
+          const pct=Math.round(v/maxRec*100);
+          return `<div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;font-weight:600;color:var(--ct);width:28px;flex-shrink:0">${MESES_AB[i]}</span>
+            <div style="flex:1;background:var(--borda);border-radius:99px;height:14px;position:relative">
+              <div style="background:${futuro?'var(--borda)':'var(--verde)'};height:14px;border-radius:99px;width:${pct}%;transition:.3s"></div>
+            </div>
+            <span style="font-size:11px;font-weight:600;color:${v>0?'var(--verde-e)':'var(--ct)'};width:80px;flex-shrink:0;text-align:right">${v>0?fmtBRL(v):'—'}</span>
+          </div>`;
+        }).join('')}
+      </div>
+      <!-- Novos pacientes por mês -->
+      <div style="font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;margin-bottom:8px">👥 Novos pacientes por mês</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${novMes.map((v,i)=>`
+          <div style="text-align:center;flex:1;min-width:40px">
+            <div style="font-size:13px;font-weight:700;color:${v>0?'var(--verde-e)':'var(--ct)'}">${v||'—'}</div>
+            <div style="font-size:10px;color:var(--ct)">${MESES_AB[i]}</div>
+          </div>`).join('')}
+      </div>
+      <!-- Totais do ano -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--borda)">
+        <div style="text-align:center">
+          <div style="font-size:18px;font-weight:700;color:var(--verde-e)">${fmtBRL(recMes.reduce((s,v)=>s+v,0))}</div>
+          <div style="font-size:11px;color:var(--ct)">Total recebido</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:18px;font-weight:700;color:var(--txt)">${novMes.reduce((s,v)=>s+v,0)}</div>
+          <div style="font-size:11px;color:var(--ct)">Novos pacientes</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:18px;font-weight:700;color:var(--txt)">${recMes.filter(v=>v>0).length}</div>
+          <div style="font-size:11px;color:var(--ct)">Meses com receita</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ══════════════════════════════════════════
+// ITEM 6 — EXPORTAR PACIENTES CSV
+// ══════════════════════════════════════════
+function exportarPacientesCSV(){
+  if(!pacs.length){toast('Nenhum paciente para exportar','vermelho');return;}
+  const headers=['Nome','Apelido','Telefone','CPF','RG','Nascimento','Sexo','Endereço','Instagram','Facebook','Como Conheceu','Indicação','Procedimento','Cadastro'];
+  const rows=pacs.map(p=>[
+    p.nome||'',p.apelido||'',p.telefone||'',p.cpf||'',p.rg||'',
+    p.data_nascimento||'',p.sexo||'',
+    [p.rua,p.numero,p.bairro,p.cidade].filter(Boolean).join(', ')||p.endereco||'',
+    p.instagram||'',p.facebook||'',p.como_conheceu||'',p.indicacao||'',
+    p.tratamento||'',
+    (p.data_atendimento||p.criado_em||'').split('T')[0]
+  ]);
+  const csv=[headers,...rows].map(r=>r.map(v=>'"'+(v||'').replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='pacientes_'+HOJE_STR+'.csv';
+  document.body.appendChild(a);a.click();
+  document.body.removeChild(a);URL.revokeObjectURL(url);
+  toast(pacs.length+' pacientes exportados ✅','verde');
+}
+
+// ══════════════════════════════════════════
+// ITEM 7 — EDITOR DE TEMPLATES WHATSAPP
+// ══════════════════════════════════════════
+const CAMP_TMPL_KEYS=[
+  {key:'retorno',label:'🔔 Lembrete de retorno'},
+  {key:'botox',label:'💉 Botox / Toxina'},
+  {key:'preenchimento',label:'💧 Preenchimento'},
+  {key:'aniversario',label:'🎉 Mensagem especial'},
+];
+
+function abrirEditorTemplates(){
+  const modal=document.getElementById('m-templates');
+  CAMP_TMPL_KEYS.forEach(({key,label})=>{
+    const ta=document.getElementById('tmpl-'+key);
+    if(!ta)return;
+    const saved=localStorage.getItem('camp_tmpl_'+key);
+    const dflt=CAMP_TEMPLATES[key]?.({nome:'[Nome]',apelido:'[Nome]'})||'';
+    ta.value=saved||dflt;
+  });
+  modal.classList.add('open');
+}
+
+function salvarTemplates(){
+  CAMP_TMPL_KEYS.forEach(({key})=>{
+    const ta=document.getElementById('tmpl-'+key);
+    if(ta) localStorage.setItem('camp_tmpl_'+key,ta.value);
+  });
+  // Sobrescrever CAMP_TEMPLATES com versões customizadas
+  CAMP_TMPL_KEYS.forEach(({key})=>{
+    const val=localStorage.getItem('camp_tmpl_'+key);
+    if(val){
+      const template=val;
+      CAMP_TEMPLATES[key]=p=>template.replace(/\{nome\}/g,chamada(p)).replace(/\{procedimento\}/g,'');
+    }
+  });
+  document.getElementById('m-templates').classList.remove('open');
+  toast('Templates salvos ✅','verde');
+}
+
+// Aplicar templates customizados no carregamento
+(function(){
+  CAMP_TMPL_KEYS.forEach(({key})=>{
+    const saved=localStorage.getItem('camp_tmpl_'+key);
+    if(saved) CAMP_TEMPLATES[key]=p=>saved.replace(/\{nome\}/g,chamada(p)).replace(/\{procedimento\}/g,'');
+  });
+})();
+
+// ══════════════════════════════════════════
+// ITEM 8 — BUSCA GLOBAL
+// ══════════════════════════════════════════
+function abrirBuscaGlobal(){
+  document.getElementById('m-busca-global').classList.add('open');
+  const inp=document.getElementById('bg-input');
+  inp.value='';
+  document.getElementById('bg-resultados').innerHTML='<div style="text-align:center;padding:1rem;color:var(--ct);font-size:13px">Digite para buscar...</div>';
+  setTimeout(()=>inp.focus(),100);
+}
+
+function buscarGlobal(){
+  const q=(document.getElementById('bg-input').value||'').toLowerCase().trim();
+  const el=document.getElementById('bg-resultados');
+  if(q.length<2){el.innerHTML='<div style="text-align:center;padding:1rem;color:var(--ct);font-size:13px">Digite pelo menos 2 caracteres...</div>';return;}
+
+  // Pacientes
+  const rPacs=pacs.filter(p=>
+    p.nome.toLowerCase().includes(q)||(p.apelido||'').toLowerCase().includes(q)||(p.telefone||'').includes(q)
+  ).slice(0,5);
+
+  // Consultas
+  const rCons=consultas.filter(c=>
+    c.nome.toLowerCase().includes(q)||(c.procedimento||'').toLowerCase().includes(q)
+  ).slice(0,5);
+
+  if(!rPacs.length&&!rCons.length){
+    el.innerHTML='<div style="text-align:center;padding:1rem;color:var(--ct);font-size:13px">Nenhum resultado encontrado.</div>';
+    return;
+  }
+
+  let html='';
+  if(rPacs.length){
+    html+=`<div style="font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;padding:8px 12px 4px">👥 Pacientes</div>`;
+    html+=rPacs.map(p=>`
+      <a href="paciente.html?id=${p.id}" onclick="document.getElementById('m-busca-global').classList.remove('open')"
+        style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--borda);text-decoration:none;color:var(--txt)" class="bg-item">
+        <div style="width:34px;height:34px;border-radius:50%;background:var(--verde-c);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--verde-e);flex-shrink:0">${ini(p.nome)}</div>
+        <div><div style="font-size:13px;font-weight:600">${p.nome}</div><div style="font-size:11px;color:var(--ct)">${p.telefone||''}${p.data_nascimento?' · '+fDt(p.data_nascimento):''}</div></div>
+      </a>`).join('');
+  }
+  if(rCons.length){
+    html+=`<div style="font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;padding:8px 12px 4px">📅 Consultas</div>`;
+    html+=rCons.map(c=>`
+      <div onclick="aba('agenda',document.querySelectorAll('.tb')[1]);setTimeout(()=>{selDia('${c.data}');},300);document.getElementById('m-busca-global').classList.remove('open')"
+        style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--borda);cursor:pointer;color:var(--txt)" class="bg-item">
+        <div style="font-size:20px">📅</div>
+        <div><div style="font-size:13px;font-weight:600">${c.nome}</div><div style="font-size:11px;color:var(--ct)">${c.data.split('-').reverse().join('/')} às ${c.hora.slice(0,5)}${c.procedimento?' · '+c.procedimento:''}</div></div>
+      </div>`).join('');
+  }
+  el.innerHTML=html;
+}
+
+// Atalho Ctrl+K
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();abrirBuscaGlobal();}});
+
 // PWA
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js'));
 
@@ -3891,6 +4115,51 @@ document.getElementById('m-ag-online').addEventListener('click',e=>{if(e.target=
 </div>
 <script>
 document.getElementById('m-lembretes').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.classList.remove('open');});
+</script>
+
+<!-- MODAL BUSCA GLOBAL -->
+<div class="mb" id="m-busca-global">
+  <div class="mx" style="max-width:500px;padding:0">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--borda);display:flex;gap:10px;align-items:center">
+      <span style="font-size:18px">🔍</span>
+      <input type="text" id="bg-input" placeholder="Buscar paciente, consulta, procedimento..."
+        oninput="buscarGlobal()" autocomplete="off"
+        style="flex:1;border:none;font-size:15px;outline:none;background:transparent;font-family:inherit"/>
+      <button onclick="document.getElementById('m-busca-global').classList.remove('open')" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--ct)">✕</button>
+    </div>
+    <div id="bg-resultados" style="max-height:380px;overflow-y:auto"></div>
+    <div style="padding:8px 12px;font-size:11px;color:var(--ct);border-top:1px solid var(--borda)">Ctrl+K para abrir · Esc para fechar · Clique no resultado para navegar</div>
+  </div>
+</div>
+<style>.bg-item:hover{background:var(--verde-c)!important}</style>
+<script>
+document.getElementById('m-busca-global').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.classList.remove('open');});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('m-busca-global')?.classList.remove('open');});
+</script>
+
+<!-- MODAL EDITOR DE TEMPLATES -->
+<div class="mb" id="m-templates">
+  <div class="mx" style="max-width:540px">
+    <h3 style="margin-bottom:4px">✏️ Editar Templates de Mensagem</h3>
+    <p style="font-size:13px;color:var(--ct);margin-bottom:14px">Use <strong>{nome}</strong> para o nome da paciente. As mensagens são salvas no seu navegador.</p>
+    <div style="display:flex;flex-direction:column;gap:12px;max-height:60vh;overflow-y:auto;padding-right:4px">
+      <div><label style="font-size:12px;font-weight:700;color:var(--ct);display:block;margin-bottom:4px">🔔 LEMBRETE DE RETORNO (padrão)</label>
+        <textarea id="tmpl-retorno" rows="4" style="width:100%;padding:8px;font-size:13px;border-radius:8px;border:1.5px solid var(--borda);resize:vertical;font-family:inherit"></textarea></div>
+      <div><label style="font-size:12px;font-weight:700;color:var(--ct);display:block;margin-bottom:4px">💉 BOTOX / TOXINA BOTULÍNICA</label>
+        <textarea id="tmpl-botox" rows="4" style="width:100%;padding:8px;font-size:13px;border-radius:8px;border:1.5px solid var(--borda);resize:vertical;font-family:inherit"></textarea></div>
+      <div><label style="font-size:12px;font-weight:700;color:var(--ct);display:block;margin-bottom:4px">💧 PREENCHIMENTO FACIAL</label>
+        <textarea id="tmpl-preenchimento" rows="4" style="width:100%;padding:8px;font-size:13px;border-radius:8px;border:1.5px solid var(--borda);resize:vertical;font-family:inherit"></textarea></div>
+      <div><label style="font-size:12px;font-weight:700;color:var(--ct);display:block;margin-bottom:4px">🎉 MENSAGEM ESPECIAL DE RETORNO</label>
+        <textarea id="tmpl-aniversario" rows="4" style="width:100%;padding:8px;font-size:13px;border-radius:8px;border:1.5px solid var(--borda);resize:vertical;font-family:inherit"></textarea></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn" onclick="document.getElementById('m-templates').classList.remove('open')">Cancelar</button>
+      <button class="btn pri" onclick="salvarTemplates()">✅ Salvar templates</button>
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById('m-templates').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.classList.remove('open');});
 </script>
 
 <!-- MODAL VINCULAR PACIENTE -->

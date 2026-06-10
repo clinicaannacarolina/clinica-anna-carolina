@@ -38,7 +38,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-
 /* HERO CARD */
 .hero{background:linear-gradient(135deg,var(--verde-e) 0%,var(--verde) 100%);color:white;padding:2rem 1.5rem 1.5rem;margin-bottom:0}
 .hero-inner{max-width:900px;margin:0 auto;display:flex;align-items:flex-start;gap:1.5rem;flex-wrap:wrap}
-.avatar-big{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;flex-shrink:0;border:3px solid rgba(255,255,255,.4);letter-spacing:-1px}
+.avatar-big{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;flex-shrink:0;border:3px solid rgba(255,255,255,.4);letter-spacing:-1px;cursor:pointer;overflow:hidden;position:relative}
+.avatar-big:hover::after{content:"📷";position:absolute;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-size:22px;border-radius:50%}
+.avatar-big img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
 .hero-info{flex:1;min-width:0}
 .hero-nome{font-family:'DM Serif Display',serif;font-size:24px;font-weight:400;line-height:1.2;margin-bottom:4px}
 .hero-apelido{font-size:13px;opacity:.75;margin-bottom:10px}
@@ -282,6 +284,12 @@ textarea{resize:vertical;min-height:70px}
       <div class="card" id="res-obs-card" style="display:none">
         <div class="sec-title">📝 Observações</div>
         <div id="res-obs" style="font-size:14px;color:var(--txt);line-height:1.7;white-space:pre-wrap"></div>
+      </div>
+      <div class="card" id="res-historico-card" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div class="sec-title" style="margin:0">📜 Histórico de alterações</div>
+        </div>
+        <div id="res-historico"></div>
       </div>
 
     </div>
@@ -694,6 +702,7 @@ async function iniciar(){
   renderHero();
   renderResumo();
   carregarStatusAnamnese();
+  carregarHistoricoPaciente();
 
   document.getElementById('loading-main').style.display='none';
   document.getElementById('conteudo').style.display='block';
@@ -703,7 +712,15 @@ async function iniciar(){
 function renderHero(){
   const p=pac;
   document.title=`${p.nome} — Ficha`;
-  document.getElementById('hero-avatar').textContent=ini(p.nome);
+  const avatarEl=document.getElementById('hero-avatar');
+  if(p.foto_url){
+    avatarEl.innerHTML=`<img src="${p.foto_url}" alt="${p.nome}" onerror="this.parentElement.innerHTML='${ini(p.nome)}';this.parentElement.style.fontSize='26px'"/>`;
+    avatarEl.style.background='transparent';
+  } else {
+    avatarEl.innerHTML=ini(p.nome);
+    avatarEl.style.background='';
+  }
+  avatarEl.onclick=()=>abrirFotoPerfil();
   document.getElementById('hero-nome').textContent=p.nome;
   document.getElementById('hero-apelido').textContent=p.apelido?`Como chamar: ${p.apelido}`:'';
 
@@ -1363,10 +1380,12 @@ async function salvarEdit(){
   const{error}=await db.from('pacientes').update(updates).eq('id',pac.id);
   if(error){toast('Erro ao salvar','vermelho');return;}
   Object.assign(pac,updates);
+  await registrarHistorico('Cadastro atualizado','Dados pessoais foram editados');
   toast('Dados atualizados ✅','verde');
   fchEdit();
   renderHero();
   renderResumo();
+  carregarHistoricoPaciente();
 }
 
 async function buscarCep(input){
@@ -1881,6 +1900,87 @@ function enviarLinkWpp(){
   const tel = '55'+pac.telefone.replace(/\D/g,'');
   const msg = `Olá ${pac.apelido||pac.nome.split(' ')[0]}! 😊\n\nPrecisamos que você preencha sua ficha de anamnese antes da sua próxima consulta na clínica da Dra. Anna Carolina.\n\nÉ rápido e pode ser feito no celular:\n${_anamneseLinkUrl}\n\nObrigada! 💚`;
   window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`,'_blank');
+}
+</script>
+<!-- MODAL FOTO DE PERFIL -->
+<div class="mb" id="m-foto-pac">
+  <div class="mx" style="max-width:380px">
+    <h3 style="margin-bottom:8px">📷 Foto de perfil</h3>
+    <p style="font-size:13px;color:var(--ct);margin-bottom:12px">Cole a URL de uma foto (link direto de imagem).</p>
+    <input type="url" id="foto-url-input" placeholder="https://exemplo.com/foto.jpg" style="margin-bottom:10px"/>
+    <div id="foto-preview" style="width:80px;height:80px;border-radius:50%;background:var(--borda);margin:0 auto 12px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:28px">👤</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" style="color:var(--vermelho)" onclick="removerFoto()">🗑 Remover</button>
+      <button class="btn" onclick="document.getElementById('m-foto-pac').classList.remove('open')">Cancelar</button>
+      <button class="btn pri" onclick="salvarFotoPerfil()">✅ Salvar</button>
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById('m-foto-pac').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.classList.remove('open');});
+document.getElementById('foto-url-input').addEventListener('input',function(){
+  const url=this.value.trim();
+  const prev=document.getElementById('foto-preview');
+  if(url){prev.innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='❌'"/>`;} 
+  else {prev.innerHTML='👤';}
+});
+
+function abrirFotoPerfil(){
+  document.getElementById('foto-url-input').value=pac?.foto_url||'';
+  const prev=document.getElementById('foto-preview');
+  if(pac?.foto_url){prev.innerHTML=`<img src="${pac.foto_url}" style="width:100%;height:100%;object-fit:cover"/>`;} 
+  else {prev.innerHTML='👤';}
+  document.getElementById('m-foto-pac').classList.add('open');
+}
+
+async function salvarFotoPerfil(){
+  const url=document.getElementById('foto-url-input').value.trim()||null;
+  const{error}=await db.from('pacientes').update({foto_url:url}).eq('id',pac.id);
+  if(error){toast('Erro ao salvar foto','vermelho');return;}
+  pac.foto_url=url;
+  document.getElementById('m-foto-pac').classList.remove('open');
+  renderHero();
+  toast(url?'Foto atualizada ✅':'Foto removida','verde');
+}
+
+async function removerFoto(){
+  document.getElementById('foto-url-input').value='';
+  document.getElementById('foto-preview').innerHTML='👤';
+  await salvarFotoPerfil();
+}
+
+// ── HISTÓRICO DE ALTERAÇÕES ──
+async function registrarHistorico(acao, descricao){
+  if(!pac?.id) return;
+  await db.from('historico_paciente').insert({
+    paciente_id: pac.id,
+    acao,
+    descricao,
+    criado_em: new Date().toISOString()
+  });
+}
+
+async function carregarHistoricoPaciente(){
+  if(!pac?.id) return;
+  const el=document.getElementById('res-historico');
+  const card=document.getElementById('res-historico-card');
+  if(!el||!card) return;
+  const{data}=await db.from('historico_paciente')
+    .select('acao,descricao,criado_em').eq('paciente_id',pac.id)
+    .order('criado_em',{ascending:false}).limit(15);
+  if(!data||!data.length){card.style.display='none';return;}
+  card.style.display='block';
+  el.innerHTML=data.map(h=>{
+    const dt=new Date(h.criado_em);
+    const dtStr=dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+    return `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--borda);font-size:12px">
+      <div style="flex:1">
+        <div style="font-weight:600;color:var(--txt)">${h.acao||'Alteração'}</div>
+        <div style="color:var(--ct)">${h.descricao||''}</div>
+      </div>
+      <div style="color:var(--ct);white-space:nowrap">${dtStr}</div>
+    </div>`;
+  }).join('');
 }
 </script>
 </body>
