@@ -1161,7 +1161,8 @@ async function salvarDoc(tipo){
   if(tipo==='anamnese'){
     dados.respostas={};
     AN_PERGUNTAS.forEach(q=>{
-      const v=document.querySelector(`input[name="${q.id}"]:checked`)?.value||'nao';
+      let v='nao';
+      document.querySelectorAll(`input[name="${q.id}"]`).forEach(r=>{ if(r.checked) v=r.value; });
       const qual=document.getElementById('qual-'+q.id)?.value||'';
       dados.respostas[q.id]={v,qual};
     });

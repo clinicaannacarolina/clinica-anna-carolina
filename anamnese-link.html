@@ -304,16 +304,15 @@ async function enviarAnamnese(){
   };
 
   // Coleta robusta: itera todos os radios e verifica .checked diretamente
+  // Formato dados.respostas[q.id] = {v, qual} — igual ao salvarDoc do documentos.html
+  dados.respostas = {};
   AN_PERGUNTAS.forEach(q=>{
-    let val = 'nao'; // padrão
+    let v = 'nao';
     document.querySelectorAll(`input[name="q_${q.id}"]`).forEach(r=>{
-      if(r.checked) val = r.value;
+      if(r.checked) v = r.value;
     });
-    dados.perguntas[q.id] = val;
-    if(val === 'sim'){
-      const qual = document.getElementById('qual-'+q.id);
-      if(qual && qual.value.trim()) dados.perguntas[q.id+'_qual'] = qual.value.trim();
-    }
+    const qual = v === 'sim' ? (document.getElementById('qual-'+q.id)?.value.trim()||'') : '';
+    dados.respostas[q.id] = {v, qual};
   });
 
   // Coleta checkboxes
