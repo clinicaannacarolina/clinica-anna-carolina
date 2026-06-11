@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Salvar na Agenda — Dra. Anna Carolina Dias</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root{--verde:#2D9B6F;--verde-c:#e8f5f0;--verde-e:#1a6e4a;--txt:#1a1a2e;--ct:#6b7280;--bg:#f5f7fa;--card:#fff;--borda:#e5e7eb}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;display:flex;flex-direction:column}
+    .header{background:var(--verde);color:white;text-align:center;padding:1.25rem 1rem}
+    .header-logo{background:white;border-radius:10px;padding:4px 12px;display:inline-block;margin-bottom:8px}
+    .header-logo img{height:44px;object-fit:contain;display:block}
+    .header h1{font-size:15px;font-weight:700}
+    .header p{font-size:11px;opacity:.85;margin-top:2px}
+    .main{flex:1;display:flex;align-items:center;justify-content:center;padding:1.5rem 1rem}
+    .card{background:var(--card);border-radius:18px;padding:1.75rem 1.5rem;max-width:380px;width:100%;border:1px solid var(--borda);box-shadow:0 4px 20px rgba(0,0,0,.08);text-align:center}
+    .icon{font-size:44px;margin-bottom:.75rem}
+    h2{font-size:19px;font-weight:700;margin-bottom:4px}
+    .sub{font-size:13px;color:var(--ct);margin-bottom:1.25rem}
+    .info{background:var(--verde-c);border-radius:12px;padding:14px;margin-bottom:1.5rem;text-align:left}
+    .info-row{display:flex;gap:10px;align-items:flex-start;padding:5px 0;font-size:14px}
+    .info-icon{width:24px;flex-shrink:0;text-align:center}
+    .btn-cal{display:flex;align-items:center;gap:12px;width:100%;padding:13px 16px;border:1.5px solid var(--borda);border-radius:12px;background:var(--card);font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;margin-bottom:10px;text-decoration:none;color:var(--txt);transition:.15s;text-align:left}
+    .btn-cal:hover{border-color:var(--verde);background:var(--verde-c)}
+    .btn-cal .ic{font-size:22px;width:30px;text-align:center}
+    .footer{text-align:center;font-size:11px;color:var(--ct);padding:1rem}
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">
+    <img src="https://claudiogallegoadv.github.io/clinica-anna-carolina/logo.jpg" alt="Dra. Anna Carolina"/>
+  </div>
+  <h1>Dra. Anna Carolina Dias</h1>
+  <p>HARMONIZAÇÃO OROFACIAL · CRO 82281 · (17) 98211-3940</p>
+</div>
+
+<div class="main">
+  <div class="card">
+    <div class="icon">📅</div>
+    <h2>Salvar na sua agenda</h2>
+    <p class="sub">Escolha o seu calendário preferido</p>
+
+    <div class="info" id="info-consulta">
+      <div class="info-row"><span class="info-icon">📅</span><span id="i-data">—</span></div>
+      <div class="info-row"><span class="info-icon">🕐</span><span id="i-hora">—</span></div>
+      <div class="info-row" id="row-proc" style="display:none"><span class="info-icon">💉</span><span id="i-proc"></span></div>
+      <div class="info-row"><span class="info-icon">📍</span><span style="font-size:12px;color:var(--ct)">Rua Capitão Daniel da Cunha Morais, 632 — Tanabi/SP</span></div>
+    </div>
+
+    <a class="btn-cal" id="btn-google" target="_blank">
+      <span class="ic">🗓</span>
+      <span>Google Calendar<br><span style="font-size:11px;font-weight:400;color:var(--ct)">Android e Gmail</span></span>
+    </a>
+    <button class="btn-cal" id="btn-apple" onclick="baixarICS()">
+      <span class="ic">🍎</span>
+      <span>Apple Calendar<br><span style="font-size:11px;font-weight:400;color:var(--ct)">iPhone e Mac</span></span>
+    </button>
+    <a class="btn-cal" id="btn-outlook" target="_blank">
+      <span class="ic">📧</span>
+      <span>Outlook<br><span style="font-size:11px;font-weight:400;color:var(--ct)">Microsoft / Hotmail</span></span>
+    </a>
+  </div>
+</div>
+
+<div class="footer">Dra. Anna Carolina Dias · Tanabi/SP</div>
+
+<script>
+const LOCAL='Rua Capitão Daniel da Cunha Morais, 632 - Tanabi/SP, CEP 15170-027';
+const MESES_N=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const DIAS_SEM=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+
+const params=new URLSearchParams(window.location.search);
+const d=params.get('d')||'';   // formato: 20260617
+const h=params.get('h')||'';   // formato: 1100
+const p=params.get('p')||'';   // procedimento
+
+let dataOk=false, dtIni=null, dtFim=null;
+
+function init(){
+  if(d.length===8 && h.length===4){
+    const ano=d.slice(0,4), mes=d.slice(4,6), dia=d.slice(6,8);
+    const hh=h.slice(0,2), mm=h.slice(2,4);
+    dtIni=`${d}T${h}00`;
+    // Fim = início + 1 hora
+    const fimDate=new Date(`${ano}-${mes}-${dia}T${hh}:${mm}:00`);
+    fimDate.setHours(fimDate.getHours()+1);
+    const fy=fimDate.getFullYear(), fm=String(fimDate.getMonth()+1).padStart(2,'0'), fd=String(fimDate.getDate()).padStart(2,'0');
+    const fh=String(fimDate.getHours()).padStart(2,'0'), fmin=String(fimDate.getMinutes()).padStart(2,'0');
+    dtFim=`${fy}${fm}${fd}T${fh}${fmin}00`;
+    dataOk=true;
+
+    // Preencher info
+    const dtObj=new Date(`${ano}-${mes}-${dia}T12:00:00`);
+    document.getElementById('i-data').textContent=`${DIAS_SEM[dtObj.getDay()]}, ${dia} de ${MESES_N[parseInt(mes)-1]} de ${ano}`;
+    document.getElementById('i-hora').innerHTML=`<strong>${hh}:${mm}</strong>`;
+    if(p){
+      document.getElementById('row-proc').style.display='flex';
+      document.getElementById('i-proc').textContent=p;
+    }
+  } else {
+    document.getElementById('i-data').textContent='Dados da consulta não encontrados';
+  }
+
+  const titulo='Consulta - Dra. Anna Carolina Dias'+(p?' ('+p+')':'');
+  const detalhes='Consulta na clínica da Dra. Anna Carolina Dias (CRO 82281). Telefone: (17) 98211-3940';
+
+  // Google Calendar
+  const gcal=`https://calendar.google.com/calendar/render?action=TEMPLATE`+
+    `&text=${encodeURIComponent(titulo)}`+
+    `&dates=${dtIni}/${dtFim}`+
+    `&details=${encodeURIComponent(detalhes)}`+
+    `&location=${encodeURIComponent(LOCAL)}`+
+    `&ctz=America/Sao_Paulo`;
+  document.getElementById('btn-google').href=dataOk?gcal:'#';
+
+  // Outlook
+  const ano=d.slice(0,4), mes=d.slice(4,6), dia=d.slice(6,8);
+  const hh=h.slice(0,2), mm=h.slice(2,4);
+  const outIni=`${ano}-${mes}-${dia}T${hh}:${mm}:00`;
+  const fimD=new Date(outIni); fimD.setHours(fimD.getHours()+1);
+  const outFim=`${fimD.getFullYear()}-${String(fimD.getMonth()+1).padStart(2,'0')}-${String(fimD.getDate()).padStart(2,'0')}T${String(fimD.getHours()).padStart(2,'0')}:${String(fimD.getMinutes()).padStart(2,'0')}:00`;
+  const outlook=`https://outlook.live.com/calendar/0/action/compose?allday=false`+
+    `&subject=${encodeURIComponent(titulo)}`+
+    `&startdt=${outIni}&enddt=${outFim}`+
+    `&body=${encodeURIComponent(detalhes)}`+
+    `&location=${encodeURIComponent(LOCAL)}`;
+  document.getElementById('btn-outlook').href=dataOk?outlook:'#';
+}
+
+function baixarICS(){
+  if(!dataOk){alert('Dados da consulta não encontrados.');return;}
+  const titulo='Consulta - Dra. Anna Carolina Dias'+(p?' ('+p+')':'');
+  const ics=[
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Clinica Anna Carolina//Agendamento//PT',
+    'BEGIN:VEVENT',
+    'UID:'+Date.now()+'@clinica-anna-carolina',
+    'DTSTAMP:'+new Date().toISOString().replace(/[-:]/g,'').split('.')[0]+'Z',
+    'DTSTART;TZID=America/Sao_Paulo:'+dtIni,
+    'DTEND;TZID=America/Sao_Paulo:'+dtFim,
+    'SUMMARY:'+titulo,
+    'DESCRIPTION:Consulta na clínica da Dra. Anna Carolina Dias (CRO 82281). Tel: (17) 98211-3940',
+    'LOCATION:'+LOCAL,
+    'BEGIN:VALARM',
+    'TRIGGER:-PT2H',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:Consulta Dra. Anna Carolina em 2 horas',
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ].join('\r\n');
+  const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='consulta-dra-anna-carolina.ics';
+  document.body.appendChild(a);a.click();
+  document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+
+init();
+</script>
+</body>
+</html>

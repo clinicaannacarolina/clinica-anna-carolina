@@ -1027,7 +1027,15 @@ function msgRetorno(p){
   return `Olá ${chamada(p)}, bom dia, tudo bem com você? 😊\n\nJá faz ${pr} desde o seu procedimento de ${nomeTrat} aqui na clínica da Dra. Anna Carolina Dias.\n\nGostaríamos de te convidar para marcar seu retorno e manter os melhores resultados! 🌿✨\n\nVamos agendar um horário para você?\n\nAguardo seu retorno 💚`;
 }
 function msgAniv(p){return`Olá, ${chamada(p)}! 🎉🎂\n\nHoje é um dia especial — o seu aniversário!\n\nA equipe da clínica da Dra. Anna Carolina Dias deseja a você um dia incrível, repleto de alegria, saúde e muito amor! 🌸✨\n\nMuitos parabéns! 🥳💚`;}
-function msgConsulta(c){const hora=c.hora.slice(0,5);const nome=c.nome.split(' ')[0];return`Olá, ${nome}! 😊\n\nLembrando que você tem consulta *amanhã às ${hora}h* na clínica da Dra. Anna Carolina Dias.\n\n${c.procedimento?`Procedimento: *${c.procedimento}*\n\n`:''}Confirma sua presença? ✅\n\nTe esperamos! 💚`;}
+function linkAgendaAdd(c){
+  const d=c.data.replace(/-/g,'');
+  const h=c.hora.slice(0,5).replace(':','');
+  const base=window.location.href.replace('index.html','').replace(/\?.*$/,'');
+  let url=base+'agenda-add.html?d='+d+'&h='+h;
+  if(c.procedimento) url+='&p='+encodeURIComponent(c.procedimento);
+  return url;
+}
+function msgConsulta(c){const hora=c.hora.slice(0,5);const nome=c.nome.split(' ')[0];return`Olá, ${nome}! 😊\n\nLembrando que você tem consulta *amanhã às ${hora}h* na clínica da Dra. Anna Carolina Dias.\n\n${c.procedimento?`Procedimento: *${c.procedimento}*\n\n`:''}Confirma sua presença? ✅\n\n📆 Salvar na sua agenda:\n${linkAgendaAdd(c)}\n\nTe esperamos! 💚`;}
 function msgVerificacao(p,trat){return`Olá, ${chamada(p)}! 😊\n\nPassaram alguns dias desde o seu procedimento de *${trat}* aqui na clínica da Dra. Anna Carolina Dias.\n\nGostaríamos de saber como você está se sentindo com o resultado! Está tudo bem? 🌿✨\n\nQualquer dúvida, pode chamar! 💚`;}
 function urlGcal(c){const ini2=c.data.replace(/-/g,'')+`T${c.hora.replace(':','')}00`;const[h,mi]=c.hora.split(':');const fim=c.data.replace(/-/g,'')+`T${String(parseInt(h)+1).padStart(2,'0')}${mi}00`;return`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(c.nome+' - '+(c.procedimento||'Consulta'))}&dates=${ini2}/${fim}&details=${encodeURIComponent(`Paciente: ${c.nome}\nTel: ${c.telefone||''}\n${c.procedimento||''}\n${c.observacao||''}`)}`;}
 
@@ -3402,6 +3410,9 @@ Passando para confirmar sua consulta com a Dra. Anna Carolina:
 
 📅 ${diaStr}, ${d}/${m}/${y} às ${c.hora.slice(0,5)}${c.procedimento?' — '+c.procedimento:''}
 📍 Rua Capitão Daniel da Cunha Morais, 632 - Tanabi/SP
+
+📆 Salvar na sua agenda:
+${linkAgendaAdd(c)}
 
 Por favor, confirme sua presença respondendo esta mensagem! 🙏
 

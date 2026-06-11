@@ -85,6 +85,7 @@
   <h2>Solicitação enviada!</h2>
   <p style="color:var(--ct);font-size:14px;line-height:1.6;max-width:300px">Sua solicitação de agendamento foi recebida. A Dra. Anna Carolina confirmará em breve pelo WhatsApp.</p>
   <div id="st-suc-resumo" style="margin-top:1.25rem;background:var(--verde-c);border-radius:12px;padding:14px 18px;text-align:left;width:100%;max-width:320px;font-size:13px"></div>
+  <a id="btn-salvar-agenda" href="#" style="margin-top:1rem;display:flex;align-items:center;gap:8px;padding:13px 24px;background:var(--verde);color:white;border-radius:12px;text-decoration:none;font-weight:700;font-size:15px">📆 Salvar na minha agenda</a>
 </div>
 
 <!-- FORMULÁRIO -->
@@ -361,6 +362,13 @@ async function confirmarAgendamento(){
     ${proc?`<div style="color:var(--verde-e);margin-bottom:4px">💉 ${proc}</div>`:''}
     <div style="color:var(--ct);font-size:12px;margin-top:8px">Rua Capitão Daniel da Cunha Morais, 632 · Tanabi/SP</div>
   `;
+  // Link para salvar na agenda
+  const dAdd=dataSel.replace(/-/g,'');
+  const hAdd=horaSel.replace(':','');
+  const baseAdd=window.location.href.replace('agenda-online.html','').replace(/\?.*$/,'');
+  let urlAdd=baseAdd+'agenda-add.html?d='+dAdd+'&h='+hAdd;
+  if(proc) urlAdd+='&p='+encodeURIComponent(proc);
+  document.getElementById('btn-salvar-agenda').href=urlAdd;
   setState('st-sucesso');
 }
 
