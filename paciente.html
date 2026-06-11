@@ -1904,49 +1904,113 @@ function enviarLinkWpp(){
 </script>
 <!-- MODAL FOTO DE PERFIL -->
 <div class="mb" id="m-foto-pac">
-  <div class="mx" style="max-width:380px">
-    <h3 style="margin-bottom:8px">📷 Foto de perfil</h3>
-    <p style="font-size:13px;color:var(--ct);margin-bottom:12px">Cole a URL de uma foto (link direto de imagem).</p>
-    <input type="url" id="foto-url-input" placeholder="https://exemplo.com/foto.jpg" style="margin-bottom:10px"/>
-    <div id="foto-preview" style="width:80px;height:80px;border-radius:50%;background:var(--borda);margin:0 auto 12px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:28px">👤</div>
+  <div class="mx" style="max-width:360px">
+    <h3 style="margin-bottom:6px">📷 Foto de perfil</h3>
+    <p style="font-size:13px;color:var(--ct);margin-bottom:14px">Tire uma foto, escolha da galeria ou cole um link.</p>
+
+    <!-- Preview central -->
+    <div id="foto-preview" onclick="document.getElementById('foto-file-input').click()"
+      style="width:110px;height:110px;border-radius:50%;background:var(--borda);margin:0 auto 14px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:36px;cursor:pointer;border:3px dashed var(--verde);position:relative">
+      👤
+      <div style="position:absolute;bottom:4px;right:4px;background:var(--verde);border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:14px">📷</div>
+    </div>
+
+    <!-- Input arquivo oculto — aceita câmera + galeria -->
+    <input type="file" id="foto-file-input" accept="image/*" style="display:none" onchange="processarFotoUpload(this)"/>
+
+    <!-- Botões de ação -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;justify-content:center">
+      <button class="btn" style="font-size:13px;padding:8px 14px" onclick="document.getElementById('foto-file-input').setAttribute('capture','user');document.getElementById('foto-file-input').click()">🤳 Selfie</button>
+      <button class="btn" style="font-size:13px;padding:8px 14px" onclick="document.getElementById('foto-file-input').removeAttribute('capture');document.getElementById('foto-file-input').click()">🖼 Galeria</button>
+    </div>
+
+    <!-- URL manual (alternativa) -->
+    <div style="font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;margin-bottom:4px">Ou cole uma URL</div>
+    <input type="url" id="foto-url-input" placeholder="https://exemplo.com/foto.jpg" style="font-size:12px;margin-bottom:12px" oninput="previewUrlFoto(this.value)"/>
+
     <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn" style="color:var(--vermelho)" onclick="removerFoto()">🗑 Remover</button>
+      <button class="btn" style="color:var(--vermelho);font-size:13px" onclick="removerFoto()">🗑 Remover</button>
       <button class="btn" onclick="document.getElementById('m-foto-pac').classList.remove('open')">Cancelar</button>
-      <button class="btn pri" onclick="salvarFotoPerfil()">✅ Salvar</button>
+      <button class="btn pri" id="btn-salvar-foto" onclick="salvarFotoPerfil()">✅ Salvar</button>
     </div>
   </div>
 </div>
 <script>
+let _fotoBase64 = null; // foto carregada via upload
+
 document.getElementById('m-foto-pac').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.classList.remove('open');});
-document.getElementById('foto-url-input').addEventListener('input',function(){
-  const url=this.value.trim();
-  const prev=document.getElementById('foto-preview');
-  if(url){prev.innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='❌'"/>`;} 
-  else {prev.innerHTML='👤';}
-});
 
 function abrirFotoPerfil(){
-  document.getElementById('foto-url-input').value=pac?.foto_url||'';
+  _fotoBase64=null;
+  document.getElementById('foto-url-input').value='';
+  document.getElementById('foto-file-input').value='';
   const prev=document.getElementById('foto-preview');
-  if(pac?.foto_url){prev.innerHTML=`<img src="${pac.foto_url}" style="width:100%;height:100%;object-fit:cover"/>`;} 
-  else {prev.innerHTML='👤';}
+  if(pac?.foto_url){
+    prev.innerHTML=`<img src="${pac.foto_url}" style="width:100%;height:100%;object-fit:cover"/><div style="position:absolute;bottom:4px;right:4px;background:var(--verde);border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:14px">📷</div>`;
+  } else {
+    prev.innerHTML='👤<div style="position:absolute;bottom:4px;right:4px;background:var(--verde);border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:14px">📷</div>';
+  }
   document.getElementById('m-foto-pac').classList.add('open');
 }
 
+function processarFotoUpload(input){
+  const file=input.files?.[0];
+  if(!file)return;
+  const btn=document.getElementById('btn-salvar-foto');
+  btn.disabled=true; btn.textContent='Processando...';
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const img=new Image();
+    img.onload=function(){
+      // Comprimir para 200x200 max (JPEG 80%)
+      const canvas=document.createElement('canvas');
+      const max=200;
+      let w=img.width,h=img.height;
+      if(w>h){if(w>max){h=Math.round(h*max/w);w=max;}}
+      else{if(h>max){w=Math.round(w*max/h);h=max;}}
+      canvas.width=w; canvas.height=h;
+      const ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0,w,h);
+      _fotoBase64=canvas.toDataURL('image/jpeg',0.8);
+      // Mostrar preview
+      const prev=document.getElementById('foto-preview');
+      prev.innerHTML=`<img src="${_fotoBase64}" style="width:100%;height:100%;object-fit:cover"/><div style="position:absolute;bottom:4px;right:4px;background:var(--verde);border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:14px">📷</div>`;
+      document.getElementById('foto-url-input').value='';
+      btn.disabled=false; btn.textContent='✅ Salvar';
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function previewUrlFoto(url){
+  if(!url) return;
+  _fotoBase64=null;
+  const prev=document.getElementById('foto-preview');
+  prev.innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='❌ URL inválida'"/><div style="position:absolute;bottom:4px;right:4px;background:var(--verde);border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:14px">📷</div>`;
+}
+
 async function salvarFotoPerfil(){
-  const url=document.getElementById('foto-url-input').value.trim()||null;
-  const{error}=await db.from('pacientes').update({foto_url:url}).eq('id',pac.id);
-  if(error){toast('Erro ao salvar foto','vermelho');return;}
-  pac.foto_url=url;
+  const btn=document.getElementById('btn-salvar-foto');
+  btn.disabled=true; btn.textContent='Salvando...';
+  const urlFinal = _fotoBase64 || document.getElementById('foto-url-input').value.trim() || null;
+  const{error}=await db.from('pacientes').update({foto_url:urlFinal}).eq('id',pac.id);
+  btn.disabled=false; btn.textContent='✅ Salvar';
+  if(error){toast('Erro ao salvar foto: '+error.message,'vermelho');return;}
+  pac.foto_url=urlFinal;
   document.getElementById('m-foto-pac').classList.remove('open');
   renderHero();
-  toast(url?'Foto atualizada ✅':'Foto removida','verde');
+  toast(urlFinal?'Foto salva ✅':'Foto removida','verde');
 }
 
 async function removerFoto(){
+  _fotoBase64=null;
   document.getElementById('foto-url-input').value='';
-  document.getElementById('foto-preview').innerHTML='👤';
-  await salvarFotoPerfil();
+  pac.foto_url=null;
+  await db.from('pacientes').update({foto_url:null}).eq('id',pac.id);
+  document.getElementById('m-foto-pac').classList.remove('open');
+  renderHero();
+  toast('Foto removida','verde');
 }
 
 // ── HISTÓRICO DE ALTERAÇÕES ──
