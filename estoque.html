@@ -6,6 +6,14 @@
 <title>Estoque — Clínica Dra. Anna Carolina</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script>
+try{
+  const auth=JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+  if(!auth.ok||auth.expires<Date.now()) window.location.replace('login.html');
+  else sessionStorage.setItem('clinica_auth','1');
+}catch(e){ window.location.replace('login.html'); }
+</script>
 <style>
 :root{
   --verde:#1D9E75;--verde-e:#0F6E56;--verde-c:#E1F5EE;
@@ -374,8 +382,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-
 <div class="toast" id="toast"></div>
 
 <script>
-const SB_URL='https://nathaeuqbeqlvkftbmes.supabase.co';
-const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hdGhhZXVxYmVxbHZrZnRibWVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4OTc4MzYsImV4cCI6MjA5NTQ3MzgzNn0.9t3q5C_h1pRb11gqRtpGGVpOUGey5TBzvMgal8h6wtg';
 const {createClient}=supabase;
 const db=createClient(SB_URL,SB_KEY);
 
