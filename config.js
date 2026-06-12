@@ -7,7 +7,7 @@ const CLINICA_CONFIG = {
   nome: 'Dra. Anna Carolina Dias',
   especialidade: 'Harmonização Orofacial',
   logo: 'logo.jpg',
-  senha: '1234'
+  senha: '2411'
 };
 
 function authLogin(pin){
