@@ -662,6 +662,8 @@ function toast(m,t=''){const el=document.getElementById('toast');el.textContent=
 function fDt(s){if(!s)return'—';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`;}
 function fmtBRL(v){return v?'R$ '+parseFloat(v).toLocaleString('pt-BR',{minimumFractionDigits:2}):'—';}
 function ini(n){return n.split(' ').filter(Boolean).slice(0,2).map(p=>p[0].toUpperCase()).join('');}
+// Escapa caracteres HTML perigosos antes de inserir dados do paciente via innerHTML (previne XSS armazenado)
+function escapeHtml(s){if(s===null||s===undefined)return'';return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function chamada(p){return p.apelido||p.nome.split(' ')[0];}
 function dias(dr){if(!dr)return null;const h=new Date();h.setHours(0,0,0,0);const r=new Date(dr+'T12:00:00');return Math.ceil((r-h)/86400000);}
 function anivHoje(dn){if(!dn)return false;const[,m,d]=dn.split('-');return m===String(new Date().getMonth()+1).padStart(2,'0')&&d===String(new Date().getDate()).padStart(2,'0');}
@@ -717,30 +719,38 @@ async function iniciar(){
 // ─── HERO ───
 function renderHero(){
   const p=pac;
-  document.title=`${p.nome} — Ficha`;
+  document.title=`${escapeHtml(p.nome)} — Ficha`;
   const avatarEl=document.getElementById('hero-avatar');
   if(p.foto_url){
-    avatarEl.innerHTML=`<img src="${p.foto_url}" alt="${p.nome}" onerror="this.parentElement.innerHTML='${ini(p.nome)}';this.parentElement.style.fontSize='26px'"/>`;
+    avatarEl.innerHTML='';
+    const img=document.createElement('img');
+    img.src=p.foto_url;
+    img.alt=p.nome||'';
+    img.onerror=function(){
+      avatarEl.textContent=ini(p.nome);
+      avatarEl.style.fontSize='26px';
+    };
+    avatarEl.appendChild(img);
     avatarEl.style.background='transparent';
   } else {
-    avatarEl.innerHTML=ini(p.nome);
+    avatarEl.textContent=ini(p.nome);
     avatarEl.style.background='';
   }
   avatarEl.onclick=()=>abrirFotoPerfil();
   document.getElementById('hero-nome').textContent=p.nome;
-  document.getElementById('hero-apelido').textContent=p.apelido?`Como chamar: ${p.apelido}`:'';
+  document.getElementById('hero-apelido').textContent=p.apelido?`Como chamar: ${escapeHtml(p.apelido)}`:'';
 
   const meta=[];
-  if(p.telefone) meta.push(`📱 ${p.telefone}`);
+  if(p.telefone) meta.push(`📱 ${escapeHtml(p.telefone)}`);
   if(p.data_nascimento){const i=idade(p.data_nascimento);meta.push(`🎂 ${fDt(p.data_nascimento)}${i!==null?' ('+i+' anos)':''}`);}
-  if(p.sexo) meta.push(`👤 ${p.sexo}`);
+  if(p.sexo) meta.push(`👤 ${escapeHtml(p.sexo)}`);
   if(anivHoje(p.data_nascimento)) meta.push(`🎉 Aniversário hoje!`);
   document.getElementById('hero-meta').innerHTML=meta.map(m=>`<span class="hero-badge">${m}</span>`).join('');
 
   const tel='55'+p.telefone.replace(/\D/g,'');
   const actions=[];
   actions.push(`<a href="https://wa.me/${tel}" target="_blank" class="btn-hero">💬 WhatsApp</a>`);
-  if(p.link_drive) actions.push(`<a href="${p.link_drive}" target="_blank" class="btn-hero">📁 Drive</a>`);
+  if(p.link_drive) actions.push(`<a href="${escapeHtml(p.link_drive)}" target="_blank" class="btn-hero">📁 Drive</a>`);
   if(p.instagram) actions.push(`<a href="https://instagram.com/${p.instagram.replace('@','').trim()}" target="_blank" class="btn-hero" style="background:#E1306C">📷 Instagram</a>`);
   if(p.facebook) actions.push(`<a href="${(p.facebook||'').startsWith('http')?p.facebook:'https://facebook.com/'+(p.facebook||'').trim()}" target="_blank" class="btn-hero" style="background:#1877F2">👥 Facebook</a>`);
   actions.push(`<button class="btn-hero" style="background:#7c3aed" onclick="gerarLinkAnamnese()">📋 Anamnese</button>`);
@@ -771,7 +781,7 @@ function renderResumo(){
       const cls=d<0?'ret-urg':d<=7?'ret-ate':'ret-ok';
       const txt=d<0?`${Math.abs(d)}d atrasado`:d===0?'Hoje!':` em ${d}d`;
       return `<div class="retorno-alert ${cls}">
-        <div><div style="font-weight:600;font-size:14px">${t.nome}</div><div style="font-size:12px;color:var(--ct)">Retorno: ${fDt(t.dataRetorno)}</div></div>
+        <div><div style="font-weight:600;font-size:14px">${escapeHtml(t.nome)}</div><div style="font-size:12px;color:var(--ct)">Retorno: ${fDt(t.dataRetorno)}</div></div>
         <span style="font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;background:rgba(0,0,0,.07)">${txt}</span>
       </div>`;
     }).join('');
@@ -781,16 +791,16 @@ function renderResumo(){
   const endereco=[p.rua,p.numero,p.bairro,p.cidade].filter(Boolean).join(', ')||p.endereco||'—';
   document.getElementById('res-dados').innerHTML=`
     <div class="dado-item"><div class="dado-label">Telefone</div><div class="dado-val">${p.telefone||'—'}</div></div>
-    <div class="dado-item"><div class="dado-label">CPF</div><div class="dado-val">${p.cpf||'—'}</div></div>
-    <div class="dado-item"><div class="dado-label">RG</div><div class="dado-val">${p.rg||'—'}</div></div>
+    <div class="dado-item"><div class="dado-label">CPF</div><div class="dado-val">${escapeHtml(p.cpf)||'—'}</div></div>
+    <div class="dado-item"><div class="dado-label">RG</div><div class="dado-val">${escapeHtml(p.rg)||'—'}</div></div>
     <div class="dado-item"><div class="dado-label">Sexo</div><div class="dado-val">${p.sexo||'—'}</div></div>
     <div class="dado-item"><div class="dado-label">Data de nascimento</div><div class="dado-val">${fDt(p.data_nascimento)}${idade(p.data_nascimento)?' ('+idade(p.data_nascimento)+' anos)':''}</div></div>
-    <div class="dado-item"><div class="dado-label">Indicação</div><div class="dado-val">${p.indicacao||'—'}</div></div>
-    <div class="dado-item full"><div class="dado-label">Endereço</div><div class="dado-val">${endereco}</div></div>
-    ${p.link_drive?`<div class="dado-item full"><div class="dado-label">Google Drive</div><div class="dado-val"><a href="${p.link_drive}" target="_blank" style="color:var(--verde)">Abrir pasta</a></div></div>`:''}
-    ${p.instagram?`<div class="dado-item"><div class="dado-label">📷 Instagram</div><div class="dado-val"><a href="https://instagram.com/${p.instagram.replace('@','').trim()}" target="_blank" style="color:#E1306C;font-weight:500">${p.instagram}</a></div></div>`:''}
-    ${p.facebook?`<div class="dado-item"><div class="dado-label">👥 Facebook</div><div class="dado-val"><a href="${(p.facebook||'').startsWith('http')?p.facebook:'https://facebook.com/'+(p.facebook||'').trim()}" target="_blank" style="color:#1877F2;font-weight:500">${p.facebook}</a></div></div>`:''}
-    ${p.como_conheceu?`<div class="dado-item"><div class="dado-label">Como conheceu</div><div class="dado-val">${p.como_conheceu}</div></div>`:''}
+    <div class="dado-item"><div class="dado-label">Indicação</div><div class="dado-val">${escapeHtml(p.indicacao)||'—'}</div></div>
+    <div class="dado-item full"><div class="dado-label">Endereço</div><div class="dado-val">${escapeHtml(endereco)}</div></div>
+    ${p.link_drive?`<div class="dado-item full"><div class="dado-label">Google Drive</div><div class="dado-val"><a href="${escapeHtml(p.link_drive)}" target="_blank" style="color:var(--verde)">Abrir pasta</a></div></div>`:''}
+    ${p.instagram?`<div class="dado-item"><div class="dado-label">📷 Instagram</div><div class="dado-val"><a href="https://instagram.com/${p.instagram.replace('@','').trim()}" target="_blank" style="color:#E1306C;font-weight:500">${escapeHtml(p.instagram)}</a></div></div>`:''}
+    ${p.facebook?`<div class="dado-item"><div class="dado-label">👥 Facebook</div><div class="dado-val"><a href="${(p.facebook||'').startsWith('http')?p.facebook:'https://facebook.com/'+(p.facebook||'').trim()}" target="_blank" style="color:#1877F2;font-weight:500">${escapeHtml(p.facebook)}</a></div></div>`:''}
+    ${p.como_conheceu?`<div class="dado-item"><div class="dado-label">Como conheceu</div><div class="dado-val">${escapeHtml(p.como_conheceu)}</div></div>`:''}
     <div class="dado-item"><div class="dado-label">Cadastro</div><div class="dado-val">${fDt(p.data_atendimento||p.criado_em?.split('T')[0])}</div></div>
   `;
 
@@ -910,7 +920,7 @@ function renderHistorico(){
           </div>
         </div>
         <div class="tl-trats">
-          ${ts.map(t=>`<span class="trat-chip">${t.nome}</span>`).join('')}
+          ${ts.map(t=>`<span class="trat-chip">${escapeHtml(t.nome)}</span>`).join('')}
         </div>
         ${(()=>{
           const pgto=ts.find(t=>t.formaPagamento)?.formaPagamento||atend?.formaPagamento||'';
@@ -926,10 +936,10 @@ function renderHistorico(){
             if(sts) html+=`<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${sts==='recebido'?'var(--verde-c)':'var(--amarelo-c)'};color:${stsCor};font-weight:500">${stsLabel}</span>`;
             html+='</div>';
           }
-          if(obs) html+=`<div style="font-size:12px;color:var(--ct);margin-top:3px;font-style:italic">💬 ${obs}</div>`;
+          if(obs) html+=`<div style="font-size:12px;color:var(--ct);margin-top:3px;font-style:italic">💬 ${escapeHtml(obs)}</div>`;
           return html;
         })()}
-        ${ts.filter(t=>t.dataRetorno).map(t=>`<div class="tl-retorno">🔔 Retorno ${t.nome}: ${fDt(t.dataRetorno)}</div>`).join('')}
+        ${ts.filter(t=>t.dataRetorno).map(t=>`<div class="tl-retorno">🔔 Retorno ${escapeHtml(t.nome)}: ${fDt(t.dataRetorno)}</div>`).join('')}
         ${verif ? renderVerificacao(verif, dv) : ''}
       </div>
     </div>`;
@@ -1287,7 +1297,7 @@ async function excluirDoc(id){
   // Excluir lançamentos financeiros por DESCRIÇÃO (cobre lançamentos sem orcamento_id)
   if(doc.paciente_id && doc.dados?.itens?.length){
     const descBase=doc.dados.itens.map(i=>i.trat).join(' + ');
-    const descExata=`${descBase} — ${pac.nome}`;
+    const descExata=`${descBase} — ${escapeHtml(pac.nome)}`;
     const{data:l1}=await db.from('financeiro').select('id,valor').eq('paciente_id',doc.paciente_id).eq('descricao',descExata);
     const{data:l2}=await db.from('financeiro').select('id,valor').eq('paciente_id',doc.paciente_id).eq('descricao',descExata+' (restante)');
     const lancsDesc=[...(l1||[]),...(l2||[])];
@@ -1521,7 +1531,7 @@ function abrirDetAtend(data, trats) {
   const total = trats.reduce((s,t)=>s+(parseFloat(t.valor)||0),0);
   procsEl.innerHTML = trats.map(t=>`
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg);border-radius:8px;margin-bottom:5px">
-      <span style="font-size:14px">${t.nome}</span>
+      <span style="font-size:14px">${escapeHtml(t.nome)}</span>
       ${t.valor?`<span style="font-size:13px;font-weight:600;color:var(--verde-e)">${fmtBRL(t.valor)}</span>`:''}
     </div>
   `).join('') + (total ? `<div style="display:flex;justify-content:space-between;padding:8px 12px;background:var(--verde-c);border-radius:8px;font-weight:600;color:var(--verde-e)"><span>Total</span><span>${fmtBRL(total)}</span></div>` : '');
@@ -1890,7 +1900,7 @@ async function adicionarPagamentoPlano(planoId, descPlano) {
     if (!data || !valor) { toast('Preencha data e valor', 'vermelho'); return; }
     const { error } = await db.from('financeiro').insert({
       tipo: 'receita', data, valor,
-      descricao: `${descPlano} — ${pac.nome}`,
+      descricao: `${descPlano} — ${escapeHtml(pac.nome)}`,
       categoria: 'Harmonização Orofacial',
       forma_pagamento: pgto, status: 'recebido',
       paciente_id: pac.id, orcamento_id: planoId, obs

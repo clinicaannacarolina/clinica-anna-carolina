@@ -821,6 +821,8 @@ if(savedTheme){
 function toast(m,t=''){const el=document.getElementById('toast');el.textContent=m;el.className='toast show '+t;setTimeout(()=>el.className='toast',3000);}
 function ini(n){return n.split(' ').filter(Boolean).slice(0,2).map(p=>p[0].toUpperCase()).join('');}
 function fDt(s){if(!s)return'—';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`;}
+// Escapa caracteres HTML perigosos antes de inserir dados de paciente/agenda via innerHTML (previne XSS armazenado)
+function escapeHtml(s){if(s===null||s===undefined)return'';return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function dias(dr){if(!dr)return null;const h=new Date();h.setHours(0,0,0,0);const r=new Date(dr+'T12:00:00');return Math.ceil((r-h)/86400000);}
 function anivHoje(dn){if(!dn)return false;const[,m,d]=dn.split('-');return m===String(HOJE.getMonth()+1).padStart(2,'0')&&d===String(HOJE.getDate()).padStart(2,'0');}
 function chamada(p){return p.apelido||p.nome.split(' ')[0];}
@@ -1056,9 +1058,9 @@ function linkAgendaAdd(c){
   if(c.procedimento) url+='&p='+encodeURIComponent(c.procedimento);
   return url;
 }
-function msgConsulta(c){const hora=c.hora.slice(0,5);const nome=c.nome.split(' ')[0];return`Olá, ${nome}! 😊\n\nLembrando que você tem consulta *amanhã às ${hora}h* na clínica da Dra. Anna Carolina Dias.\n\n${c.procedimento?`Procedimento: *${c.procedimento}*\n\n`:''}Confirma sua presença? ✅\n\n📆 Salvar na sua agenda:\n${linkAgendaAdd(c)}\n\nTe esperamos! 💚`;}
+function msgConsulta(c){const hora=c.hora.slice(0,5);const nome=c.nome.split(' ')[0];return`Olá, ${nome}! 😊\n\nLembrando que você tem consulta *amanhã às ${hora}h* na clínica da Dra. Anna Carolina Dias.\n\n${c.procedimento?`Procedimento: *${escapeHtml(c.procedimento)}*\n\n`:''}Confirma sua presença? ✅\n\n📆 Salvar na sua agenda:\n${linkAgendaAdd(c)}\n\nTe esperamos! 💚`;}
 function msgVerificacao(p,trat){return`Olá, ${chamada(p)}! 😊\n\nPassaram alguns dias desde o seu procedimento de *${trat}* aqui na clínica da Dra. Anna Carolina Dias.\n\nGostaríamos de saber como você está se sentindo com o resultado! Está tudo bem? 🌿✨\n\nQualquer dúvida, pode chamar! 💚`;}
-function urlGcal(c){const ini2=c.data.replace(/-/g,'')+`T${c.hora.replace(':','')}00`;const[h,mi]=c.hora.split(':');const fim=c.data.replace(/-/g,'')+`T${String(parseInt(h)+1).padStart(2,'0')}${mi}00`;return`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(c.nome+' - '+(c.procedimento||'Consulta'))}&dates=${ini2}/${fim}&details=${encodeURIComponent(`Paciente: ${c.nome}\nTel: ${c.telefone||''}\n${c.procedimento||''}\n${c.observacao||''}`)}`;}
+function urlGcal(c){const ini2=c.data.replace(/-/g,'')+`T${c.hora.replace(':','')}00`;const[h,mi]=c.hora.split(':');const fim=c.data.replace(/-/g,'')+`T${String(parseInt(h)+1).padStart(2,'0')}${mi}00`;return`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(c.nome+' - '+(c.procedimento||'Consulta'))}&dates=${ini2}/${fim}&details=${encodeURIComponent(`Paciente: ${escapeHtml(c.nome)}\nTel: ${c.telefone||''}\n${c.procedimento||''}\n${c.observacao||''}`)}`;}
 
 // CARREGAR
 // SQL para criar tabela financeiro no Supabase (executar uma vez):
@@ -1114,8 +1116,8 @@ function renderHoje(){
       return`<div class="ci ${cls}" data-cid="${c.id}">
         <div class="ch">${c.hora.slice(0,5)}</div>
         <div style="flex:1">
-          <div class="cn">${c.nome}${isReal?' <span style="font-size:10px;color:var(--verde-e);font-weight:700">✅ REALIZADO</span>':isFalt?' <span style="font-size:10px;color:var(--ct);font-weight:700">❌ FALTOU</span>':''}</div>
-          <div class="cd">${c.procedimento||''}${c.telefone?' · '+c.telefone:''}</div>
+          <div class="cn">${escapeHtml(c.nome)}${isReal?' <span style="font-size:10px;color:var(--verde-e);font-weight:700">✅ REALIZADO</span>':isFalt?' <span style="font-size:10px;color:var(--ct);font-weight:700">❌ FALTOU</span>':''}</div>
+          <div class="cd">${escapeHtml(c.procedimento)}${c.telefone?' · '+escapeHtml(c.telefone):''}</div>
         </div>
         <div class="ca">
           ${tel&&!isReal&&!isFalt?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬</a>`:''}
@@ -1138,20 +1140,20 @@ function renderHoje(){
   const ca=consultas.filter(c=>c.data===AMANHA_STR&&c.status!=='cancelado').sort((a,b)=>a.hora.localeCompare(b.hora));
   document.getElementById('l-cons-amanha').innerHTML=ca.length===0
     ?`<div class="empty" style="padding:1rem"><div class="empty-icon">📋</div><p>Nenhuma consulta amanhã.</p></div>`
-    :ca.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';const conf=c.status==='confirmado';return`<div class="ci" data-cid="${c.id}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${c.nome}</div><div class="cd">${c.procedimento||''}${c.telefone?' · '+c.telefone:''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬 Confirmar</a>`:''}<button class="btn" style="padding:6px 9px;font-size:12px;background:${conf?'var(--verde)':'var(--bg)'};color:${conf?'white':'var(--ct)'};border-color:${conf?'var(--verde)':'var(--borda)'}" onclick="confirmarConsulta('${c.id}')" title="${conf?'Confirmada — clique para desfazer':'Marcar como confirmada'}">${conf?'✅':'⬜'}</button> ${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">Ficha</a>`:''}<button class="btn btn-vincular" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('');
+    :ca.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';const conf=c.status==='confirmado';return`<div class="ci" data-cid="${c.id}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${escapeHtml(c.nome)}</div><div class="cd">${escapeHtml(c.procedimento)}${c.telefone?' · '+escapeHtml(c.telefone):''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬 Confirmar</a>`:''}<button class="btn" style="padding:6px 9px;font-size:12px;background:${conf?'var(--verde)':'var(--bg)'};color:${conf?'white':'var(--ct)'};border-color:${conf?'var(--verde)':'var(--borda)'}" onclick="confirmarConsulta('${c.id}')" title="${conf?'Confirmada — clique para desfazer':'Marcar como confirmada'}">${conf?'✅':'⬜'}</button> ${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">Ficha</a>`:''}<button class="btn btn-vincular" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('');
 
   // Verificações
   const vers=[];
   pacs.forEach(p=>(p.atendimentos||[]).forEach(a=>{if(a.verificacaoData){const d=dias(a.verificacaoData);if(d!==null&&d<=3&&d>=-2)vers.push({p,a,d});}}) );
   document.getElementById('l-verificacoes').innerHTML=vers.length===0
     ?`<div class="empty" style="padding:1rem"><div class="empty-icon">🔬</div><p>Nenhuma verificação nos próximos dias.</p></div>`
-    :vers.map(({p,a,d})=>{const tel='55'+p.telefone.replace(/\D/g,'');const txt=d<0?`${Math.abs(d)}d atrasada`:d===0?'Hoje!':` em ${d}d`;return`<div class="ai ver"><div><div class="an">🔬 ${p.nome}</div><div class="ad">${a.trats?.map(t=>t.nome).join(', ')||''} · ${p.telefone}</div></div><div class="aa"><span class="ab">${txt}</span><a href="https://wa.me/${tel}?text=${encodeURIComponent(msgVerificacao(p,a.trats?.map(t=>t.nome).join(', ')||'procedimento'))}" target="_blank" class="btn wpp">💬 WhatsApp</a><a href="paciente.html?id=${p.id}" class="btn" style="font-size:12px;padding:7px 10px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">👤 Ficha</a></div></div>`;}).join('');
+    :vers.map(({p,a,d})=>{const tel='55'+p.telefone.replace(/\D/g,'');const txt=d<0?`${Math.abs(d)}d atrasada`:d===0?'Hoje!':` em ${d}d`;return`<div class="ai ver"><div><div class="an">🔬 ${escapeHtml(p.nome)}</div><div class="ad">${a.trats?.map(t=>t.nome).join(', ')||''} · ${escapeHtml(p.telefone)}</div></div><div class="aa"><span class="ab">${txt}</span><a href="https://wa.me/${tel}?text=${encodeURIComponent(msgVerificacao(p,a.trats?.map(t=>t.nome).join(', ')||'procedimento'))}" target="_blank" class="btn wpp">💬 WhatsApp</a><a href="paciente.html?id=${p.id}" class="btn" style="font-size:12px;padding:7px 10px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">👤 Ficha</a></div></div>`;}).join('');
 
   // Aniversários
   const anivs=pacs.filter(p=>anivHoje(p.data_nascimento));
   document.getElementById('l-aniv').innerHTML=anivs.length===0
     ?`<div class="empty" style="padding:1rem"><div class="empty-icon">🎂</div><p>Nenhum aniversariante hoje.</p></div>`
-    :anivs.map(p=>`<div class="ai anv"><div><div class="an">🎂 ${p.nome}</div><div class="ad">${p.telefone}</div></div><div class="aa"><span class="ab">Aniversário hoje!</span><button class="btn anv" onclick='abrAniv(${J(p)})'>🎉 Parabenizar</button><a href="paciente.html?id=${p.id}" class="btn" style="padding:7px 11px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">👤 Ficha</a></div></div>`).join('');
+    :anivs.map(p=>`<div class="ai anv"><div><div class="an">🎂 ${escapeHtml(p.nome)}</div><div class="ad">${escapeHtml(p.telefone)}</div></div><div class="aa"><span class="ab">Aniversário hoje!</span><button class="btn anv" onclick='abrAniv(${J(p)})'>🎉 Parabenizar</button><a href="paciente.html?id=${p.id}" class="btn" style="padding:7px 11px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">👤 Ficha</a></div></div>`).join('');
 
   // Lembretes
   const lems=[];pacs.forEach(p=>(p.lembretes||[]).forEach(l=>{const d=dias(l.data);if(d!==null&&d<=15&&(l.recado||l.texto))lems.push({...l,_p:p,_d:d});}));lems.sort((a,b)=>a._d-b._d);
@@ -1188,7 +1190,7 @@ async function renderAlertasFinHoje(){
     const urgente=d<=0;
     return `<div class="ai ${urgente?'urg':'lem'}" style="margin-bottom:6px">
       <div style="flex:1">
-        <div class="an">💰 ${l.descricao}</div>
+        <div class="an">💰 ${escapeHtml(l.descricao)}</div>
         <div class="ad">${urgente?`${Math.abs(d)}d atrasado`:(d===0?'Vence hoje!':`Vence em ${d}d`)} · ${fmtBRL(l.valor)}</div>
       </div>
       <div class="aa">
@@ -1259,7 +1261,7 @@ function cardAlerta(p, d, nomeTrat) {
        <button class="btn" style="padding:7px 11px;font-size:12px;color:var(--ct);opacity:.7" onclick="arquivarAlerta('${p.id}',${JSON.stringify(nomeTrat)})" title="Arquivar">📁</button>
        <a href="paciente.html?id=${p.id}" class="btn" style="padding:7px 11px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">👤 Ficha</a>`;
   return `<div class="ai ${cls}">
-    <div><div class="an">${p.nome}</div><div class="ad">${nomeTrat} · ${p.telefone} · Retorno: ${fDt(p.tratamentos_adicionais?.find(t=>t.nome===nomeTrat)?.dataRetorno)}</div></div>
+    <div><div class="an">${escapeHtml(p.nome)}</div><div class="ad">${nomeTrat} · ${escapeHtml(p.telefone)} · Retorno: ${fDt(p.tratamentos_adicionais?.find(t=>t.nome===nomeTrat)?.dataRetorno)}</div></div>
     <div class="aa">${statusBadge}${botoes}</div>
   </div>`;
 }
@@ -1307,21 +1309,21 @@ function renderPac(){
     if(prox){if(prox.d<0){bc='atra';bt=`Atrasado ${Math.abs(prox.d)}d`;}else if(prox.d<=15){bc='prox';bt=`Retorno em ${prox.d}d`;}else{bc='ret';bt=`Retorno: ${fDt(prox.dataRetorno)}`;}}
     const isAniv=anivHoje(p.data_nascimento);
     const isPend=p.cadastro_pendente===true;
-    const tls=isPend?`<span style="color:var(--amarelo);font-weight:500">🔶 Cadastro pendente</span>`:trats.length>0?trats.map(t=>`${t.nome} · ${t.prazo>0?t.prazo+' '+(t.prazo===1?'mês':'meses'):'Sem retorno'}${(t.dataAtendimento||p.data_atendimento)?' · '+fDt(t.dataAtendimento||p.data_atendimento):''}${t.valor?` · <span style="color:var(--verde);font-weight:500">${fmtBRL(t.valor)}</span>`:''}`).join('<br>'):'—';
+    const tls=isPend?`<span style="color:var(--amarelo);font-weight:500">🔶 Cadastro pendente</span>`:trats.length>0?trats.map(t=>`${escapeHtml(t.nome)} · ${t.prazo>0?t.prazo+' '+(t.prazo===1?'mês':'meses'):'Sem retorno'}${(t.dataAtendimento||p.data_atendimento)?' · '+fDt(t.dataAtendimento||p.data_atendimento):''}${t.valor?` · <span style="color:var(--verde);font-weight:500">${fmtBRL(t.valor)}</span>`:''}`).join('<br>'):'—';
     const tel55='55'+p.telefone.replace(/\D/g,'');
     const fatTotal=(p.atendimentos||[]).reduce((s,a)=>s+(parseFloat(a.valor)||0),0);
     return`<div class="pr" style="${isPend?'border-left:3px solid var(--amarelo);padding-left:10px':''}">
       <div class="av" style="${isAniv?'background:var(--rosa-c);color:var(--rosa)':isPend?'background:var(--amarelo-c);color:var(--amarelo)':''}">${isAniv?'🎂':isPend?'🔶':ini(p.nome)}</div>
       <div class="pi">
-        <div class="pn">${p.nome}${p.apelido?` <span style="font-weight:400;color:var(--ct);font-size:12px">(${p.apelido})</span>`:''}</div>
-        <div class="ps">${tls}<br><a href="tel:${p.telefone.replace(/\D/g,'')}" style="color:var(--ct);text-decoration:none">📞 ${p.telefone}</a>${p.data_nascimento?' · 🎂 '+fDt(p.data_nascimento):''}${p.indicacao?` · 👥 ${p.indicacao}`:''}${fatTotal>0?` · 💰 ${fmtBRL(fatTotal)}`:''}
+        <div class="pn">${escapeHtml(p.nome)}${p.apelido?` <span style="font-weight:400;color:var(--ct);font-size:12px">(${escapeHtml(p.apelido)})</span>`:''}</div>
+        <div class="ps">${tls}<br><a href="tel:${p.telefone.replace(/\D/g,'')}" style="color:var(--ct);text-decoration:none">📞 ${escapeHtml(p.telefone)}</a>${p.data_nascimento?' · 🎂 '+fDt(p.data_nascimento):''}${p.indicacao?` · 👥 ${escapeHtml(p.indicacao)}`:''}${fatTotal>0?` · 💰 ${fmtBRL(fatTotal)}`:''}
         </div>
         <div class="pa">
         <a href="paciente.html?id=${p.id}" class="btn" style="padding:6px 10px;font-size:12px">👤 Ficha</a>
           ${isPend?`<button class="btn" style="padding:6px 10px;color:var(--amarelo);border-color:var(--amarelo);font-weight:600" onclick='completarCad(${J(p)})'>✏️ Completar</button>`:''}
-          ${p.link_drive&&!isPend?`<button class="btn" style="padding:6px 10px;color:var(--verde-e)" onclick="window.open('${p.link_drive}','_blank')">📁</button>`:''}
-          ${p.instagram&&!isPend?`<a href="https://instagram.com/${p.instagram.replace('@','').trim()}" target="_blank" class="btn" style="padding:6px 10px;background:#E1306C;color:white;border-color:#E1306C" title="Instagram: ${p.instagram}">📷</a>`:''}
-          ${p.facebook&&!isPend?`<a href="${(p.facebook||'').startsWith('http')?p.facebook:'https://facebook.com/'+(p.facebook||'').trim()}" target="_blank" class="btn" style="padding:6px 10px;background:#1877F2;color:white;border-color:#1877F2" title="Facebook: ${p.facebook}">👥</a>`:''}
+          ${p.link_drive&&!isPend?`<button class="btn" style="padding:6px 10px;color:var(--verde-e)" onclick="window.open('${escapeHtml(p.link_drive)}','_blank')">📁</button>`:''}
+          ${p.instagram&&!isPend?`<a href="https://instagram.com/${p.instagram.replace('@','').trim()}" target="_blank" class="btn" style="padding:6px 10px;background:#E1306C;color:white;border-color:#E1306C" title="Instagram: ${escapeHtml(p.instagram)}">📷</a>`:''}
+          ${p.facebook&&!isPend?`<a href="${(p.facebook||'').startsWith('http')?p.facebook:'https://facebook.com/'+(p.facebook||'').trim()}" target="_blank" class="btn" style="padding:6px 10px;background:#1877F2;color:white;border-color:#1877F2" title="Facebook: ${escapeHtml(p.facebook)}">👥</a>`:''}
           <a href="tel:${p.telefone.replace(/\D/g,'')}" class="btn" style="padding:6px 10px;color:var(--azul)">📞</a>
           <a href="https://wa.me/${tel55}" target="_blank" class="btn wpp" style="padding:6px 10px">💬</a>
           ${prox&&!isPend?`<button class="btn" style="padding:6px 10px;background:var(--amarelo);color:white;border-color:var(--amarelo)" onclick='abrRet(${J(p)},${JSON.stringify(prox.nome)})'>🔔</button>`:''}
@@ -1702,7 +1704,7 @@ function renderHistorico(p){
         <div><span style="font-size:13px;font-weight:600;color:var(--txt)">${fDt(data)}</span>${at?.valor?`<span style="font-size:12px;color:var(--verde);margin-left:8px">💰 ${fmtBRL(at.valor)}</span>`:''}${at?.verificacaoData?`<span class="ver-badge" style="margin-left:6px">🔬 ver. ${fDt(at.verificacaoData)}</span>`:''}</div>
         <div style="display:flex;gap:6px"><button class="btn" style="padding:4px 10px;font-size:12px;color:var(--azul)" onclick="editarAtendData('${data}')">✏️ Editar</button><button class="btn" style="padding:4px 10px;font-size:12px;color:var(--vermelho)" onclick="excluirAtendData('${data}')">🗑</button></div>
       </div>
-      ${ts.map(t=>`<div style="font-size:13px;color:var(--ct);padding:2px 0">• ${t.nome} · ${t.prazo>0?t.prazo+' '+(t.prazo===1?'mês':'meses'):'Sem retorno'}${t.dataRetorno?' → '+fDt(t.dataRetorno):''}${t.valor?` · <span style="color:var(--verde);font-weight:500">${fmtBRL(t.valor)}</span>`:''}</div>`).join('')}
+      ${ts.map(t=>`<div style="font-size:13px;color:var(--ct);padding:2px 0">• ${escapeHtml(t.nome)} · ${t.prazo>0?t.prazo+' '+(t.prazo===1?'mês':'meses'):'Sem retorno'}${t.dataRetorno?' → '+fDt(t.dataRetorno):''}${t.valor?` · <span style="color:var(--verde);font-weight:500">${fmtBRL(t.valor)}</span>`:''}</div>`).join('')}
     </div>`;
   }).join('');
 }
@@ -1742,7 +1744,7 @@ function abrAtend(p){
   document.getElementById('atend-docs-section').style.display='none';
   const btnD=document.getElementById('btn-atend-docs');
   if(btnD){btnD.style.background='';btnD.style.color='';}
-  document.getElementById('a-pac-nome').textContent=p.nome+(p.apelido?` (${p.apelido})`:'');
+  document.getElementById('a-pac-nome').textContent=p.nome+(p.apelido?` (${escapeHtml(p.apelido)})`:'');
   document.getElementById('a-pac-tel').textContent=p.telefone;
   document.getElementById('a-data').value=HOJE_STR;
   document.getElementById('a-ver-dias').value=15;
@@ -2061,7 +2063,7 @@ async function carregarAlertasFin(){
     html += `<div style="background:#fff0f0;border:1.5px solid var(--vermelho,#e24b4a);border-radius:10px;padding:12px;margin-bottom:8px">
       <div style="font-size:12px;font-weight:700;color:var(--vermelho,#e24b4a);margin-bottom:8px">⚠️ ${vencidos.length} pagamento${vencidos.length>1?'s':''} em atraso</div>
       ${vencidos.map(l=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(0,0,0,.05)">
-        <div><div style="font-size:13px;font-weight:500">${l.descricao}</div><div style="font-size:11px;color:var(--ct)">Venceu em ${fDt(l.data)}</div></div>
+        <div><div style="font-size:13px;font-weight:500">${escapeHtml(l.descricao)}</div><div style="font-size:11px;color:var(--ct)">Venceu em ${fDt(l.data)}</div></div>
         <span style="font-weight:700;color:var(--vermelho,#e24b4a)">${fmtBRL(l.valor)}</span>
       </div>`).join('')}
     </div>`;
@@ -2070,7 +2072,7 @@ async function carregarAlertasFin(){
     html += `<div style="background:var(--amarelo-c,#fffbea);border:1.5px solid var(--amarelo,#ef9f27);border-radius:10px;padding:12px;margin-bottom:8px">
       <div style="font-size:12px;font-weight:700;color:#8a6000;margin-bottom:8px">📅 ${vencendo.length} pagamento${vencendo.length>1?'s':''} vencendo em até 7 dias</div>
       ${vencendo.map(l=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(0,0,0,.05)">
-        <div><div style="font-size:13px;font-weight:500">${l.descricao}</div><div style="font-size:11px;color:var(--ct)">${fDt(l.data)}</div></div>
+        <div><div style="font-size:13px;font-weight:500">${escapeHtml(l.descricao)}</div><div style="font-size:11px;color:var(--ct)">${fDt(l.data)}</div></div>
         <div style="display:flex;gap:6px;align-items:center">
           <span style="font-weight:700;color:#8a6000">${fmtBRL(l.valor)}</span>
           <button class="btn" style="padding:4px 8px;font-size:11px;background:var(--amarelo);color:white;border-color:var(--amarelo)" onclick="abrirMarcarRecebido('${l.id}')">⏳ Marcar recebido</button>
@@ -2320,7 +2322,7 @@ function renderFinLista(tipo, elId){
         ${items.map(l=>`
           <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid var(--borda);border-radius:10px;margin-bottom:6px;background:var(--card)">
             <div style="flex:1;min-width:0">
-              <div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.descricao}</div>
+              <div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(l.descricao)}</div>
               <div style="font-size:11px;color:var(--ct);margin-top:2px">${l.categoria||''}${l.forma_pagamento?' · '+(pgtos[l.forma_pagamento]||l.forma_pagamento):''}${l.obs?' · '+l.obs:''}</div>
             </div>
             <div style="text-align:right;flex-shrink:0">
@@ -2626,7 +2628,7 @@ async function lancarReceitaAtendimento(pacNome, trats, dataAtend){
 
 
 async function abrDocs(p){
-  document.getElementById('docs-pac-nome').textContent=p.nome+(p.apelido?` (${p.apelido})`:'');
+  document.getElementById('docs-pac-nome').textContent=p.nome+(p.apelido?` (${escapeHtml(p.apelido)})`:'');
   document.getElementById('docs-pac-tel').textContent=p.telefone;
   document.getElementById('docs-modal-btns').innerHTML=DOCS_TIPOS.map(d=>`
     <button class="btn" style="padding:8px 6px;font-size:11px;flex-direction:column;gap:3px;text-align:center;height:60px;justify-content:center"
@@ -2851,7 +2853,7 @@ function renderConsDia(ds){
   const el=document.getElementById('ag-cons');
   const cs=consultas.filter(c=>c.data===ds).sort((a,b)=>a.hora.localeCompare(b.hora));
   if(!cs.length){el.innerHTML=`<div class="empty" style="padding:1.5rem"><div class="empty-icon">📋</div><p>Nenhuma consulta. Clique em "+ Agendar".</p></div>`;renderConsMes();return;}
-  el.innerHTML=cs.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';const cls=c.status==='cancelado'?'can':c.status==='pendente'?'pen':c.status==='aguardando'?'online':'';return`<div class="ci ${cls}" data-cid="${c.id}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${c.nome}${c.status==='cancelado'?' <span style="font-size:11px;color:var(--vermelho)">(cancelado)</span>':''}${c.origem==='online'?'<span class="badge-online">📱 Online</span>':''}</div><div class="cd">${c.procedimento||'Sem procedimento'}${c.telefone?' · '+c.telefone:''}${c.observacao?' · '+c.observacao:''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬</a>`:''}<a href="${urlGcal(c)}" target="_blank" class="btn gcal">📆</a><button class="btn" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})'>✏️</button>${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">Ficha</a>`:''}<button class="btn btn-vincular" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('');
+  el.innerHTML=cs.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';const cls=c.status==='cancelado'?'can':c.status==='pendente'?'pen':c.status==='aguardando'?'online':'';return`<div class="ci ${cls}" data-cid="${c.id}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${escapeHtml(c.nome)}${c.status==='cancelado'?' <span style="font-size:11px;color:var(--vermelho)">(cancelado)</span>':''}${c.origem==='online'?'<span class="badge-online">📱 Online</span>':''}</div><div class="cd">${escapeHtml(c.procedimento)||'Sem procedimento'}${c.telefone?' · '+escapeHtml(c.telefone):''}${c.observacao?' · '+escapeHtml(c.observacao):''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬</a>`:''}<a href="${urlGcal(c)}" target="_blank" class="btn gcal">📆</a><button class="btn" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})'>✏️</button>${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">Ficha</a>`:''}<button class="btn btn-vincular" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('');
   renderConsMes();
   setTimeout(injetarBtnFicha,300);
   setTimeout(injetarBtnFicha,1200);
@@ -2874,8 +2876,8 @@ function renderTimeline(ds){
           const cls=c.status==='cancelado'?'can':'';
           return`<div class="ag-tl-evento ${cls}" style="background:var(--verde-c)" onclick="event.stopPropagation();editCons(${J(c)})">
             <div class="ev-hora">🕐 ${c.hora.slice(0,5)}${c.status==='cancelado'?' · CANCELADO':''}</div>
-            <div class="ev-nome">${c.nome}</div>
-            ${c.procedimento?`<div class="ev-proc">${c.procedimento}</div>`:''}
+            <div class="ev-nome">${escapeHtml(c.nome)}</div>
+            ${c.procedimento?`<div class="ev-proc">${escapeHtml(c.procedimento)}</div>`:''}
             <div class="ev-acoes">
               ${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" style="padding:4px 8px;font-size:11px" onclick="event.stopPropagation()">💬 WhatsApp</a>`:''}
               ${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:4px 8px;font-size:11px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600" onclick="event.stopPropagation()">👤 Ficha</a>`:''}<button class="btn btn-vincular" style="padding:4px 8px;font-size:11px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick="event.stopPropagation();abrirVincular(${J(c)})" title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button>
@@ -2927,7 +2929,7 @@ function renderSemana(ds){
       const isHj=d===HOJE_STR;
       const evs=consultas.filter(c=>c.data===d&&parseInt(c.hora.split(':')[0])===h).sort((a,b)=>a.hora.localeCompare(b.hora));
       html+=`<div class="ag-sem-slot${isHj?' hj-col':''}" onclick="selDia('${d}');setAgView('timeline');document.getElementById('ag-hora').value='${hStr}:00'">
-        ${evs.map(c=>`<span class="ag-sem-ev${c.status==='cancelado'?' can':''}" style="background:var(--verde-c);color:var(--verde-e)" onclick="event.stopPropagation();selDia('${d}');setAgView('timeline')" title="${c.nome} — ${c.hora.slice(0,5)}${c.procedimento?' — '+c.procedimento:''}">${c.hora.slice(0,5)} ${c.nome}</span>`).join('')}
+        ${evs.map(c=>`<span class="ag-sem-ev${c.status==='cancelado'?' can':''}" style="background:var(--verde-c);color:var(--verde-e)" onclick="event.stopPropagation();selDia('${d}');setAgView('timeline')" title="${escapeHtml(c.nome)} — ${c.hora.slice(0,5)}${c.procedimento?' — '+c.procedimento:''}">${c.hora.slice(0,5)} ${escapeHtml(c.nome)}</span>`).join('')}
       </div>`;
     });
   });
@@ -2942,7 +2944,7 @@ function renderConsMes(){
   const cs=consultas.filter(c=>c.data.startsWith(`${ano}-${mesStr}`)&&c.status!=='cancelado').sort((a,b)=>a.data.localeCompare(b.data)||a.hora.localeCompare(b.hora));
   if(!cs.length){el.innerHTML=`<div class="empty" style="padding:1rem"><div class="empty-icon">📋</div><p>Nenhuma consulta em ${MESES_N[mes]}.</p></div>`;return;}
   const grupos={};cs.forEach(c=>{if(!grupos[c.data])grupos[c.data]=[];grupos[c.data].push(c);});
-  el.innerHTML=Object.entries(grupos).map(([data,cons])=>{const[y,m,d]=data.split('-');const isH=data===HOJE_STR;return`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:${isH?'var(--verde-e)':'var(--ct)'};text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;cursor:pointer" onclick="selDia('${data}')">${DIAS[new Date(data+'T12:00:00').getDay()]}, ${d}/${m}/${y}${isH?' · hoje':''}</div>${cons.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';return`<div class="ci" data-cid="${c.id}" style="margin-bottom:5px"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${c.nome}</div><div class="cd">${c.procedimento||''}${c.telefone?' · '+c.telefone:''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" style="padding:6px 9px">💬</a>`:''}<button class="btn" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})'>✏️</button>${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">Ficha</a>`:''}<button class="btn btn-vincular" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('')}</div>`;}).join('');
+  el.innerHTML=Object.entries(grupos).map(([data,cons])=>{const[y,m,d]=data.split('-');const isH=data===HOJE_STR;return`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:${isH?'var(--verde-e)':'var(--ct)'};text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;cursor:pointer" onclick="selDia('${data}')">${DIAS[new Date(data+'T12:00:00').getDay()]}, ${d}/${m}/${y}${isH?' · hoje':''}</div>${cons.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';return`<div class="ci" data-cid="${c.id}" style="margin-bottom:5px"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${escapeHtml(c.nome)}</div><div class="cd">${escapeHtml(c.procedimento)}${c.telefone?' · '+escapeHtml(c.telefone):''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" style="padding:6px 9px">💬</a>`:''}<button class="btn" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})'>✏️</button>${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">Ficha</a>`:''}<button class="btn btn-vincular" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('')}</div>`;}).join('');
 }
 
 function abrAg(data){
@@ -2974,7 +2976,7 @@ async function salvarConsulta(){
 function mostrarVinculado(p){
   agPacId=p.id;
   const banner=document.getElementById('ag-pac-vinculado');
-  document.getElementById('ag-pac-vinculado-nome').textContent=p.nome+(p.apelido?` (${p.apelido})`:'');
+  document.getElementById('ag-pac-vinculado-nome').textContent=p.nome+(p.apelido?` (${escapeHtml(p.apelido)})`:'');
   banner.style.display='flex';
 }
 
@@ -2990,7 +2992,7 @@ function sugPacAg(){
   if(q.length<2){box.innerHTML='';return;}
   const r=pacs.filter(p=>p.nome.toLowerCase().includes(q)||(p.apelido&&p.apelido.toLowerCase().includes(q))).slice(0,6);
   if(!r.length){box.innerHTML='';return;}
-  box.innerHTML=`<div class="sug">${r.map(p=>`<div class="sug-item" onclick='selPacAg(${J(p)})'><strong>${p.nome}</strong>${p.apelido?` (${p.apelido})`:''}<br><span style="font-size:12px;color:var(--ct)">${p.telefone||''}</span></div>`).join('')}</div>`;
+  box.innerHTML=`<div class="sug">${r.map(p=>`<div class="sug-item" onclick='selPacAg(${J(p)})'><strong>${escapeHtml(p.nome)}</strong>${p.apelido?` (${escapeHtml(p.apelido)})`:''}<br><span style="font-size:12px;color:var(--ct)">${p.telefone||''}</span></div>`).join('')}</div>`;
 }
 
 // Mantém compatibilidade com chamadas antigas
@@ -3002,7 +3004,7 @@ function buscarPacPorTel(){
   if(tel.length<8){box.innerHTML='';return;}
   const r=pacs.filter(p=>(p.telefone||'').replace(/\D/g,'').includes(tel)).slice(0,4);
   if(!r.length){box.innerHTML='';return;}
-  box.innerHTML=`<div class="sug">${r.map(p=>`<div class="sug-item" onclick='selPacAg(${J(p)})' style="background:var(--amarelo-c);border-left:3px solid var(--amarelo)">⚠️ <strong>Já cadastrada:</strong> ${p.nome}<br><span style="font-size:12px;color:var(--ct)">${p.telefone||''}</span></div>`).join('')}</div>`;
+  box.innerHTML=`<div class="sug">${r.map(p=>`<div class="sug-item" onclick='selPacAg(${J(p)})' style="background:var(--amarelo-c);border-left:3px solid var(--amarelo)">⚠️ <strong>Já cadastrada:</strong> ${escapeHtml(p.nome)}<br><span style="font-size:12px;color:var(--ct)">${p.telefone||''}</span></div>`).join('')}</div>`;
 }
 
 function selPacAg(p){
@@ -3421,7 +3423,7 @@ function renderLembretesAmanha(){
           <div style="display:flex;align-items:center;gap:8px;background:var(--card);border-radius:8px;padding:8px 10px;border:1px solid var(--borda)">
             <span style="font-size:13px;font-weight:700;color:var(--ct);width:40px;flex-shrink:0">${c.hora.slice(0,5)}</span>
             <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.nome}</div>
+              <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(c.nome)}</div>
               <div style="font-size:11px;color:var(--ct)">${c.procedimento||''}</div>
             </div>
             <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:${c.status==='confirmado'?'var(--verde-c)':'var(--amarelo-c)'};color:${c.status==='confirmado'?'var(--verde-e)':'#8a6000'};flex-shrink:0">${c.status==='confirmado'?'✅ Confirmada':'⏳ Pendente'}</span>
@@ -3545,13 +3547,13 @@ async function renderPedidosOnline(){
         ${pend.map(c=>`
           <div style="background:white;border-radius:8px;padding:10px;margin-bottom:6px;border:1px solid #e9d5ff;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <div style="flex:1;min-width:150px">
-              <div style="font-size:13px;font-weight:600">${c.nome}</div>
+              <div style="font-size:13px;font-weight:600">${escapeHtml(c.nome)}</div>
               <div style="font-size:11px;color:var(--ct)">${c.data.split('-').reverse().join('/')} às ${c.hora.slice(0,5)}${c.procedimento?' · '+c.procedimento:''}</div>
-              ${c.telefone?`<div style="font-size:11px;color:var(--ct)">${c.telefone}</div>`:''}
+              ${c.telefone?`<div style="font-size:11px;color:var(--ct)">${escapeHtml(c.telefone)}</div>`:''}
             </div>
             <div style="display:flex;gap:6px;flex-shrink:0">
               <button class="btn" style="padding:5px 12px;font-size:12px;background:var(--verde);color:white;border-color:var(--verde)" onclick="aprovarPedido('${c.id}')">✅ Aprovar</button>
-              <button class="btn" style="padding:5px 12px;font-size:12px;background:var(--vermelho-c);color:var(--vermelho);border-color:var(--vermelho)" onclick="rejeitarPedido('${c.id}','${c.telefone||''}','${c.nome}')">❌ Recusar</button>
+              <button class="btn" style="padding:5px 12px;font-size:12px;background:var(--vermelho-c);color:var(--vermelho);border-color:var(--vermelho)" onclick="rejeitarPedido('${c.id}','${c.telefone||''}','${escapeHtml(c.nome)}')">❌ Recusar</button>
             </div>
           </div>`).join('')}
       </div>`;
@@ -3824,7 +3826,7 @@ function buscarGlobal(){
       <a href="paciente.html?id=${p.id}" onclick="document.getElementById('m-busca-global').classList.remove('open')"
         style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--borda);text-decoration:none;color:var(--txt)" class="bg-item">
         <div style="width:34px;height:34px;border-radius:50%;background:var(--verde-c);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--verde-e);flex-shrink:0">${ini(p.nome)}</div>
-        <div><div style="font-size:13px;font-weight:600">${p.nome}</div><div style="font-size:11px;color:var(--ct)">${p.telefone||''}${p.data_nascimento?' · '+fDt(p.data_nascimento):''}</div></div>
+        <div><div style="font-size:13px;font-weight:600">${escapeHtml(p.nome)}</div><div style="font-size:11px;color:var(--ct)">${p.telefone||''}${p.data_nascimento?' · '+fDt(p.data_nascimento):''}</div></div>
       </a>`).join('');
   }
   if(rCons.length){
@@ -3833,7 +3835,7 @@ function buscarGlobal(){
       <div onclick="aba('agenda',document.querySelectorAll('.tb')[1]);setTimeout(()=>{selDia('${c.data}');},300);document.getElementById('m-busca-global').classList.remove('open')"
         style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--borda);cursor:pointer;color:var(--txt)" class="bg-item">
         <div style="font-size:20px">📅</div>
-        <div><div style="font-size:13px;font-weight:600">${c.nome}</div><div style="font-size:11px;color:var(--ct)">${c.data.split('-').reverse().join('/')} às ${c.hora.slice(0,5)}${c.procedimento?' · '+c.procedimento:''}</div></div>
+        <div><div style="font-size:13px;font-weight:600">${escapeHtml(c.nome)}</div><div style="font-size:11px;color:var(--ct)">${c.data.split('-').reverse().join('/')} às ${c.hora.slice(0,5)}${c.procedimento?' · '+c.procedimento:''}</div></div>
       </div>`).join('');
   }
   el.innerHTML=html;
@@ -4043,7 +4045,7 @@ async function verificarNotificacoes(){
       if(lembretes.length>0){
         await enviarNotif(
           `📌 ${lembretes.length} lembrete${lembretes.length>1?'s':''} para hoje`,
-          lembretes.map(l=>`${l.pac}: ${l.texto}`).slice(0,3).join(' | '),
+          lembretes.map(l=>`${l.pac}: ${escapeHtml(l.texto)}`).slice(0,3).join(' | '),
           'lembretes-hoje',
           'https://claudiogallegoadv.github.io/clinica-anna-carolina/index.html'
         );
@@ -4292,7 +4294,7 @@ function filtrarVincular(){
   }
   lista.innerHTML=r.map((p,i)=>`
     <div data-vidx="${i}" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--borda)">
-      <div style="font-weight:600;font-size:13px;color:var(--txt)">${p.nome}${p.apelido?` <span style="font-weight:400;color:var(--ct);font-size:12px">(${p.apelido})</span>`:''}</div>
+      <div style="font-weight:600;font-size:13px;color:var(--txt)">${escapeHtml(p.nome)}${p.apelido?` <span style="font-weight:400;color:var(--ct);font-size:12px">(${escapeHtml(p.apelido)})</span>`:''}</div>
       <div style="font-size:12px;color:var(--ct);margin-top:2px">${p.telefone||'Sem telefone'}${p.data_nascimento?' · '+fDt(p.data_nascimento):''}</div>
     </div>`).join('');
   // Evento via delegação — sem JSON no onclick
@@ -4312,7 +4314,7 @@ async function confirmarVinculo(pac){
     telefone:pac.telefone||null
   }).eq('id',_vincConsultaId);
   if(error){toast('Erro ao vincular: '+error.message,'vermelho');return;}
-  toast(`✅ Vinculado a ${pac.nome}`,'verde');
+  toast(`✅ Vinculado a ${escapeHtml(pac.nome)}`,'verde');
   fchVincular();
   await carregarAgenda();
 }

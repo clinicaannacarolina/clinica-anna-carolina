@@ -396,6 +396,8 @@ function toast(msg,tipo=''){
   setTimeout(()=>t.classList.remove('show'),3000);
 }
 function fDt(d){if(!d)return'—';const[y,m,dd]=(d+'').split('T')[0].split('-');return`${dd}/${m}/${y}`;}
+// Escapa caracteres HTML perigosos antes de inserir dados de produto/fornecedor via innerHTML (previne XSS armazenado)
+function escapeHtml(s){if(s===null||s===undefined)return'';return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function hoje(){return new Date().toISOString().split('T')[0];}
 function diasParaVencer(d){if(!d)return null;const diff=Math.round((new Date(d+'T12:00:00')-new Date())/(1000*60*60*24));return diff;}
 function toggleTheme(){const h=document.documentElement;h.dataset.theme=h.dataset.theme==='dark'?'light':'dark';}
@@ -465,7 +467,7 @@ function renderDashboard(){
     return d>=hoje&&d<=hoje30;
   });
   if(vencendo.length){
-    alertas+=`<div class="alerta amar">⏰ <strong>${vencendo.length} produto${vencendo.length>1?'s':''} vencendo em 30 dias:</strong> ${vencendo.map(p=>`${p.nome} (val: ${new Date(p.validade_atual+'T12:00:00').toLocaleDateString('pt-BR')})`).join(', ')}</div>`;
+    alertas+=`<div class="alerta amar">⏰ <strong>${vencendo.length} produto${vencendo.length>1?'s':''} vencendo em 30 dias:</strong> ${vencendo.map(p=>`${escapeHtml(p.nome)} (val: ${new Date(p.validade_atual+'T12:00:00').toLocaleDateString('pt-BR')})`).join(', ')}</div>`;
   }
   // Vencidos — produtos com estoque e validade passada
   const vencidos=_produtos.filter(p=>{
@@ -500,11 +502,11 @@ function renderDashboard(){
       // Último movimento de entrada com lote/validade
       const ultEnt=_movimentos.find(m=>m.produto_id===p.id&&m.lote);
       return`<tr>
-        <td><div style="font-weight:600">${p.nome}</div>${forn?`<div style="font-size:11px;color:var(--ct)">${forn.nome}</div>`:''}</td>
+        <td><div style="font-weight:600">${escapeHtml(p.nome)}</div>${forn?`<div style="font-size:11px;color:var(--ct)">${escapeHtml(forn.nome)}</div>`:''}</td>
         <td><span class="badge azul">${p.categoria||'—'}</span></td>
         <td><div style="font-weight:700;color:${critico?'var(--vermelho)':'var(--txt)'}">${p.quantidade} ${p.unidade||''}</div>${p.estoque_minimo>0?`<div style="font-size:11px;color:var(--ct)">Mín: ${p.estoque_minimo}</div>`:''}</td>
         <td style="min-width:100px">${p.estoque_minimo>0?`<div class="prog-bar"><div class="prog-fill" style="width:${Math.min(100,pct)}%;background:${cor}"></div></div><div style="font-size:10px;color:var(--ct);margin-top:2px">${pct}%</div>`:'<span style="font-size:11px;color:var(--ct)">Sem mín.</span>'}</td>
-        <td>${ultEnt?`<div style="font-size:12px">Lote: <strong>${ultEnt.lote}</strong></div><div style="font-size:11px;color:var(--ct)">Val: ${fDt(ultEnt.validade)}</div>`:'<span style="font-size:11px;color:var(--ct)">—</span>'}</td>
+        <td>${ultEnt?`<div style="font-size:12px">Lote: <strong>${escapeHtml(ultEnt.lote)}</strong></div><div style="font-size:11px;color:var(--ct)">Val: ${fDt(ultEnt.validade)}</div>`:'<span style="font-size:11px;color:var(--ct)">—</span>'}</td>
         <td><button class="btn sm pri" onclick="abrirEntradaRapida('${p.id}','${p.nome.replace(/'/g,"\\'")}')">📥 Entrada</button></td>
       </tr>`;
     }).join('')}</tbody>
@@ -535,7 +537,7 @@ function renderTblProdutos(lista){
     const critico=p.estoque_minimo>0&&p.quantidade<=p.estoque_minimo;
     const ok=!critico;
     return`<tr>
-      <td><div style="font-weight:600">${p.nome}</div>${p.codigo?`<div style="font-size:11px;color:var(--ct)">Cód: ${p.codigo}${p.anvisa?' · ANVISA: '+p.anvisa:''}</div>`:''} ${p.fabricante?`<div style="font-size:11px;color:var(--ct)">${p.fabricante}</div>`:''}</td>
+      <td><div style="font-weight:600">${escapeHtml(p.nome)}</div>${p.codigo?`<div style="font-size:11px;color:var(--ct)">Cód: ${p.codigo}${p.anvisa?' · ANVISA: '+p.anvisa:''}</div>`:''} ${p.fabricante?`<div style="font-size:11px;color:var(--ct)">${escapeHtml(p.fabricante)}</div>`:''}</td>
       <td><span class="badge azul">${p.categoria||'—'}</span></td>
       <td style="font-weight:700;color:${critico?'var(--vermelho)':'var(--txt)'}">${p.quantidade} <span style="font-size:11px;font-weight:400;color:var(--ct)">${p.unidade||''}</span></td>
       <td style="color:var(--ct)">${p.estoque_minimo||'—'}</td>
@@ -567,7 +569,7 @@ function abrirModalProduto(id){
   document.getElementById('prod-obs').value='';
   // Popular fornecedores
   const sel=document.getElementById('prod-forn');
-  sel.innerHTML='<option value="">Sem fornecedor</option>'+_fornecedores.map(f=>`<option value="${f.id}">${f.nome}</option>`).join('');
+  sel.innerHTML='<option value="">Sem fornecedor</option>'+_fornecedores.map(f=>`<option value="${f.id}">${escapeHtml(f.nome)}</option>`).join('');
   abrirModal('modal-produto');
 }
 
@@ -588,7 +590,7 @@ function editarProduto(id){
   document.getElementById('prod-validade-atual').value=p.validade_atual||'';
   document.getElementById('prod-obs').value=p.obs||'';
   const sel=document.getElementById('prod-forn');
-  sel.innerHTML='<option value="">Sem fornecedor</option>'+_fornecedores.map(f=>`<option value="${f.id}"${f.id===p.fornecedor_id?' selected':''}>${f.nome}</option>`).join('');
+  sel.innerHTML='<option value="">Sem fornecedor</option>'+_fornecedores.map(f=>`<option value="${f.id}"${f.id===p.fornecedor_id?' selected':''}>${escapeHtml(f.nome)}</option>`).join('');
   abrirModal('modal-produto');
 }
 
@@ -673,7 +675,7 @@ function abrirEntradaRapida(prodId,prodNome){
   document.getElementById('er-validade').value='';
   document.getElementById('er-obs').value='';
   const sel=document.getElementById('er-forn');
-  sel.innerHTML='<option value="">Sem vínculo</option>'+_fornecedores.map(f=>`<option value="${f.id}">${f.nome}</option>`).join('');
+  sel.innerHTML='<option value="">Sem vínculo</option>'+_fornecedores.map(f=>`<option value="${f.id}">${escapeHtml(f.nome)}</option>`).join('');
   abrirModal('modal-entrada-rapida');
 }
 
@@ -715,9 +717,9 @@ function abrirModalMovimento(tipo){
   document.getElementById('mov-validade').value='';
   document.getElementById('mov-obs').value='';
   const sel=document.getElementById('mov-produto');
-  sel.innerHTML='<option value="">Selecione um produto...</option>'+_produtos.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
+  sel.innerHTML='<option value="">Selecione um produto...</option>'+_produtos.map(p=>`<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join('');
   const selPac=document.getElementById('mov-paciente');
-  selPac.innerHTML='<option value="">Sem vínculo</option>'+_pacientes.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
+  selPac.innerHTML='<option value="">Sem vínculo</option>'+_pacientes.map(p=>`<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join('');
   // Mostrar campo paciente só para uso
   document.getElementById('mov-tipo').addEventListener('change',function(){
     document.getElementById('mov-paciente-row').style.display=this.value==='uso'?'flex':'none';
@@ -769,7 +771,7 @@ function filtrarMovimentos(){
 function renderMovimentos(){
   // Popular select de produto no filtro
   const sel=document.getElementById('filtro-mov-produto');
-  sel.innerHTML='<option value="">Todos os produtos</option>'+_produtos.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
+  sel.innerHTML='<option value="">Todos os produtos</option>'+_produtos.map(p=>`<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join('');
   sel.onchange=filtrarMovimentos;
   renderTblMovimentos(_movimentos);
 }
@@ -816,10 +818,10 @@ function renderTblFornecedores(lista){
     return;
   }
   tb.innerHTML=lista.map(f=>`<tr>
-    <td><div style="font-weight:600">${f.nome}</div>${f.obs?`<div style="font-size:11px;color:var(--ct)">${f.obs}</div>`:''}</td>
+    <td><div style="font-weight:600">${escapeHtml(f.nome)}</div>${f.obs?`<div style="font-size:11px;color:var(--ct)">${escapeHtml(f.obs)}</div>`:''}</td>
     <td style="font-size:12px;color:var(--ct)">${f.cnpj||'—'}</td>
     <td style="font-size:12px">${f.contato||'—'}</td>
-    <td style="font-size:12px">${f.telefone?`<a href="https://wa.me/55${f.telefone.replace(/\D/g,'')}" target="_blank" style="color:var(--verde)">💬 ${f.telefone}</a>`:'—'}</td>
+    <td style="font-size:12px">${f.telefone?`<a href="https://wa.me/55${f.telefone.replace(/\D/g,'')}" target="_blank" style="color:var(--verde)">💬 ${escapeHtml(f.telefone)}</a>`:'—'}</td>
     <td style="font-size:12px">${f.email?`<a href="mailto:${f.email}" style="color:var(--azul)">${f.email}</a>`:'—'}</td>
     <td style="display:flex;gap:6px">
       <button class="btn sm" onclick="editarFornecedor('${f.id}')">✏️</button>
@@ -881,7 +883,7 @@ async function excluirFornecedor(id){
 // ── POPULAR SELECTS GLOBAIS ──
 function popularSelects(){
   // Selects de produto nos modais de movimento
-  const opts='<option value="">Selecione um produto...</option>'+_produtos.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
+  const opts='<option value="">Selecione um produto...</option>'+_produtos.map(p=>`<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join('');
   const movProd=document.getElementById('mov-produto');
   if(movProd)movProd.innerHTML=opts;
 }
