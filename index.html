@@ -1120,12 +1120,12 @@ function renderHoje(){
           <div class="cd">${escapeHtml(c.procedimento)}${c.telefone?' · '+escapeHtml(c.telefone):''}</div>
         </div>
         <div class="ca">
-          ${tel&&!isReal&&!isFalt?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬</a>`:''}
-          ${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:5px 8px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde)">👤</a>`:''}
+          ${tel&&!isReal&&!isFalt?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" title="Enviar WhatsApp">💬</a>`:''}
+          ${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:5px 8px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde)" title="Abrir ficha do paciente">👤</a>`:''}
           ${!isReal&&!isFalt
             ?`<button class="btn" style="padding:5px 9px;font-size:12px;background:var(--verde);color:white;border-color:var(--verde)" onclick="marcarStatus('${c.id}','realizado')" title="Marcar como realizado">✅</button><button class="btn" style="padding:5px 9px;font-size:12px" onclick="marcarStatus('${c.id}','faltou')" title="Paciente faltou">❌</button>`
             :`<button class="btn" style="padding:5px 9px;font-size:11px;color:var(--ct)" onclick="marcarStatus('${c.id}','pendente')" title="Desfazer">↩</button>`}
-          <button class="btn btn-vincular" style="padding:5px 8px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})'>🔗</button>
+          <button class="btn btn-vincular" style="padding:5px 8px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button>
         </div>
       </div>`;
     }).join('')
@@ -1321,18 +1321,18 @@ function renderPac(){
         <div class="pa">
         <a href="paciente.html?id=${p.id}" class="btn" style="padding:6px 10px;font-size:12px">👤 Ficha</a>
           ${isPend?`<button class="btn" style="padding:6px 10px;color:var(--amarelo);border-color:var(--amarelo);font-weight:600" onclick='completarCad(${J(p)})'>✏️ Completar</button>`:''}
-          ${p.link_drive&&!isPend?`<button class="btn" style="padding:6px 10px;color:var(--verde-e)" onclick="window.open('${escapeHtml(p.link_drive)}','_blank')">📁</button>`:''}
+          ${p.link_drive&&!isPend?`<button class="btn" style="padding:6px 10px;color:var(--verde-e)" onclick="window.open('${escapeHtml(p.link_drive)}','_blank')" title="Abrir pasta no Drive">📁</button>`:''}
           ${p.instagram&&!isPend?`<a href="https://instagram.com/${p.instagram.replace('@','').trim()}" target="_blank" class="btn" style="padding:6px 10px;background:#E1306C;color:white;border-color:#E1306C" title="Instagram: ${escapeHtml(p.instagram)}">📷</a>`:''}
           ${p.facebook&&!isPend?`<a href="${(p.facebook||'').startsWith('http')?p.facebook:'https://facebook.com/'+(p.facebook||'').trim()}" target="_blank" class="btn" style="padding:6px 10px;background:#1877F2;color:white;border-color:#1877F2" title="Facebook: ${escapeHtml(p.facebook)}">👥</a>`:''}
-          <a href="tel:${p.telefone.replace(/\D/g,'')}" class="btn" style="padding:6px 10px;color:var(--azul)">📞</a>
-          <a href="https://wa.me/${tel55}" target="_blank" class="btn wpp" style="padding:6px 10px">💬</a>
-          ${prox&&!isPend?`<button class="btn" style="padding:6px 10px;background:var(--amarelo);color:white;border-color:var(--amarelo)" onclick='abrRet(${J(p)},${JSON.stringify(prox.nome)})'>🔔</button>`:''}
-          ${isAniv?`<button class="btn anv" style="padding:6px 10px" onclick='abrAniv(${J(p)})'>🎉</button>`:''}
-          ${!isPend?`<button class="btn" style="padding:6px 10px;color:var(--azul)" onclick="abrLembr('${p.id}')">📌</button>`:''}
-          <button class="btn" style="padding:6px 10px" onclick='abrEdit(${J(p)})'>✏️</button>
-          ${!isPend?`<button class="btn pri" style="padding:6px 10px;font-size:12px" onclick='abrAtend(${J(p)})'>🩺</button>`:''}
+          <a href="tel:${p.telefone.replace(/\D/g,'')}" class="btn" style="padding:6px 10px;color:var(--azul)" title="Ligar">📞</a>
+          <a href="https://wa.me/${tel55}" target="_blank" class="btn wpp" style="padding:6px 10px" title="Enviar WhatsApp">💬</a>
+          ${prox&&!isPend?`<button class="btn" style="padding:6px 10px;background:var(--amarelo);color:white;border-color:var(--amarelo)" onclick='abrRet(${J(p)},${JSON.stringify(prox.nome)})' title="Lembrete de retorno">🔔</button>`:''}
+          ${isAniv?`<button class="btn anv" style="padding:6px 10px" onclick='abrAniv(${J(p)})' title="Parabenizar aniversário">🎉</button>`:''}
+          ${!isPend?`<button class="btn" style="padding:6px 10px;color:var(--azul)" onclick="abrLembr('${p.id}')" title="Adicionar lembrete">📌</button>`:''}
+          <button class="btn" style="padding:6px 10px" onclick='abrEdit(${J(p)})' title="Editar cadastro">✏️</button>
+          ${!isPend?`<button class="btn pri" style="padding:6px 10px;font-size:12px" onclick='abrAtend(${J(p)})' title="Registrar atendimento">🩺</button>`:''}
         ${!isPend?`<button class="btn" style="padding:6px 10px;font-size:12px;color:var(--azul);border-color:var(--azul)" onclick='abrDocs(${J(p)})' title="Documentos">📄</button>`:''}
-          <button class="btn dan" onclick="excluir('${p.id}','${p.nome.replace(/'/g,"\\'")}')">🗑</button>
+          <button class="btn dan" onclick="excluir('${p.id}','${p.nome.replace(/'/g,"\\'")}')" title="Excluir paciente">🗑</button>
         </div>
       </div>
       <span class="badge ${isPend?'prox':bc}" style="align-self:flex-start;margin-top:4px">${isPend?'A receber':bt}</span>
@@ -1702,7 +1702,7 @@ function renderHistorico(p){
     return`<div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:8px;border:1px solid var(--borda)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
         <div><span style="font-size:13px;font-weight:600;color:var(--txt)">${fDt(data)}</span>${at?.valor?`<span style="font-size:12px;color:var(--verde);margin-left:8px">💰 ${fmtBRL(at.valor)}</span>`:''}${at?.verificacaoData?`<span class="ver-badge" style="margin-left:6px">🔬 ver. ${fDt(at.verificacaoData)}</span>`:''}</div>
-        <div style="display:flex;gap:6px"><button class="btn" style="padding:4px 10px;font-size:12px;color:var(--azul)" onclick="editarAtendData('${data}')">✏️ Editar</button><button class="btn" style="padding:4px 10px;font-size:12px;color:var(--vermelho)" onclick="excluirAtendData('${data}')">🗑</button></div>
+        <div style="display:flex;gap:6px"><button class="btn" style="padding:4px 10px;font-size:12px;color:var(--azul)" onclick="editarAtendData('${data}')">✏️ Editar</button><button class="btn" style="padding:4px 10px;font-size:12px;color:var(--vermelho)" onclick="excluirAtendData('${data}')" title="Excluir atendimento">🗑</button></div>
       </div>
       ${ts.map(t=>`<div style="font-size:13px;color:var(--ct);padding:2px 0">• ${escapeHtml(t.nome)} · ${t.prazo>0?t.prazo+' '+(t.prazo===1?'mês':'meses'):'Sem retorno'}${t.dataRetorno?' → '+fDt(t.dataRetorno):''}${t.valor?` · <span style="color:var(--verde);font-weight:500">${fmtBRL(t.valor)}</span>`:''}</div>`).join('')}
     </div>`;
@@ -2333,8 +2333,8 @@ function renderFinLista(tipo, elId){
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
               ${l.status==='pendente'?`<button class="btn" style="padding:4px 8px;font-size:11px;background:var(--amarelo);color:white;border-color:var(--amarelo)" onclick="abrirMarcarRecebido('${l.id}')">⏳ Marcar recebido</button>`:''}
-              <button class="btn" style="padding:4px 8px;font-size:11px" onclick="editarLancamento('${l.id}')">✏️</button>
-              <button class="btn dan" style="padding:4px 8px;font-size:11px" onclick="excluirLancamento('${l.id}')">🗑</button>
+              <button class="btn" style="padding:4px 8px;font-size:11px" onclick="editarLancamento('${l.id}')" title="Editar lançamento">✏️</button>
+              <button class="btn dan" style="padding:4px 8px;font-size:11px" onclick="excluirLancamento('${l.id}')" title="Excluir lançamento">🗑</button>
             </div>
           </div>`).join('')}
       </div>`).join('');
@@ -2853,7 +2853,7 @@ function renderConsDia(ds){
   const el=document.getElementById('ag-cons');
   const cs=consultas.filter(c=>c.data===ds).sort((a,b)=>a.hora.localeCompare(b.hora));
   if(!cs.length){el.innerHTML=`<div class="empty" style="padding:1.5rem"><div class="empty-icon">📋</div><p>Nenhuma consulta. Clique em "+ Agendar".</p></div>`;renderConsMes();return;}
-  el.innerHTML=cs.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';const cls=c.status==='cancelado'?'can':c.status==='pendente'?'pen':c.status==='aguardando'?'online':'';return`<div class="ci ${cls}" data-cid="${c.id}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${escapeHtml(c.nome)}${c.status==='cancelado'?' <span style="font-size:11px;color:var(--vermelho)">(cancelado)</span>':''}${c.origem==='online'?'<span class="badge-online">📱 Online</span>':''}</div><div class="cd">${escapeHtml(c.procedimento)||'Sem procedimento'}${c.telefone?' · '+escapeHtml(c.telefone):''}${c.observacao?' · '+escapeHtml(c.observacao):''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp">💬</a>`:''}<a href="${urlGcal(c)}" target="_blank" class="btn gcal">📆</a><button class="btn" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})'>✏️</button>${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">Ficha</a>`:''}<button class="btn btn-vincular" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('');
+  el.innerHTML=cs.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';const cls=c.status==='cancelado'?'can':c.status==='pendente'?'pen':c.status==='aguardando'?'online':'';return`<div class="ci ${cls}" data-cid="${c.id}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${escapeHtml(c.nome)}${c.status==='cancelado'?' <span style="font-size:11px;color:var(--vermelho)">(cancelado)</span>':''}${c.origem==='online'?'<span class="badge-online">📱 Online</span>':''}</div><div class="cd">${escapeHtml(c.procedimento)||'Sem procedimento'}${c.telefone?' · '+escapeHtml(c.telefone):''}${c.observacao?' · '+escapeHtml(c.observacao):''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" title="Enviar WhatsApp">💬</a>`:''}<a href="${urlGcal(c)}" target="_blank" class="btn gcal" title="Adicionar ao Google Agenda">📆</a><button class="btn" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})' title="Editar consulta">✏️</button>${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600" title="Abrir ficha do paciente">Ficha</a>`:''}<button class="btn btn-vincular" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('');
   renderConsMes();
   setTimeout(injetarBtnFicha,300);
   setTimeout(injetarBtnFicha,1200);
@@ -2944,7 +2944,7 @@ function renderConsMes(){
   const cs=consultas.filter(c=>c.data.startsWith(`${ano}-${mesStr}`)&&c.status!=='cancelado').sort((a,b)=>a.data.localeCompare(b.data)||a.hora.localeCompare(b.hora));
   if(!cs.length){el.innerHTML=`<div class="empty" style="padding:1rem"><div class="empty-icon">📋</div><p>Nenhuma consulta em ${MESES_N[mes]}.</p></div>`;return;}
   const grupos={};cs.forEach(c=>{if(!grupos[c.data])grupos[c.data]=[];grupos[c.data].push(c);});
-  el.innerHTML=Object.entries(grupos).map(([data,cons])=>{const[y,m,d]=data.split('-');const isH=data===HOJE_STR;return`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:${isH?'var(--verde-e)':'var(--ct)'};text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;cursor:pointer" onclick="selDia('${data}')">${DIAS[new Date(data+'T12:00:00').getDay()]}, ${d}/${m}/${y}${isH?' · hoje':''}</div>${cons.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';return`<div class="ci" data-cid="${c.id}" style="margin-bottom:5px"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${escapeHtml(c.nome)}</div><div class="cd">${escapeHtml(c.procedimento)}${c.telefone?' · '+escapeHtml(c.telefone):''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" style="padding:6px 9px">💬</a>`:''}<button class="btn" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})'>✏️</button>${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600">Ficha</a>`:''}<button class="btn btn-vincular" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('')}</div>`;}).join('');
+  el.innerHTML=Object.entries(grupos).map(([data,cons])=>{const[y,m,d]=data.split('-');const isH=data===HOJE_STR;return`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:${isH?'var(--verde-e)':'var(--ct)'};text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;cursor:pointer" onclick="selDia('${data}')">${DIAS[new Date(data+'T12:00:00').getDay()]}, ${d}/${m}/${y}${isH?' · hoje':''}</div>${cons.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';return`<div class="ci" data-cid="${c.id}" style="margin-bottom:5px"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${escapeHtml(c.nome)}</div><div class="cd">${escapeHtml(c.procedimento)}${c.telefone?' · '+escapeHtml(c.telefone):''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" style="padding:6px 9px" title="Enviar WhatsApp">💬</a>`:''}<button class="btn" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})' title="Editar consulta">✏️</button>${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600" title="Abrir ficha do paciente">Ficha</a>`:''}<button class="btn btn-vincular" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('')}</div>`;}).join('');
 }
 
 function abrAg(data){
@@ -4136,7 +4136,7 @@ document.getElementById('modal-mrec').addEventListener('click',function(e){if(e.
     <div style="display:flex;gap:6px;margin-bottom:14px">
       <input type="text" id="cao-link" readonly style="font-size:11px;background:var(--bg);flex:1"/>
       <button class="btn" onclick="copiarLinkAgOnline()" style="flex-shrink:0;font-size:12px">📋 Copiar</button>
-      <button class="btn" onclick="compartilharWppAgOnline()" style="flex-shrink:0;font-size:12px;background:#25D366;color:white;border-color:#25D366">💬</button>
+      <button class="btn" onclick="compartilharWppAgOnline()" style="flex-shrink:0;font-size:12px;background:#25D366;color:white;border-color:#25D366" title="Compartilhar via WhatsApp">💬</button>
     </div>
 
     <div style="display:flex;gap:8px;justify-content:flex-end">
