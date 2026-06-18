@@ -490,7 +490,7 @@ textarea{resize:vertical;min-height:70px}
   <div id="p-pacientes" class="panel">
     <div style="margin-bottom:10px">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <input type="text" id="busca" placeholder="🔍 Buscar por nome ou apelido..." oninput="renderPac()" style="border-radius:10px;flex:1"/>
+        <input type="text" id="busca" placeholder="🔍 Buscar por nome ou apelido..." oninput="_pacLimit=30;renderPac()" style="border-radius:10px;flex:1"/>
         <button class="btn" aria-label="Exportar lista de pacientes" style="font-size:12px;padding:7px 12px;white-space:nowrap" onclick="exportarPacientesCSV()" title="Exportar lista de pacientes">📥 Exportar</button>
       </div>
     </div>
@@ -765,7 +765,27 @@ textarea{resize:vertical;min-height:70px}
       <div class="fgr"><label>Data *</label><input type="date" id="ag-data"/></div>
       <div class="fgr"><label>Horário *</label><input type="time" id="ag-hora"/></div>
       <div class="fgr full"><label>Observação</label><textarea id="ag-obs" style="min-height:55px"></textarea></div>
-    </div>
+      <!-- Recorrência -->
+      <div class="fgr full" id="ag-rec-bloco">
+        <label>Repetir consulta</label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="ag-rec-freq" onchange="toggleRecQtd()" style="flex:1;min-width:140px">
+            <option value="">Não repetir</option>
+            <option value="7">Semanalmente</option>
+            <option value="14">Quinzenalmente</option>
+            <option value="30">Mensalmente</option>
+          </select>
+          <div id="ag-rec-qtd-bloco" style="display:none;display:flex;align-items:center;gap:6px">
+            <span style="font-size:12px;color:var(--ct);white-space:nowrap">por</span>
+            <select id="ag-rec-qtd" style="width:80px">
+              <option value="2">2x</option><option value="3">3x</option><option value="4">4x</option>
+              <option value="5">5x</option><option value="6">6x</option><option value="8">8x</option>
+              <option value="10">10x</option><option value="12">12x</option>
+            </select>
+            <span style="font-size:12px;color:var(--ct)">vezes</span>
+          </div>
+        </div>
+      </div>
     <div class="br">
       <button class="btn dan" aria-label="Fechar" id="ag-canc-btn" onclick="cancConsulta()" style="display:none;margin-right:auto">✕ Cancelar</button>
       <button class="btn" onclick="fchAg()">Fechar</button>
@@ -775,6 +795,19 @@ textarea{resize:vertical;min-height:70px}
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Modal: ajuste de datas em fim de semana -->
+<div class="mb" id="m-fds" style="z-index:3600">
+  <div class="mx" style="max-width:480px">
+    <h3>⚠️ Datas em fim de semana</h3>
+    <p style="font-size:13px;color:var(--ct);margin-bottom:16px">As consultas abaixo caem em sábado ou domingo. Ajuste as datas ou mantenha como estão.</p>
+    <div id="fds-lista" style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px"></div>
+    <div class="br">
+      <button class="btn" onclick="fdsManterTodas()">Manter como estão</button>
+      <button class="btn pri" onclick="fdsSalvarAjustadas()">✓ Salvar com datas ajustadas</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const {createClient}=supabase;
@@ -809,6 +842,7 @@ const db=createClient(SB_URL,SB_KEY);
 })();
 
 let pacs=[],consultas=[];
+let _pacLimit=30; // paginação da lista de pacientes
 let mWppPac=null,mWppTipo='ret',mWppTrat=null;
 let agEditando=null,agPacId=null;
 let agMes,agDia,filtroAtivo='todos';
@@ -1308,10 +1342,10 @@ function cardAlerta(p, d, nomeTrat) {
 
 // FILTRO ALERTAS
 function setFiltro(f,btn){
-  filtroAtivo=f;
+  filtroAtivo=f;_pacLimit=30;
   document.querySelectorAll('.filtro-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  renderAlertas();
+  renderAlertas();renderPac();
 }
 
 function renderAlertas(){
@@ -1342,7 +1376,9 @@ function renderPac(){
   let lista=q?pacs.filter(p=>p.nome.toLowerCase().includes(q)||(p.apelido&&p.apelido.toLowerCase().includes(q))):[...pacs];
   if(filtroAtivo==='instagram') lista=lista.filter(p=>p.instagram);
   if(!lista.length){el.innerHTML=`<div class="empty"><div class="empty-icon">${q?'🔍':'👤'}</div><p>${q?`Nenhuma paciente para "${q}"`:'Nenhum paciente cadastrado ainda.'}</p></div>`;return;}
-  el.innerHTML=lista.map(p=>{
+  const total=lista.length;
+  const listaPag=lista.slice(0,_pacLimit);
+  el.innerHTML=listaPag.map(p=>{
     const trats=p.tratamentos_adicionais||[];
     const prox=trats.filter(t=>t.dataRetorno).map(t=>({...t,d:dias(t.dataRetorno)})).sort((a,b)=>a.d-b.d)[0];
     let bc='sem',bt='Sem retorno';
@@ -1378,6 +1414,10 @@ function renderPac(){
       <span class="badge ${isPend?'prox':bc}" style="align-self:flex-start;margin-top:4px">${isPend?'A receber':bt}</span>
     </div>`;
   }).join('');
+  // Botão "Carregar mais"
+  if(total>_pacLimit){
+    el.innerHTML+=`<div style="text-align:center;padding:16px"><button class="btn" onclick="_pacLimit+=30;renderPac()" style="padding:10px 24px;font-size:13px">⬇️ Carregar mais (${total-_pacLimit} restantes)</button></div>`;
+  }
 }
 
 async function excluir(id,nome){if(!confirm(`Excluir ${nome}?`))return;const{error}=await db.from('pacientes').delete().eq('id',id);if(error){toast('Erro','vermelho');return;}toast('Excluído');carregar();}
@@ -2989,17 +3029,24 @@ function renderConsMes(){
   el.innerHTML=Object.entries(grupos).map(([data,cons])=>{const[y,m,d]=data.split('-');const isH=data===HOJE_STR;return`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:${isH?'var(--verde-e)':'var(--ct)'};text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;cursor:pointer" onclick="selDia('${data}')">${DIAS[new Date(data+'T12:00:00').getDay()]}, ${d}/${m}/${y}${isH?' · hoje':''}</div>${cons.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';return`<div class="ci" data-cid="${c.id}" style="margin-bottom:5px"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${escapeHtml(c.nome)}</div><div class="cd">${escapeHtml(c.procedimento)}${c.telefone?' · '+escapeHtml(c.telefone):''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" aria-label="Enviar WhatsApp" style="padding:6px 9px" title="Enviar WhatsApp">💬</a>`:''}<button class="btn" aria-label="Editar consulta" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})' title="Editar consulta">✏️</button>${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" aria-label="Abrir ficha do paciente" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600" title="Abrir ficha do paciente">Ficha</a>`:''}<button class="btn btn-vincular" aria-label="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('')}</div>`;}).join('');
 }
 
+function toggleRecQtd(){
+  const freq=document.getElementById('ag-rec-freq').value;
+  document.getElementById('ag-rec-qtd-bloco').style.display=freq?'flex':'none';
+}
 function abrAg(data){
   agEditando=null;agPacId=null;
   desvincularPacAg();
-  document.getElementById('ag-titulo').textContent='📅 Nova consulta';document.getElementById('ag-id').value='';document.getElementById('ag-nome').value='';document.getElementById('ag-tel').value='';document.getElementById('ag-proc').value='';document.getElementById('ag-data').value=data||agDia;document.getElementById('ag-hora').value='09:00';document.getElementById('ag-obs').value='';document.getElementById('ag-sug').innerHTML='';document.getElementById('ag-tel-sug').innerHTML='';document.getElementById('ag-canc-btn').style.display='none';document.getElementById('m-ag').classList.add('open');
+  document.getElementById('ag-titulo').textContent='📅 Nova consulta';document.getElementById('ag-id').value='';document.getElementById('ag-nome').value='';document.getElementById('ag-tel').value='';document.getElementById('ag-proc').value='';document.getElementById('ag-data').value=data||agDia;document.getElementById('ag-hora').value='09:00';document.getElementById('ag-obs').value='';document.getElementById('ag-sug').innerHTML='';document.getElementById('ag-tel-sug').innerHTML='';document.getElementById('ag-canc-btn').style.display='none';
+  document.getElementById('ag-rec-freq').value='';document.getElementById('ag-rec-qtd-bloco').style.display='none';document.getElementById('ag-rec-bloco').style.display='block';
+  document.getElementById('m-ag').classList.add('open');
 }
 function fchAg(){document.getElementById('m-ag').classList.remove('open');document.getElementById('ag-sug').innerHTML='';}
 function editCons(c){
   agEditando=c;agPacId=null;
   desvincularPacAg();
-  document.getElementById('ag-titulo').textContent='✏️ Editar consulta';document.getElementById('ag-id').value=c.id;document.getElementById('ag-nome').value=c.nome;document.getElementById('ag-tel').value=c.telefone||'';document.getElementById('ag-proc').value=c.procedimento||'';document.getElementById('ag-data').value=c.data;document.getElementById('ag-hora').value=c.hora.slice(0,5);document.getElementById('ag-obs').value=c.observacao||'';document.getElementById('ag-sug').innerHTML='';document.getElementById('ag-tel-sug').innerHTML='';document.getElementById('ag-canc-btn').style.display=c.status!=='cancelado'?'inline-flex':'none';document.getElementById('m-ag').classList.add('open');
-  // Se já tem paciente vinculado, mostrar banner
+  document.getElementById('ag-titulo').textContent='✏️ Editar consulta';document.getElementById('ag-id').value=c.id;document.getElementById('ag-nome').value=c.nome;document.getElementById('ag-tel').value=c.telefone||'';document.getElementById('ag-proc').value=c.procedimento||'';document.getElementById('ag-data').value=c.data;document.getElementById('ag-hora').value=c.hora.slice(0,5);document.getElementById('ag-obs').value=c.observacao||'';document.getElementById('ag-sug').innerHTML='';document.getElementById('ag-tel-sug').innerHTML='';document.getElementById('ag-canc-btn').style.display=c.status!=='cancelado'?'inline-flex':'none';
+  document.getElementById('ag-rec-bloco').style.display='none';
+  document.getElementById('m-ag').classList.add('open');
   if(c.paciente_id){const p=pacs.find(x=>x.id===c.paciente_id);if(p){agPacId=p.id;mostrarVinculado(p);}}
 }
 async function cancConsulta(){if(!agEditando||!confirm('Cancelar esta consulta?'))return;const{error}=await db.from('agenda').update({status:'cancelado'}).eq('id',agEditando.id);if(error){toast('Erro','vermelho');return;}toast('Consulta cancelada');await logAuditoria('Consulta cancelada',`${agEditando.nome} · ${agEditando.data} ${agEditando.hora.slice(0,5)}`,agEditando.paciente_id||null);fchAg();carregarAgenda();}
@@ -3020,8 +3067,77 @@ async function salvarConsulta(){
   btn.disabled=false;btn.innerHTML='✓ Salvar';
   if(error){toast('Erro: '+error.message,'vermelho');return;}
   if(!aid&&!agPacId&&tel){const telL=tel.replace(/\D/g,'');const jaExiste=pacs.find(p=>p.telefone.replace(/\D/g,'')===telL||p.nome.toLowerCase().trim()===nome.toLowerCase().trim());if(!jaExiste){await db.from('pacientes').insert({nome,telefone:tel,tratamento:document.getElementById('ag-proc').value||null,cadastro_pendente:true});await carregar();}}
-  toast(`Consulta salva! ✓`,'verde');agDia=data;fchAg();carregarAgenda();
-  await logAuditoria(aid?'Consulta editada':'Consulta criada', `${nome} · ${data} ${hora}${payload.procedimento?' · '+payload.procedimento:''}`, payload.paciente_id||null);
+  // Recorrência: criar consultas repetidas
+  const recFreq=parseInt(document.getElementById('ag-rec-freq')?.value||'0');
+  const recQtd=parseInt(document.getElementById('ag-rec-qtd')?.value||'2');
+  if(!aid && recFreq>0 && recQtd>1){
+    const DIAS_EX=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+    const recPayloads=[];
+    const idxFds=[]; // índices dos payloads que caem em fim de semana
+    for(let i=1;i<recQtd;i++){
+      const dt=new Date(data+'T12:00:00');
+      if(recFreq===30) dt.setMonth(dt.getMonth()+i);
+      else dt.setDate(dt.getDate()+recFreq*i);
+      const dtStr=dt.toISOString().split('T')[0];
+      const diaSem=dt.getDay();
+      if(diaSem===0||diaSem===6) idxFds.push({idx:recPayloads.length,dtStr,diaSem});
+      recPayloads.push({...payload,data:dtStr});
+    }
+    // Se há datas em fim de semana, mostrar modal de ajuste
+    if(idxFds.length>0){
+      // Guardar estado para as funções do modal usarem
+      window._fdsPayloads=recPayloads;
+      window._fdsPayloadPrincipal={...payload};
+      window._fdsQtd=recQtd;
+      window._fdsNome=nome;window._fdsHora=hora;window._fdsProcedimento=payload.procedimento;window._fdsPacId=payload.paciente_id;
+      // Montar lista de inputs no modal
+      const lista=document.getElementById('fds-lista');
+      lista.innerHTML=idxFds.map(({idx,dtStr,diaSem})=>{
+        const[y,m,d2]=dtStr.split('-');
+        return`<div style="display:flex;align-items:center;gap:10px;background:var(--amarelo-c);border-radius:8px;padding:10px 12px">
+          <span style="font-size:18px">${diaSem===0?'☀️':'🌅'}</span>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:700;color:#7a5800">${DIAS_EX[diaSem]}, ${d2}/${m}/${y}</div>
+            <div style="font-size:11px;color:var(--ct)">Ajuste a data se necessário</div>
+          </div>
+          <input type="date" data-idx="${idx}" value="${dtStr}" style="font-size:13px;padding:6px 8px;border-radius:8px;border:1.5px solid var(--borda);background:white"/>
+        </div>`;
+      }).join('');
+      // Reabilitar botão e abrir modal
+      btn.disabled=false;btn.innerHTML='✓ Salvar';
+      document.getElementById('m-fds').classList.add('open');
+      return; // aguarda ação do usuário no modal
+    }
+    await db.from('agenda').insert(recPayloads);
+    toast(`Consulta salva! ✓ (+ ${recQtd-1} repetição${recQtd-1>1?'ões':''} criadas)`,'verde');
+  } else {
+    toast(`Consulta salva! ✓`,'verde');
+  }
+  agDia=data;fchAg();carregarAgenda();
+  await logAuditoria(aid?'Consulta editada':'Consulta criada', `${nome} · ${data} ${hora}${payload.procedimento?' · '+payload.procedimento:''}${recFreq>0&&!aid?' · recorrente x'+recQtd:''}`, payload.paciente_id||null);
+}
+
+// ── Funções do modal de ajuste de fim de semana ──
+async function fdsSalvarAjustadas(){
+  // Ler datas ajustadas dos inputs
+  document.querySelectorAll('#fds-lista input[type="date"]').forEach(inp=>{
+    const idx=parseInt(inp.dataset.idx);
+    if(window._fdsPayloads[idx]) window._fdsPayloads[idx].data=inp.value;
+  });
+  await _fdsGravarEFechar();
+}
+async function fdsManterTodas(){
+  await _fdsGravarEFechar();
+}
+async function _fdsGravarEFechar(){
+  document.getElementById('m-fds').classList.remove('open');
+  const qtd=window._fdsQtd||2;
+  await db.from('agenda').insert(window._fdsPayloads);
+  toast(`Consulta salva! ✓ (+ ${qtd-1} repetição${qtd-1>1?'ões':''} criadas)`,'verde');
+  const data=window._fdsPayloadPrincipal?.data||agDia;
+  agDia=data;fchAg();carregarAgenda();
+  await logAuditoria('Consulta criada (recorrente)',`${window._fdsNome||''} · ${data} ${window._fdsHora||''} · x${qtd}`,window._fdsPacId||null);
+  window._fdsPayloads=null;
 }
 function mostrarVinculado(p){
   agPacId=p.id;
