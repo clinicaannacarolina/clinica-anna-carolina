@@ -255,12 +255,13 @@ textarea{resize:vertical;min-height:70px}
   <div style="display:flex;align-items:center;gap:0;flex-wrap:wrap">
     <div class="tabs" style="flex:1">
       <button class="tb active" onclick="aba('hoje',this)">⭐ Hoje</button>
-      <button class="tb" onclick="aba('agenda',this)">📅 Agenda</button>
+      <button class="tb" onclick="aba('agenda',this)" id="tb-agenda">📅 Agenda<span id="badge-online" style="display:none;background:var(--vermelho);color:white;border-radius:50%;font-size:9px;font-weight:700;padding:1px 5px;margin-left:5px;vertical-align:top;line-height:16px"></span></button>
       <button class="tb" onclick="aba('alertas',this)">🔔 Alertas</button>
       <button class="tb" onclick="aba('pacientes',this)">👥 Pacientes</button>
       <button class="tb" onclick="aba('relatorio',this)">📊 Relatório</button>
       <button class="tb" onclick="aba('financeiro',this)">💰 Financeiro</button>
       <button class="tb" onclick="aba('cadastro',this)">➕ Cadastrar</button>
+      <button class="tb" onclick="aba('auditoria',this)">🔍 Auditoria</button>
       <a href="estoque.html" class="tb" style="text-decoration:none;color:var(--ct)">📦 Estoque</a>
     </div>
     <button onclick="abrirBuscaGlobal()" style="padding:6px 10px;border:1.5px solid var(--borda);background:var(--card);border-radius:8px;cursor:pointer;font-size:13px;margin:4px 4px 0 0;white-space:nowrap" title="Busca global (Ctrl+K)">🔍</button>
@@ -347,7 +348,7 @@ textarea{resize:vertical;min-height:70px}
             <button class="ag-view-tab" id="ag-tab-timeline" onclick="setAgView('timeline')">🕐 Dia</button>
             <button class="ag-view-tab" id="ag-tab-semana" onclick="setAgView('semana')">📅 Semana</button>
           </div>
-          <button class="btn pri" style="padding:7px 13px;font-size:13px" onclick="abrAg()">+ Agendar</button>
+          <button class="btn pri" style="padding:7px 13px;font-size:13px" onclick="abrAg()">+ Agendar</button><button class="btn" style="padding:8px 12px;font-size:13px;color:var(--ct)" onclick="abrirBloqueioHorario()" title="Bloquear horário na agenda">🚫 Bloquear</button>
           <button class="btn" aria-label="Configurar agendamento online" style="padding:7px 10px;font-size:12px;background:#7c3aed;color:white;border-color:#7c3aed" onclick="abrirConfAgOnline()" title="Configurar agendamento online">📱</button>
         </div>
       </div>
@@ -520,6 +521,18 @@ textarea{resize:vertical;min-height:70px}
     <div id="rel-executivo" style="display:none;margin-bottom:1.5rem"></div>
     <div class="rel-grid" id="rel-stats"></div>
     <div class="card">
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--txt)">⚠️ Inadimplência</div>
+      <div id="rel-inadimplencia"></div>
+    </div>
+    <div class="card">
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--txt)">🎯 Ticket médio por procedimento</div>
+      <div id="rel-ticket-proc"></div>
+    </div>
+    <div class="card">
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--txt)">📈 Fluxo de caixa projetado (próx. 3 meses)</div>
+      <div id="rel-fluxo"></div>
+    </div>
+    <div class="card">
       <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--txt)">🏆 Procedimentos mais realizados</div>
       <div id="rel-procs"></div>
     </div>
@@ -575,6 +588,41 @@ textarea{resize:vertical;min-height:70px}
       <div class="br">
         <button class="btn" onclick="limpar()">Limpar</button>
         <button class="btn pri" id="btn-salvar" onclick="salvar()">✓ Salvar paciente</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAINEL AUDITORIA -->
+  <div id="p-auditoria" class="panel">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:13px;font-weight:700;color:var(--txt)">🔍 Log de Auditoria</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select id="aud-filtro-acao" onchange="renderAuditoria()" style="font-size:12px;padding:6px 8px">
+            <option value="">Todas as ações</option>
+            <option>Dados pessoais atualizados</option>
+            <option>Consulta criada</option>
+            <option>Consulta editada</option>
+            <option>Consulta cancelada</option>
+            <option>Status de consulta alterado</option>
+            <option>Lançamento financeiro criado</option>
+            <option>Lançamento financeiro editado</option>
+            <option>Lançamento financeiro excluído</option>
+            <option>Documento excluído</option>
+            <option>Entrada de estoque</option>
+            <option>Produto cadastrado</option>
+            <option>Exportação de dados (LGPD)</option>
+          </select>
+          <input type="date" id="aud-filtro-de" onchange="renderAuditoria()" style="font-size:12px;padding:6px 8px"/>
+          <input type="date" id="aud-filtro-ate" onchange="renderAuditoria()" style="font-size:12px;padding:6px 8px"/>
+          <button class="btn" style="font-size:12px;padding:6px 10px" onclick="document.getElementById('aud-filtro-acao').value='';document.getElementById('aud-filtro-de').value='';document.getElementById('aud-filtro-ate').value='';renderAuditoria()">✕ Limpar</button>
+        </div>
+      </div>
+      <div id="aud-lista" style="display:flex;flex-direction:column;gap:6px">
+        <div class="empty"><div class="empty-icon">🔍</div><p>Carregando...</p></div>
+      </div>
+      <div id="aud-mais" style="text-align:center;padding:12px;display:none">
+        <button class="btn" onclick="audOffset+=50;renderAuditoria(true)" style="font-size:12px">⬇️ Carregar mais</button>
       </div>
     </div>
   </div>
@@ -864,6 +912,153 @@ async function logAuditoria(acao, descricao, paciente_id=null){
       criado_em: new Date().toISOString()
     });
   }catch(e){ console.warn('[log]',e); }
+}
+
+// ── Tela de Auditoria ──
+let audOffset=0;
+async function renderAuditoria(append=false){
+  const el=document.getElementById('aud-lista');
+  const elMais=document.getElementById('aud-mais');
+  if(!append){audOffset=0;el.innerHTML='<div class="empty"><div class="empty-icon">⏳</div><p>Carregando...</p></div>';}
+  const filtroAcao=document.getElementById('aud-filtro-acao')?.value||'';
+  const filtroDe=document.getElementById('aud-filtro-de')?.value||'';
+  const filtroAte=document.getElementById('aud-filtro-ate')?.value||'';
+  let q=db.from('historico_paciente').select('acao,descricao,criado_em,paciente_id,pacientes(nome)').order('criado_em',{ascending:false}).range(audOffset,audOffset+49);
+  if(filtroAcao) q=q.ilike('acao','%'+filtroAcao+'%');
+  if(filtroDe) q=q.gte('criado_em',filtroDe+'T00:00:00');
+  if(filtroAte) q=q.lte('criado_em',filtroAte+'T23:59:59');
+  const{data}=await q;
+  if(!data||!data.length){el.innerHTML='<div class="empty"><div class="empty-icon">🔍</div><p>Nenhum registro encontrado.</p></div>';elMais.style.display='none';return;}
+  const ICONES={'Dados pessoais':'👤','Consulta':'📅','Lançamento':'💰','Documento':'📄','Estoque':'📦','Entrada de estoque':'📦','Produto':'📦','Fornecedor':'🏭','Exportação':'📤','Atendimento':'🩺','Lembrete':'📌','Foto':'📸','Orçamento':'📋','Bloqueio':'🚫'};
+  function icone(acao){for(const[k,v] of Object.entries(ICONES)){if(acao.includes(k)) return v;} return '🔍';}
+  const rows=data.map(h=>{
+    const dt=new Date(h.criado_em);
+    const dtStr=dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const pacNome=h.pacientes?.nome||'';
+    return`<div style="display:flex;gap:10px;padding:8px 10px;border-radius:8px;background:var(--bg);border:1px solid var(--borda);align-items:flex-start">
+      <span style="font-size:16px;margin-top:1px">${icone(h.acao||'')}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:700;color:var(--txt)">${escapeHtml(h.acao||'—')}</div>
+        <div style="font-size:11px;color:var(--ct);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(h.descricao||'')}</div>
+        ${pacNome?`<div style="font-size:11px;color:var(--verde-e);margin-top:2px">👤 ${escapeHtml(pacNome)}</div>`:''}
+      </div>
+      <div style="font-size:11px;color:var(--ct);white-space:nowrap;flex-shrink:0">${dtStr}</div>
+    </div>`;
+  }).join('');
+  if(append) el.innerHTML+=rows;
+  else el.innerHTML=rows;
+  elMais.style.display=data.length===50?'block':'none';
+  audOffset+=data.length;
+}
+
+// ── Badge de agendamentos online pendentes ──
+async function atualizarBadgeOnline(){
+  try{
+    const{data}=await db.from('agenda').select('id',{count:'exact',head:true}).eq('status','aguardando');
+    const badge=document.getElementById('badge-online');
+    if(!badge) return;
+    const n=data?.length||0;
+    if(n>0){badge.textContent=n;badge.style.display='inline';}
+    else badge.style.display='none';
+  }catch(e){}
+}
+
+// ── Bloqueio de horário ──
+async function desbloquearHorario(id){
+  if(!confirm('Remover o bloqueio deste horário?')) return;
+  await db.from('agenda').delete().eq('id',id);
+  toast('Bloqueio removido ✓','verde');
+  logAuditoria('Bloqueio removido','Horário desbloqueado');
+  carregarAgenda();
+}
+
+function toggleBlqFim(){
+  const checked=document.getElementById('blq-fechar-agenda').checked;
+  document.getElementById('blq-fim').disabled=checked;
+  if(checked) document.getElementById('blq-fim').value='';
+}
+
+function abrirBloqueioHorario(){
+  const data=agDia;
+  const [d2,m2,y2]=data.split('-').reverse().map(Number);
+  const dataFmt=`${String(d2).padStart(2,'0')}/${String(m2).padStart(2,'0')}/${y2}`;
+  const ini=prompt(`🚫 Bloquear horário\nData: ${dataFmt}\n\nHorário de início (HH:MM):`, '12:00');
+  if(!ini||!/^\d{2}:\d{2}$/.test(ini)){if(ini!==null)toast('Horário inválido. Use HH:MM','vermelho');return;}
+  const fim=prompt(`Horário de fim (HH:MM)\nDeixe vazio para bloquear só ${ini}:`, '');
+  if(fim===null) return; // cancelou
+  const motivo=prompt('Motivo (opcional):', 'Horário bloqueado')||'Horário bloqueado';
+  // Gerar lista de horários
+  const horarios=[];
+  const [hIni,mIni]=ini.split(':').map(Number);
+  if(fim&&/^\d{2}:\d{2}$/.test(fim)){
+    const [hFim,mFim]=fim.split(':').map(Number);
+    const totalIni=hIni*60+mIni, totalFim=hFim*60+mFim;
+    if(totalFim<=totalIni){toast('Fim deve ser após o início','vermelho');return;}
+    for(let t=totalIni;t<totalFim;t+=30){
+      const h=Math.floor(t/60),m=t%60;
+      horarios.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`);
+    }
+  } else {
+    horarios.push(ini+':00');
+  }
+  const payloads=horarios.map(hora=>({nome:motivo,data,hora,status:'bloqueado',procedimento:null,telefone:null,observacao:motivo,paciente_id:null}));
+  db.from('agenda').insert(payloads).then(({error})=>{
+    if(error){toast('Erro ao bloquear: '+error.message,'vermelho');return;}
+    toast(`🚫 ${horarios.length} horário${horarios.length>1?'s':''} bloqueado${horarios.length>1?'s':''}! (${ini}${fim?' até '+fim:''})`, 'verde');
+    logAuditoria('Bloqueio de horário',`${data} · ${ini}${fim?' até '+fim:''} — ${motivo}`);
+    carregarAgenda();
+  });
+}
+
+async function confirmarBloqueio(){
+  const data=document.getElementById('blq-data').value;
+  const ini=document.getElementById('blq-ini').value;
+  const fim=document.getElementById('blq-fim').value;
+  const fecharAgenda=document.getElementById('blq-fechar-agenda').checked;
+  const motivo=document.getElementById('blq-motivo').value.trim()||'Horário bloqueado';
+  if(!data||!ini){toast('Informe a data e o horário de início','vermelho');return;}
+
+  // Gerar lista de horários a bloquear
+  const horarios=[];
+  const [hIni,mIni]=ini.split(':').map(Number);
+
+  if(fecharAgenda){
+    // Bloquear do início até 20:00 (fim do expediente padrão)
+    for(let h=hIni;h<=20;h++){
+      for(let m=(h===hIni?mIni:0);m<60;m+=30){
+        horarios.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`);
+      }
+    }
+  } else if(fim){
+    // Bloquear range início → fim
+    const [hFim,mFim]=fim.split(':').map(Number);
+    const totalIni=hIni*60+mIni;
+    const totalFim=hFim*60+mFim;
+    if(totalFim<=totalIni){toast('O horário de fim deve ser após o início','vermelho');return;}
+    for(let t=totalIni;t<totalFim;t+=30){
+      const h=Math.floor(t/60),m=t%60;
+      horarios.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`);
+    }
+  } else {
+    // Bloquear só o horário de início
+    horarios.push(ini+':00');
+  }
+
+  if(!horarios.length){toast('Nenhum horário para bloquear','vermelho');return;}
+
+  const payloads=horarios.map(hora=>({
+    nome:motivo,data,hora,status:'bloqueado',
+    procedimento:null,telefone:null,observacao:motivo,paciente_id:null
+  }));
+
+  const{error}=await db.from('agenda').insert(payloads);
+  if(error){toast('Erro ao bloquear: '+error.message,'vermelho');return;}
+
+  document.getElementById('m-bloqueio').style.display='none';
+  const desc=fecharAgenda?`A partir de ${ini}`:(fim?`${ini} até ${fim}`:ini);
+  toast(`🚫 ${horarios.length} horário${horarios.length>1?'s':''} bloqueado${horarios.length>1?'s':''}! (${desc})`,'verde');
+  logAuditoria('Bloqueio de horário',`${data} · ${desc} — ${motivo}`);
+  carregarAgenda();
 }
 
 agMes=new Date(HOJE.getFullYear(),HOJE.getMonth(),1);
@@ -1561,6 +1756,73 @@ async function renderRel(){
             </div>
           </div>`).join('')}`;
     }
+  }
+
+  // ── Inadimplência ──
+  const elInad=document.getElementById('rel-inadimplencia');
+  if(elInad){
+    try{
+      const iniStr=cutoff?cutoff.toISOString().split('T')[0]:'2000-01-01';
+      const hojStr=new Date().toISOString().split('T')[0];
+      const{data:inadData}=await db.from('financeiro').select('descricao,valor,data_vencimento,pacientes(nome)').eq('tipo','receita').eq('status','pendente').lt('data_vencimento',hojStr).gte('data',iniStr);
+      if(!inadData||!inadData.length){
+        elInad.innerHTML='<div style="color:var(--verde);font-size:13px">✅ Nenhuma inadimplência no período.</div>';
+      } else {
+        const totalInad=inadData.reduce((s,l)=>s+(l.valor||0),0);
+        elInad.innerHTML=`<div style="color:var(--vermelho);font-weight:700;font-size:15px;margin-bottom:10px">R$ ${fmtBRL(totalInad).replace('R$ ','')} em ${inadData.length} lançamento${inadData.length>1?'s':''} vencido${inadData.length>1?'s':''}</div>`+
+          inadData.slice(0,10).map(l=>{
+            const[y,m,d]=((l.data_vencimento||'').split('-'));
+            return`<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid var(--borda)"><span style="flex:1">${escapeHtml(l.pacientes?.nome||l.descricao||'—')}</span><span style="color:var(--vermelho);font-weight:600;white-space:nowrap;margin-left:8px">${d?d+'/'+m+'/'+y:''} · ${fmtBRL(l.valor||0)}</span></div>`;
+          }).join('')+(inadData.length>10?`<div style="font-size:12px;color:var(--ct);padding-top:6px">+ ${inadData.length-10} mais...</div>`:'');
+      }
+    }catch(e){elInad.innerHTML='<div style="font-size:12px;color:var(--ct)">Não foi possível carregar.</div>';}
+  }
+
+  // ── Ticket médio por procedimento ──
+  const elTicket=document.getElementById('rel-ticket-proc');
+  if(elTicket){
+    const procValores={};
+    todosAtends.forEach(a=>(a.trats||[]).forEach(t=>{
+      if(!t.nome||!t.valor) return;
+      if(!procValores[t.nome]) procValores[t.nome]={total:0,n:0};
+      procValores[t.nome].total+=(parseFloat(t.valor)||0);
+      procValores[t.nome].n++;
+    }));
+    const procList=Object.entries(procValores).map(([nome,{total,n}])=>({nome,media:total/n,n})).sort((a,b)=>b.media-a.media);
+    if(!procList.length){elTicket.innerHTML='<div class="empty"><p>Sem dados de valor por procedimento.</p></div>';}
+    else{elTicket.innerHTML=procList.slice(0,8).map(p=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid var(--borda)"><span>${escapeHtml(p.nome)}</span><span style="font-weight:600;color:var(--verde)">${fmtBRL(p.media)} <span style="font-size:11px;font-weight:400;color:var(--ct)">(${p.n}x)</span></span></div>`).join('');}
+  }
+
+  // ── Fluxo de caixa projetado (próximos 3 meses) ──
+  const elFluxo=document.getElementById('rel-fluxo');
+  if(elFluxo){
+    try{
+      const hoje3=new Date();
+      const meses3=[];
+      for(let i=0;i<3;i++){
+        const d=new Date(hoje3.getFullYear(),hoje3.getMonth()+i,1);
+        const fim=new Date(hoje3.getFullYear(),hoje3.getMonth()+i+1,0);
+        meses3.push({ini:d.toISOString().split('T')[0],fim:fim.toISOString().split('T')[0],nome:MESES_N[d.getMonth()]+' '+d.getFullYear()});
+      }
+      const{data:projData,error:projErr}=await db.from('financeiro').select('tipo,valor,status,data').gte('data',meses3[0].ini).lte('data',meses3[2].fim);
+      if(projErr) throw projErr;
+      const fmt=v=>'R$ '+parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+      elFluxo.innerHTML=meses3.map(mes=>{
+        const recebido=(projData||[]).filter(l=>l.tipo==='receita'&&l.status==='recebido'&&(l.data||'')>=mes.ini&&(l.data||'')<=mes.fim).reduce((s,l)=>s+(parseFloat(l.valor)||0),0);
+        const aReceber=(projData||[]).filter(l=>l.tipo==='receita'&&l.status!=='recebido'&&(l.data||'')>=mes.ini&&(l.data||'')<=mes.fim).reduce((s,l)=>s+(parseFloat(l.valor)||0),0);
+        const despesas=(projData||[]).filter(l=>l.tipo==='despesa'&&(l.data||'')>=mes.ini&&(l.data||'')<=mes.fim).reduce((s,l)=>s+(parseFloat(l.valor)||0),0);
+        const saldo=recebido+aReceber-despesas;
+        return`<div style="background:var(--bg);border-radius:8px;padding:12px;margin-bottom:8px">
+          <div style="font-size:12px;font-weight:700;color:var(--ct);margin-bottom:8px">${mes.nome}</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:4px">
+            <span style="font-size:12px;color:var(--verde)">✅ Recebido: <strong>${fmt(recebido)}</strong></span>
+            ${aReceber>0?`<span style="font-size:12px;color:#d97706">⏳ A receber: <strong>${fmt(aReceber)}</strong></span>`:''}
+            <span style="font-size:12px;color:var(--vermelho)">↓ Despesas: <strong>${fmt(despesas)}</strong></span>
+          </div>
+          <div style="font-size:13px;font-weight:700;color:${saldo>=0?'var(--verde)':'var(--vermelho)'};padding-top:6px;border-top:1px solid var(--borda)">Saldo projetado: ${saldo>=0?'+':''}${fmt(saldo)}</div>
+        </div>`;
+      }).join('');
+    }catch(e){console.error('[fluxo]',e);elFluxo.innerHTML='<div style="font-size:12px;color:var(--ct)">Não foi possível calcular.</div>';}
   }
 }
 
@@ -2935,7 +3197,10 @@ function renderConsDia(ds){
   const el=document.getElementById('ag-cons');
   const cs=consultas.filter(c=>c.data===ds).sort((a,b)=>a.hora.localeCompare(b.hora));
   if(!cs.length){el.innerHTML=`<div class="empty" style="padding:1.5rem"><div class="empty-icon">📋</div><p>Nenhuma consulta. Clique em "+ Agendar".</p></div>`;renderConsMes();return;}
-  el.innerHTML=cs.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';const cls=c.status==='cancelado'?'can':c.status==='pendente'?'pen':c.status==='aguardando'?'online':'';return`<div class="ci ${cls}" data-cid="${c.id}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${escapeHtml(c.nome)}${c.status==='cancelado'?' <span style="font-size:11px;color:var(--vermelho)">(cancelado)</span>':''}${c.origem==='online'?'<span class="badge-online">📱 Online</span>':''}</div><div class="cd">${escapeHtml(c.procedimento)||'Sem procedimento'}${c.telefone?' · '+escapeHtml(c.telefone):''}${c.observacao?' · '+escapeHtml(c.observacao):''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" aria-label="Enviar WhatsApp" title="Enviar WhatsApp">💬</a>`:''}<a href="${urlGcal(c)}" target="_blank" class="btn gcal" aria-label="Adicionar ao Google Agenda" title="Adicionar ao Google Agenda">📆</a><button class="btn" aria-label="Editar consulta" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})' title="Editar consulta">✏️</button>${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" aria-label="Abrir ficha do paciente" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600" title="Abrir ficha do paciente">Ficha</a>`:''}<button class="btn btn-vincular" aria-label="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('');
+  el.innerHTML=cs.map(c=>{
+    // Horário bloqueado — visual especial, sem ações
+    if(c.status==='bloqueado'){return`<div class="ci" style="opacity:.6;background:#f3f4f6;border-left:3px solid #9ca3af"><div class="ch" style="color:#6b7280">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn" style="color:#6b7280">🚫 ${escapeHtml(c.nome||'Horário bloqueado')}</div></div><div class="ca"><button class="btn" aria-label="Desbloquear horário" style="padding:5px 9px;font-size:11px;color:var(--vermelho)" onclick="desbloquearHorario('${c.id}')" title="Desbloquear">✕ Remover</button></div></div>`;}
+    const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';const cls=c.status==='cancelado'?'can':c.status==='pendente'?'pen':c.status==='aguardando'?'online':'';return`<div class="ci ${cls}" data-cid="${c.id}"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${escapeHtml(c.nome)}${c.status==='cancelado'?' <span style="font-size:11px;color:var(--vermelho)">(cancelado)</span>':''}${c.origem==='online'?'<span class="badge-online">📱 Online</span>':''}</div><div class="cd">${escapeHtml(c.procedimento)||'Sem procedimento'}${c.telefone?' · '+escapeHtml(c.telefone):''}${c.observacao?' · '+escapeHtml(c.observacao):''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" aria-label="Enviar WhatsApp" title="Enviar WhatsApp">💬</a>`:''}<a href="${urlGcal(c)}" target="_blank" class="btn gcal" aria-label="Adicionar ao Google Agenda" title="Adicionar ao Google Agenda">📆</a><button class="btn" aria-label="Editar consulta" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})' title="Editar consulta">✏️</button>${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" aria-label="Abrir ficha do paciente" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600" title="Abrir ficha do paciente">Ficha</a>`:''}<button class="btn btn-vincular" aria-label="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('');
   renderConsMes();
   setTimeout(injetarBtnFicha,300);
   setTimeout(injetarBtnFicha,1200);
@@ -3055,8 +3320,8 @@ async function salvarConsulta(){
   if(!nome||!data||!hora){toast('Preencha nome, data e horário!','vermelho');return;}
   const aid=document.getElementById('ag-id').value;
   // Verificar conflito de horário (só em consultas novas ou quando data/hora mudou)
-  const{data:conflitos}=await db.from('agenda').select('id,nome').eq('data',data).eq('hora',hora).neq('status','cancelado');
-  const conflitoReal=conflitos?.filter(c=>c.id!==aid);
+  const{data:conflitos}=await db.from('agenda').select('id,nome,status').eq('data',data).eq('hora',hora).neq('status','cancelado');
+  const conflitoReal=conflitos?.filter(c=>c.id!==aid&&c.status!=='bloqueado');
   if(conflitoReal&&conflitoReal.length>0){
     const nomeConflito=conflitoReal[0].nome;
     if(!confirm(`⚠️ Já existe uma consulta neste horário (${nomeConflito}). Deseja agendar mesmo assim?`))return;
@@ -3198,6 +3463,7 @@ function aba(id,btn){
   if(id==='alertas')renderAlertas();
   if(id==='pacientes')renderPac();
   if(id==='relatorio')renderRel();
+  if(id==='auditoria')renderAuditoria();
 }
 
 // ── CARTEIRA A RECEBER ──
@@ -3702,6 +3968,9 @@ async function renderPedidosOnline(){
   const elAg   = document.getElementById('ag-pedidos-online');
   const{data}=await db.from('agenda').select('*').eq('status','aguardando').order('data').order('hora');
   const pend = data||[];
+  // Atualizar badge da aba Agenda
+  const badge=document.getElementById('badge-online');
+  if(badge){if(pend.length>0){badge.textContent=pend.length;badge.style.display='inline';}else badge.style.display='none';}
 
   // Painel Hoje
   if(elHoje){
@@ -3755,20 +4024,22 @@ async function rejeitarPedido(id, tel, nome){
 
 // ── Modal de configuração do agendamento online ──
 function abrirConfAgOnline(){
+  const m=document.getElementById('m-ag-online');
+  if(!m){console.error('[confAgOnline] não encontrado');return;}
+  m.style.display='flex';
+  m.classList.add('open');
   const conf=JSON.parse(localStorage.getItem('conf_ag_online')||'{}');
-  document.getElementById('cao-ativo').checked = conf.ativo !== false;
-  document.getElementById('cao-hora-ini').value = conf.hora_ini||'09:00';
-  document.getElementById('cao-hora-fim').value = conf.hora_fim||'18:00';
-  document.getElementById('cao-duracao').value  = conf.duracao||60;
-  document.getElementById('cao-max-dias').value = conf.max_dias||30;
+  if(document.getElementById('cao-ativo')) document.getElementById('cao-ativo').checked = conf.ativo !== false;
+  if(document.getElementById('cao-hora-ini')) document.getElementById('cao-hora-ini').value = conf.hora_ini||'09:00';
+  if(document.getElementById('cao-hora-fim')) document.getElementById('cao-hora-fim').value = conf.hora_fim||'18:00';
+  if(document.getElementById('cao-duracao')) document.getElementById('cao-duracao').value  = conf.duracao||60;
+  if(document.getElementById('cao-max-dias')) document.getElementById('cao-max-dias').value = conf.max_dias||30;
   const dias = conf.dias||[1,2,3,4,5,6];
   document.querySelectorAll('[name="cao-dia"]').forEach(cb=>{
     cb.checked = dias.includes(parseInt(cb.value));
   });
-  // Gerar link
   const link = window.location.href.replace('index.html','').replace(/\?.*$/,'')+'agenda-online.html';
-  document.getElementById('cao-link').value = link;
-  document.getElementById('m-ag-online').classList.add('open');
+  if(document.getElementById('cao-link')) document.getElementById('cao-link').value = link;
 }
 
 function salvarConfAgOnline(){
