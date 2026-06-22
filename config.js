@@ -7,15 +7,48 @@ const CLINICA_CONFIG = {
   nome: 'Dra. Anna Carolina Dias',
   especialidade: 'Harmonização Orofacial',
   logo: 'logo.jpg',
-  senha: '2411'
+  // senha removida — autenticação agora via Supabase Auth
+  pinLength: 4,
+  loginEmail: 'clinica@annacarolina.com'
 };
 
-function authLogin(pin){
-  if(pin === CLINICA_CONFIG.senha){
-    const expires = Date.now() + 8 * 60 * 60 * 1000; // 8 horas
-    localStorage.setItem('clinica_auth', JSON.stringify({ok:true, expires}));
-    sessionStorage.setItem('clinica_auth','1');
-    return true;
+/**
+ * authLogin — autentica o PIN via Supabase Auth.
+ * O PIN digitado é usado como senha no Supabase (email fixo + PIN = senha).
+ * Retorna Promise<{ok, error}>
+ */
+async function authLogin(pin) {
+  try {
+    const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SB_KEY
+      },
+      body: JSON.stringify({
+        email: CLINICA_CONFIG.loginEmail,
+        password: pin
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      return { ok: false, error: data.error_description || data.error || 'PIN incorreto' };
+    }
+
+    // Armazena token Supabase + expiração (8 horas)
+    const expires = Date.now() + 8 * 60 * 60 * 1000;
+    localStorage.setItem('clinica_auth', JSON.stringify({
+      ok: true,
+      expires,
+      access_token: data.access_token,
+      refresh_token: data.refresh_token
+    }));
+    sessionStorage.setItem('clinica_auth', '1');
+
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: 'Erro de conexão. Verifique a internet.' };
   }
-  return false;
 }

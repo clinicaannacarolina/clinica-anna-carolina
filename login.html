@@ -59,7 +59,15 @@
     .key.del{font-size:16px;color:var(--ct)}
     .key.enter{background:var(--verde);color:white;border-color:var(--verde);font-size:14px}
     .key.enter:hover{background:var(--verde-e)}
-    .key.enter:disabled{opacity:.4;cursor:not-allowed}
+    .key:disabled{opacity:.4;cursor:not-allowed;pointer-events:none}
+    /* Spinner */
+    .spinner{
+      display:inline-block;width:16px;height:16px;
+      border:2px solid rgba(255,255,255,.4);border-top-color:white;
+      border-radius:50%;animation:spin .7s linear infinite;
+      vertical-align:middle;margin-right:4px;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
     /* Mensagens */
     .msg{font-size:13px;margin-bottom:1rem;min-height:18px;transition:.2s}
     .msg.erro{color:var(--vermelho)}
@@ -74,7 +82,6 @@
 <body>
 
 <div class="box" id="box">
-  <!-- Logo e nome da clínica (dinâmicos via config.js) -->
   <div class="logo-wrap">
     <img id="login-logo" src="logo.jpg" alt="Logo"/>
   </div>
@@ -86,17 +93,13 @@
   <div class="lock">🔐</div>
   <span class="label">Digite o PIN de acesso</span>
 
-  <!-- Dots de progresso -->
   <div class="pin-dots" id="pin-dots"></div>
 
-  <!-- Mensagem de erro/sucesso -->
   <div class="msg" id="msg"></div>
 
-  <!-- Input oculto para teclado físico -->
   <input type="password" id="pin-input" inputmode="numeric" maxlength="10" autocomplete="off"/>
 
-  <!-- Teclado numérico -->
-  <div class="keypad">
+  <div class="keypad" id="keypad">
     <button class="key" onclick="pressKey('1')">1</button>
     <button class="key" onclick="pressKey('2')">2</button>
     <button class="key" onclick="pressKey('3')">3</button>
@@ -111,68 +114,69 @@
     <button class="key enter" id="btn-enter" onclick="pressKey('enter')">Entrar</button>
   </div>
 
-  <div class="versao">Sistema de Gestão Clínica · v2.0</div>
+  <div class="versao">Sistema de Gestão Clínica · v2.1</div>
 </div>
 
 <script>
-// ── Preencher dados da clínica ──
+// ── Dados da clínica ──
 document.getElementById('login-logo').src = CLINICA_CONFIG.logo || 'logo.jpg';
 document.getElementById('login-nome').textContent = CLINICA_CONFIG.nome || 'Clínica';
 document.getElementById('login-esp').textContent = CLINICA_CONFIG.especialidade || '';
 document.title = 'Acesso — ' + (CLINICA_CONFIG.nome || 'Clínica');
 
-// ── Verificar se já tem sessão válida ──
-try{
-  const auth = JSON.parse(localStorage.getItem('clinica_auth')||'{}');
-  if(auth.ok && auth.expires > Date.now()){
+// ── Sessão válida? Redireciona direto ──
+try {
+  const auth = JSON.parse(localStorage.getItem('clinica_auth') || '{}');
+  if (auth.ok && auth.expires > Date.now()) {
     const params = new URLSearchParams(window.location.search);
-    const dest = params.get('r') || 'index.html';
-    window.location.href = dest;
+    window.location.href = params.get('r') || 'index.html';
   }
-}catch(e){}
+} catch(e) {}
 
-// ── PIN ──
-const TAMANHO = CLINICA_CONFIG.senha.length || 4;
+// ── Configurações ──
+const TAMANHO = CLINICA_CONFIG.pinLength || 4;
 const MAX_TENTATIVAS = 5;
-const BLOQUEIO_MS = 15 * 60 * 1000; // 15 minutos
+const BLOQUEIO_MS = 15 * 60 * 1000;
 const STORAGE_KEY = 'clinica_pin_falhas';
 let pin = '';
+let processando = false;
 
 // ── Controle de tentativas ──
-function getFalhas(){
-  try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{"n":0,"t":0}'); }catch(e){ return {n:0,t:0}; }
+function getFalhas() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{"n":0,"t":0}'); }
+  catch(e) { return {n:0, t:0}; }
 }
-function setFalhas(n,t){ localStorage.setItem(STORAGE_KEY,JSON.stringify({n,t})); }
-function resetFalhas(){ localStorage.removeItem(STORAGE_KEY); }
+function setFalhas(n, t) { localStorage.setItem(STORAGE_KEY, JSON.stringify({n, t})); }
+function resetFalhas() { localStorage.removeItem(STORAGE_KEY); }
 
-function verificarBloqueio(){
+function verificarBloqueio() {
   const f = getFalhas();
-  if(f.n >= MAX_TENTATIVAS){
+  if (f.n >= MAX_TENTATIVAS) {
     const restante = f.t + BLOQUEIO_MS - Date.now();
-    if(restante > 0){
-      const min = Math.ceil(restante/60000);
-      return `🔒 Acesso bloqueado. Tente novamente em ${min} minuto${min>1?'s':''}.`;
+    if (restante > 0) {
+      const min = Math.ceil(restante / 60000);
+      return `🔒 Acesso bloqueado. Tente novamente em ${min} minuto${min > 1 ? 's' : ''}.`;
     } else {
-      resetFalhas(); // bloqueio expirou
+      resetFalhas();
     }
   }
   return null;
 }
 
-function registrarFalha(){
+function registrarFalha() {
   const f = getFalhas();
   const novas = f.n + 1;
   setFalhas(novas, novas >= MAX_TENTATIVAS ? Date.now() : f.t);
   const restantes = MAX_TENTATIVAS - novas;
-  if(restantes <= 0) return `🔒 Acesso bloqueado por 15 minutos.`;
-  return `❌ PIN incorreto. ${restantes} tentativa${restantes>1?'s':''} restante${restantes>1?'s':''}.`;
+  if (restantes <= 0) return `🔒 Acesso bloqueado por 15 minutos.`;
+  return `❌ PIN incorreto. ${restantes} tentativa${restantes > 1 ? 's' : ''} restante${restantes > 1 ? 's' : ''}.`;
 }
 
-// Renderizar dots
-function renderDots(){
+// ── Dots ──
+function renderDots() {
   const cont = document.getElementById('pin-dots');
   cont.innerHTML = '';
-  for(let i=0;i<TAMANHO;i++){
+  for (let i = 0; i < TAMANHO; i++) {
     const d = document.createElement('div');
     d.className = 'pin-dot' + (i < pin.length ? ' filled' : '');
     cont.appendChild(d);
@@ -180,31 +184,64 @@ function renderDots(){
 }
 renderDots();
 
-function pressKey(k){
+// ── Bloquear/desbloquear teclado durante requisição ──
+function setProcessando(estado) {
+  processando = estado;
+  document.querySelectorAll('.key').forEach(b => {
+    b.disabled = estado;
+  });
+  const btnEnter = document.getElementById('btn-enter');
+  if (estado) {
+    btnEnter.innerHTML = '<span class="spinner"></span>Aguarde';
+  } else {
+    btnEnter.textContent = 'Entrar';
+  }
+}
+
+// ── Lógica principal ──
+async function pressKey(k) {
+  if (processando) return;
+
   const msg = document.getElementById('msg');
 
-  // Verificar bloqueio antes de qualquer ação
   const bloqueado = verificarBloqueio();
-  if(bloqueado){
+  if (bloqueado) {
     msg.className = 'msg erro';
     msg.textContent = bloqueado;
     return;
   }
 
-  if(k === 'del'){
-    pin = pin.slice(0,-1);
+  if (k === 'del') {
+    pin = pin.slice(0, -1);
     msg.textContent = '';
     renderDots();
     return;
   }
-  if(k === 'enter' || pin.length >= TAMANHO){
-    if(k !== 'enter' && pin.length < TAMANHO){ pin += k; renderDots(); return; }
-    // Tentar login
-    if(authLogin(pin)){
+
+  // Tecla numérica — acumula
+  if (/\d/.test(k) && k !== 'enter' && pin.length < TAMANHO) {
+    pin += k;
+    renderDots();
+    // Auto-submit ao completar
+    if (pin.length === TAMANHO) setTimeout(() => pressKey('enter'), 150);
+    return;
+  }
+
+  // Enter — tenta autenticar
+  if (k === 'enter') {
+    if (pin.length < TAMANHO) return; // PIN incompleto, ignora
+
+    setProcessando(true);
+    msg.className = 'msg';
+    msg.textContent = '';
+
+    const resultado = await authLogin(pin);
+
+    if (resultado.ok) {
       resetFalhas();
       msg.className = 'msg ok';
       msg.textContent = '✅ Acesso liberado!';
-      setTimeout(()=>{
+      setTimeout(() => {
         const params = new URLSearchParams(window.location.search);
         window.location.href = params.get('r') || 'index.html';
       }, 500);
@@ -214,27 +251,22 @@ function pressKey(k){
       msg.textContent = erroMsg;
       const box = document.getElementById('box');
       box.classList.add('shake');
-      setTimeout(()=>box.classList.remove('shake'), 400);
+      setTimeout(() => box.classList.remove('shake'), 400);
       pin = '';
       renderDots();
+      setProcessando(false);
     }
-    return;
-  }
-  if(/\d/.test(k) && pin.length < TAMANHO){
-    pin += k;
-    renderDots();
-    if(pin.length === TAMANHO) setTimeout(()=>pressKey('enter'), 150);
   }
 }
 
-// Teclado físico
-document.addEventListener('keydown', e=>{
-  if(/^\d$/.test(e.key)) pressKey(e.key);
-  else if(e.key === 'Backspace') pressKey('del');
-  else if(e.key === 'Enter') pressKey('enter');
+// ── Teclado físico ──
+document.addEventListener('keydown', e => {
+  if (processando) return;
+  if (/^\d$/.test(e.key)) pressKey(e.key);
+  else if (e.key === 'Backspace') pressKey('del');
+  else if (e.key === 'Enter') pressKey('enter');
 });
 
-// Foco no input oculto (acessibilidade)
 document.getElementById('pin-input').focus();
 </script>
 </body>
