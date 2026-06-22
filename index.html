@@ -4,12 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Clínica Dra. Anna Carolina Dias</title>
-<link rel="manifest" href="/manifest.json">
+<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0F6E56">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Clínica Anna">
-<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="logo.jpg">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
@@ -289,7 +290,7 @@ textarea{resize:vertical;min-height:70px}
 
     <!-- Busca no extrato -->
     <div style="margin-bottom:10px">
-      <input type="text" id="fin-busca" placeholder="🔍 Buscar por paciente ou procedimento..." oninput="renderFinAtual()" style="border-radius:8px;font-size:13px;width:100%"/>
+      <input type="text" id="fin-busca" placeholder="🔍 Buscar por paciente ou procedimento..." oninput="_finLimit={};renderFinAtual()" style="border-radius:8px;font-size:13px;width:100%"/>
     </div>
 
     <!-- Tabs receitas/despesas/fluxo/procedimentos -->
@@ -836,6 +837,7 @@ textarea{resize:vertical;min-height:70px}
       </div>
     <div class="br">
       <button class="btn dan" aria-label="Fechar" id="ag-canc-btn" onclick="cancConsulta()" style="display:none;margin-right:auto">✕ Cancelar</button>
+      <button class="btn dan" aria-label="Cancelar série inteira" id="ag-canc-serie-btn" onclick="cancSerie()" style="display:none;margin-right:8px">✕ Cancelar série inteira</button>
       <button class="btn" onclick="fchAg()">Fechar</button>
       <button class="btn pri" id="ag-salvar-btn" onclick="salvarConsulta()">✓ Salvar</button>
     </div>
@@ -1765,14 +1767,14 @@ async function renderRel(){
     try{
       const iniStr=cutoff?cutoff.toISOString().split('T')[0]:'2000-01-01';
       const hojStr=new Date().toISOString().split('T')[0];
-      const{data:inadData}=await db.from('financeiro').select('descricao,valor,data_vencimento,pacientes(nome)').eq('tipo','receita').eq('status','pendente').lt('data_vencimento',hojStr).gte('data',iniStr);
+      const{data:inadData}=await db.from('financeiro').select('descricao,valor,data,paciente_id').eq('tipo','receita').eq('status','pendente').lt('data',hojStr).gte('data',iniStr);
       if(!inadData||!inadData.length){
         elInad.innerHTML='<div style="color:var(--verde);font-size:13px">✅ Nenhuma inadimplência no período.</div>';
       } else {
         const totalInad=inadData.reduce((s,l)=>s+(l.valor||0),0);
         elInad.innerHTML=`<div style="color:var(--vermelho);font-weight:700;font-size:15px;margin-bottom:10px">R$ ${fmtBRL(totalInad).replace('R$ ','')} em ${inadData.length} lançamento${inadData.length>1?'s':''} vencido${inadData.length>1?'s':''}</div>`+
           inadData.slice(0,10).map(l=>{
-            const[y,m,d]=((l.data_vencimento||'').split('-'));
+            const[y,m,d]=((l.data||'').split('-'));
             return`<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid var(--borda)"><span style="flex:1">${escapeHtml(l.pacientes?.nome||l.descricao||'—')}</span><span style="color:var(--vermelho);font-weight:600;white-space:nowrap;margin-left:8px">${d?d+'/'+m+'/'+y:''} · ${fmtBRL(l.valor||0)}</span></div>`;
           }).join('')+(inadData.length>10?`<div style="font-size:12px;color:var(--ct);padding-top:6px">+ ${inadData.length-10} mais...</div>`:'');
       }
@@ -2562,6 +2564,7 @@ async function carregarFinanceiro(){
   _finLancs = data||[];
   _finPendFuturos = pend||[];
   _finLancsPrev = prevData||[];
+  _finLimit={}; // resetar paginação ao trocar de mês/ano
   renderFinDashboard();
   renderFinAtual();
 }
@@ -2639,6 +2642,7 @@ function renderFinAtual(){
   else renderFluxo();
 }
 
+let _finLimit={}; // paginação por elId (fin-lista-receitas / fin-lista-despesas): quantos dias mostrar
 function renderFinLista(tipo, elId){
   const el = document.getElementById(elId);
   const busca = (document.getElementById('fin-busca')?.value||'').toLowerCase().trim();
@@ -2656,10 +2660,15 @@ function renderFinLista(tipo, elId){
     'credito-4x':'💳 4x','credito-5x':'💳 5x','credito-6x':'💳 6x',
     'credito-10x':'💳 10x','credito-12x':'💳 12x',
     transferencia:'🏦 Transferência',cheque:'📄 Cheque',outro:'Outro'};
-  
-  el.innerHTML = Object.entries(grupos)
-    .sort((a,b)=>b[0].localeCompare(a[0]))
-    .map(([data, items])=>`
+
+  const datasOrdenadas=Object.keys(grupos).sort((a,b)=>b.localeCompare(a));
+  if(_finLimit[elId]===undefined) _finLimit[elId]=20;
+  const limite=_finLimit[elId];
+  const totalDias=datasOrdenadas.length;
+  const datasPag=datasOrdenadas.slice(0,limite);
+
+  el.innerHTML = datasPag
+    .map(data=>{const items=grupos[data];return`
       <div style="margin-bottom:1rem">
         <div style="font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.04em;padding:4px 0;border-bottom:1px solid var(--borda);margin-bottom:6px">${fDt(data)}</div>
         ${items.map(l=>`
@@ -2680,9 +2689,13 @@ function renderFinLista(tipo, elId){
               <button class="btn dan" aria-label="Excluir: ${escapeHtml(l.descricao)}" style="padding:4px 8px;font-size:11px" onclick="excluirLancamento('${l.id}')" title="Excluir: ${escapeHtml(l.descricao)}">🗑</button>
             </div>
           </div>`).join('')}
-      </div>`).join('');
-  
-  // Total no rodapé
+      </div>`;}).join('');
+
+  if(totalDias>limite){
+    el.innerHTML+=`<div style="text-align:center;padding:12px"><button class="btn" onclick="_finLimit['${elId}']+=20;renderFinLista('${tipo}','${elId}')" style="padding:8px 20px;font-size:12px">⬇️ Carregar mais dias (${totalDias-limite} restantes)</button></div>`;
+  }
+
+  // Total no rodapé (sempre soma TUDO, não só a página visível)
   const total = lista.reduce((s,l)=>s+(l.valor||0),0);
   const totalRecebido = lista.filter(l=>l.status==='recebido').reduce((s,l)=>s+(l.valor||0),0);
   el.innerHTML += `<div style="display:flex;justify-content:space-between;padding:12px;background:var(--card);border:2px solid var(--borda);border-radius:10px;font-weight:700">
@@ -3178,7 +3191,7 @@ function renderAgendaStats(){
       ${topDow&&topDow[1]>0?`<div style="font-size:11px;color:var(--ct);text-align:center">📊 Dia mais movimentado: <strong style="color:var(--txt)">${DIAS_SEM[topDow[0]]}</strong> (${topDow[1]} consulta${topDow[1]!==1?'s':''})</div>`:''}
     </div>`;
 }
-function mvMes(dir){agMes.setMonth(agMes.getMonth()+dir);renderCal();renderConsMes();renderAgendaStats();}
+function mvMes(dir){agMes.setMonth(agMes.getMonth()+dir);_agMesLimit=15;renderCal();renderConsMes();renderAgendaStats();}
 
 let agView='lista'; // 'lista' | 'timeline' | 'semana'
 
@@ -3286,13 +3299,20 @@ function renderSemana(ds){
   renderConsMes();
 }
 
+let _agMesLimit=15; // paginação: quantos DIAS (grupos) mostrar por vez
 function renderConsMes(){
   const ano=agMes.getFullYear(),mes=agMes.getMonth();const mesStr=String(mes+1).padStart(2,'0');
   const el=document.getElementById('ag-mes-lista');if(!el)return;
   const cs=consultas.filter(c=>c.data.startsWith(`${ano}-${mesStr}`)&&c.status!=='cancelado').sort((a,b)=>a.data.localeCompare(b.data)||a.hora.localeCompare(b.hora));
   if(!cs.length){el.innerHTML=`<div class="empty" style="padding:1rem"><div class="empty-icon">📋</div><p>Nenhuma consulta em ${MESES_N[mes]}.</p></div>`;return;}
   const grupos={};cs.forEach(c=>{if(!grupos[c.data])grupos[c.data]=[];grupos[c.data].push(c);});
-  el.innerHTML=Object.entries(grupos).map(([data,cons])=>{const[y,m,d]=data.split('-');const isH=data===HOJE_STR;return`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:${isH?'var(--verde-e)':'var(--ct)'};text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;cursor:pointer" onclick="selDia('${data}')">${DIAS[new Date(data+'T12:00:00').getDay()]}, ${d}/${m}/${y}${isH?' · hoje':''}</div>${cons.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';return`<div class="ci" data-cid="${c.id}" style="margin-bottom:5px"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${escapeHtml(c.nome)}</div><div class="cd">${escapeHtml(c.procedimento)}${c.telefone?' · '+escapeHtml(c.telefone):''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" aria-label="Enviar WhatsApp" style="padding:6px 9px" title="Enviar WhatsApp">💬</a>`:''}<button class="btn" aria-label="Editar consulta" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})' title="Editar consulta">✏️</button>${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" aria-label="Abrir ficha do paciente" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600" title="Abrir ficha do paciente">Ficha</a>`:''}<button class="btn btn-vincular" aria-label="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('')}</div>`;}).join('');
+  const datasOrdenadas=Object.keys(grupos);
+  const totalDias=datasOrdenadas.length;
+  const datasPag=datasOrdenadas.slice(0,_agMesLimit);
+  el.innerHTML=datasPag.map(data=>{const cons=grupos[data];const[y,m,d]=data.split('-');const isH=data===HOJE_STR;return`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:600;color:${isH?'var(--verde-e)':'var(--ct)'};text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;cursor:pointer" onclick="selDia('${data}')">${DIAS[new Date(data+'T12:00:00').getDay()]}, ${d}/${m}/${y}${isH?' · hoje':''}</div>${cons.map(c=>{const tel=c.telefone?'55'+c.telefone.replace(/\D/g,''):'';return`<div class="ci" data-cid="${c.id}" style="margin-bottom:5px"><div class="ch">${c.hora.slice(0,5)}</div><div style="flex:1"><div class="cn">${escapeHtml(c.nome)}</div><div class="cd">${escapeHtml(c.procedimento)}${c.telefone?' · '+escapeHtml(c.telefone):''}</div></div><div class="ca">${tel?`<a href="https://wa.me/${tel}?text=${encodeURIComponent(msgConsulta(c))}" target="_blank" class="btn wpp" aria-label="Enviar WhatsApp" style="padding:6px 9px" title="Enviar WhatsApp">💬</a>`:''}<button class="btn" aria-label="Editar consulta" style="padding:6px 9px;font-size:12px" onclick='editCons(${J(c)})' title="Editar consulta">✏️</button>${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" aria-label="Abrir ficha do paciente" style="padding:6px 9px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde);font-weight:600" title="Abrir ficha do paciente">Ficha</a>`:''}<button class="btn btn-vincular" aria-label="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}" style="padding:6px 9px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button></div></div>`;}).join('')}</div>`;}).join('');
+  if(totalDias>_agMesLimit){
+    el.innerHTML+=`<div style="text-align:center;padding:12px"><button class="btn" onclick="_agMesLimit+=15;renderConsMes()" style="padding:8px 20px;font-size:12px">⬇️ Carregar mais dias (${totalDias-_agMesLimit} restantes)</button></div>`;
+  }
 }
 
 function toggleRecQtd(){
@@ -3306,6 +3326,7 @@ function abrAg(data){
   agEditando=null;agPacId=null;
   desvincularPacAg();
   document.getElementById('ag-titulo').textContent='📅 Nova consulta';document.getElementById('ag-id').value='';document.getElementById('ag-nome').value='';document.getElementById('ag-tel').value='';document.getElementById('ag-proc').value='';document.getElementById('ag-data').value=data||agDia;document.getElementById('ag-hora').value='09:00';document.getElementById('ag-obs').value='';document.getElementById('ag-sug').innerHTML='';document.getElementById('ag-tel-sug').innerHTML='';document.getElementById('ag-canc-btn').style.display='none';
+  document.getElementById('ag-canc-serie-btn').style.display='none';
   document.getElementById('ag-rec-freq').value='';document.getElementById('ag-rec-qtd-bloco').style.display='none';document.getElementById('ag-rec-bloco').style.display='block';
   document.getElementById('m-ag').classList.add('open');
 }
@@ -3317,11 +3338,24 @@ function editCons(c){
   agEditando=c;agPacId=null;
   desvincularPacAg();
   document.getElementById('ag-titulo').textContent='✏️ Editar consulta';document.getElementById('ag-id').value=c.id;document.getElementById('ag-nome').value=c.nome;document.getElementById('ag-tel').value=c.telefone||'';document.getElementById('ag-proc').value=c.procedimento||'';document.getElementById('ag-data').value=c.data;document.getElementById('ag-hora').value=c.hora.slice(0,5);document.getElementById('ag-obs').value=c.observacao||'';document.getElementById('ag-sug').innerHTML='';document.getElementById('ag-tel-sug').innerHTML='';document.getElementById('ag-canc-btn').style.display=c.status!=='cancelado'?'inline-flex':'none';
+  document.getElementById('ag-canc-serie-btn').style.display=(c.serie_id&&c.status!=='cancelado')?'inline-flex':'none';
   document.getElementById('ag-rec-bloco').style.display='none';
   document.getElementById('m-ag').classList.add('open');
   if(c.paciente_id){const p=pacs.find(x=>x.id===c.paciente_id);if(p){agPacId=p.id;mostrarVinculado(p);}}
 }
 async function cancConsulta(){if(!agEditando||!confirm('Cancelar esta consulta?'))return;const{error}=await db.from('agenda').update({status:'cancelado'}).eq('id',agEditando.id);if(error){toast('Erro','vermelho');return;}toast('Consulta cancelada');await logAuditoria('Consulta cancelada',`${agEditando.nome} · ${agEditando.data} ${agEditando.hora.slice(0,5)}`,agEditando.paciente_id||null);fchAg();carregarAgenda();}
+async function cancSerie(){
+  if(!agEditando||!agEditando.serie_id) return;
+  const{data:serieConsultas}=await db.from('agenda').select('id,data,hora').eq('serie_id',agEditando.serie_id).neq('status','cancelado');
+  const qtd=serieConsultas?.length||0;
+  if(qtd===0){toast('Nenhuma consulta ativa nesta série','vermelho');return;}
+  if(!confirm(`Cancelar TODAS as ${qtd} consultas desta série recorrente?\n\nIsso vai cancelar ${agEditando.nome} em todas as datas da série, não só esta.`))return;
+  const{error}=await db.from('agenda').update({status:'cancelado'}).eq('serie_id',agEditando.serie_id).neq('status','cancelado');
+  if(error){toast('Erro: '+error.message,'vermelho');return;}
+  toast(`✓ ${qtd} consultas da série canceladas`,'verde');
+  await logAuditoria('Série de consultas cancelada',`${agEditando.nome} · ${qtd} consultas · série ${agEditando.serie_id}`,agEditando.paciente_id||null);
+  fchAg();carregarAgenda();
+}
 async function salvarConsulta(){
   const nome=document.getElementById('ag-nome').value.trim();const data=document.getElementById('ag-data').value;const hora=document.getElementById('ag-hora').value;const tel=document.getElementById('ag-tel').value.trim();
   if(!nome||!data||!hora){toast('Preencha nome, data e horário!','vermelho');return;}
@@ -3333,16 +3367,19 @@ async function salvarConsulta(){
     const nomeConflito=conflitoReal[0].nome;
     if(!confirm(`⚠️ Já existe uma consulta neste horário (${nomeConflito}). Deseja agendar mesmo assim?`))return;
   }
-  const payload={nome,telefone:tel||null,procedimento:document.getElementById('ag-proc').value||null,data,hora,observacao:document.getElementById('ag-obs').value.trim()||null,paciente_id:agPacId||null,status:'agendado'};
+  // Recorrência: ler config antes de montar o payload principal
+  const recFreq=parseInt(document.getElementById('ag-rec-freq')?.value||'0');
+  const recQtd=parseInt(document.getElementById('ag-rec-qtd')?.value||'2');
+  const ehRecorrente=!aid && recFreq>0 && recQtd>1;
+  const serieId=ehRecorrente?(crypto.randomUUID?crypto.randomUUID():'serie-'+Date.now()+'-'+Math.random().toString(36).slice(2)):null;
+  const payload={nome,telefone:tel||null,procedimento:document.getElementById('ag-proc').value||null,data,hora,observacao:document.getElementById('ag-obs').value.trim()||null,paciente_id:agPacId||null,status:'agendado',serie_id:serieId};
   const btn=document.getElementById('ag-salvar-btn');btn.disabled=true;btn.textContent='Salvando...';
   const{error}=aid?await db.from('agenda').update(payload).eq('id',aid):await db.from('agenda').insert(payload);
   btn.disabled=false;btn.innerHTML='✓ Salvar';
   if(error){toast('Erro: '+error.message,'vermelho');return;}
   if(!aid&&!agPacId&&tel){const telL=tel.replace(/\D/g,'');const jaExiste=pacs.find(p=>p.telefone.replace(/\D/g,'')===telL||p.nome.toLowerCase().trim()===nome.toLowerCase().trim());if(!jaExiste){await db.from('pacientes').insert({nome,telefone:tel,tratamento:document.getElementById('ag-proc').value||null,cadastro_pendente:true});await carregar();}}
   // Recorrência: criar consultas repetidas
-  const recFreq=parseInt(document.getElementById('ag-rec-freq')?.value||'0');
-  const recQtd=parseInt(document.getElementById('ag-rec-qtd')?.value||'2');
-  if(!aid && recFreq>0 && recQtd>1){
+  if(ehRecorrente){
     const DIAS_EX=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
     const recPayloads=[];
     const idxFds=[]; // índices dos payloads que caem em fim de semana
@@ -3353,7 +3390,7 @@ async function salvarConsulta(){
       const dtStr=dt.toISOString().split('T')[0];
       const diaSem=dt.getDay();
       if(diaSem===0||diaSem===6) idxFds.push({idx:recPayloads.length,dtStr,diaSem});
-      recPayloads.push({...payload,data:dtStr});
+      recPayloads.push({...payload,data:dtStr,serie_id:serieId});
     }
     // Se há datas em fim de semana, mostrar modal de ajuste
     if(idxFds.length>0){
@@ -4294,7 +4331,7 @@ function buscarGlobal(){
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();abrirBuscaGlobal();}});
 
 // PWA
-if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js'));
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));
 
 // INICIAR
 addTrat('f-trats');
@@ -4470,7 +4507,7 @@ async function verificarNotificacoes(){
     }
 
     // 3. COBRANÇAS VENCIDAS
-    const{data:cobrancas}=await db.from('financeiro').select('*,pacientes(nome)').eq('status','pendente').lt('data_vencimento',hoje);
+    const{data:cobrancas}=await db.from('financeiro').select('id,valor,descricao,data,paciente_id').eq('status','pendente').eq('tipo','receita').lt('data',hoje);
     if(cobrancas&&cobrancas.length>0){
       const total=cobrancas.reduce((s,c)=>s+(c.valor||0),0);
       await enviarNotif(
