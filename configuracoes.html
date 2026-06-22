@@ -206,11 +206,11 @@
       <div class="fg">
         <div class="fi">
           <label>Telefone</label>
-          <input type="tel" id="cfg-tel" placeholder="(17) 99999-9999"/>
+          <input type="tel" id="cfg-tel" placeholder="(17) 99999-9999" maxlength="15" oninput="mascaraTel(this)"/>
         </div>
         <div class="fi">
-          <label>WhatsApp</label>
-          <input type="tel" id="cfg-wpp" placeholder="5517999999999 (com DDI)"/>
+          <label>WhatsApp <span style="font-size:10px;color:var(--ct);text-transform:none;font-weight:400">(com DDI)</span></label>
+          <input type="tel" id="cfg-wpp" placeholder="+55 (17) 99999-9999" maxlength="19" oninput="mascaraWpp(this)"/>
         </div>
         <div class="fi">
           <label>E-mail</label>
@@ -221,10 +221,55 @@
           <input type="text" id="cfg-insta" placeholder="@draannacarolina"/>
         </div>
       </div>
-      <div class="fi" style="margin-top:.75rem">
-        <label>Endereço</label>
-        <textarea id="cfg-end" placeholder="Rua, número — Bairro — Cidade/UF"></textarea>
+
+      <div class="divider"></div>
+      <div class="label-sec">Endereço</div>
+
+      <!-- Linha 1: CEP -->
+      <div class="fg" style="grid-template-columns:160px 1fr;margin-bottom:.75rem">
+        <div class="fi">
+          <label>CEP</label>
+          <div style="position:relative">
+            <input type="text" id="cfg-cep" placeholder="00000-000" maxlength="9"
+              oninput="mascaraCep(this)" onblur="buscarCep(this.value)"
+              style="padding-right:2rem"/>
+            <span id="cep-spin" style="position:absolute;right:.6rem;top:50%;transform:translateY(-50%);font-size:13px;display:none">⏳</span>
+          </div>
+        </div>
+        <div class="fi">
+          <label>Rua / Logradouro</label>
+          <input type="text" id="cfg-rua" placeholder="Rua das Flores"/>
+        </div>
       </div>
+
+      <!-- Linha 2: Número + Complemento + Bairro -->
+      <div class="fg" style="grid-template-columns:100px 1fr 1fr;margin-bottom:.75rem">
+        <div class="fi">
+          <label>Número</label>
+          <input type="text" id="cfg-num" placeholder="123"/>
+        </div>
+        <div class="fi">
+          <label>Complemento</label>
+          <input type="text" id="cfg-comp" placeholder="Sala 2, Bloco A"/>
+        </div>
+        <div class="fi">
+          <label>Bairro</label>
+          <input type="text" id="cfg-bairro" placeholder="Centro"/>
+        </div>
+      </div>
+
+      <!-- Linha 3: Cidade + UF -->
+      <div class="fg" style="grid-template-columns:1fr 80px">
+        <div class="fi">
+          <label>Cidade</label>
+          <input type="text" id="cfg-cidade" placeholder="São Paulo"/>
+        </div>
+        <div class="fi">
+          <label>UF</label>
+          <input type="text" id="cfg-uf" placeholder="SP" maxlength="2" style="text-transform:uppercase"/>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -306,7 +351,14 @@ async function init(){
     document.getElementById('cfg-wpp').value   = c.whatsapp || '';
     document.getElementById('cfg-email').value = c.email || '';
     document.getElementById('cfg-insta').value = c.instagram || '';
-    document.getElementById('cfg-end').value   = c.endereco || '';
+    // Endereço estruturado
+    document.getElementById('cfg-cep').value    = c.cep    || '';
+    document.getElementById('cfg-rua').value    = c.rua    || '';
+    document.getElementById('cfg-num').value    = c.numero || '';
+    document.getElementById('cfg-comp').value   = c.complemento || '';
+    document.getElementById('cfg-bairro').value = c.bairro || '';
+    document.getElementById('cfg-cidade').value = c.cidade || '';
+    document.getElementById('cfg-uf').value     = c.uf     || '';
 
     // PIN atual — mostra pontos
     pinTamanhoAtual = (c.pin_atual||'2411').length;
@@ -443,7 +495,14 @@ async function salvar(){
     whatsapp:      document.getElementById('cfg-wpp').value.trim(),
     email:         document.getElementById('cfg-email').value.trim(),
     instagram:     document.getElementById('cfg-insta').value.trim(),
-    endereco:      document.getElementById('cfg-end').value.trim(),
+    cep:           document.getElementById('cfg-cep').value.trim(),
+    rua:           document.getElementById('cfg-rua').value.trim(),
+    numero:        document.getElementById('cfg-num').value.trim(),
+    complemento:   document.getElementById('cfg-comp').value.trim(),
+    bairro:        document.getElementById('cfg-bairro').value.trim(),
+    cidade:        document.getElementById('cfg-cidade').value.trim(),
+    uf:            document.getElementById('cfg-uf').value.trim().toUpperCase(),
+    endereco:      montarEndereco(),
     updated_at:    new Date().toISOString()
   };
 
@@ -474,6 +533,75 @@ function toast(msg, tipo='ok'){
   el.className='toast show '+(tipo==='err'?'err':'ok');
   clearTimeout(toastT);
   toastT=setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+// ── Máscaras ──
+function mascaraTel(el){
+  let v = el.value.replace(/\D/g,'').slice(0,11);
+  if(v.length > 10)
+    v = v.replace(/^(\d{2})(\d{5})(\d{4})$/,'($1) $2-$3');
+  else if(v.length > 6)
+    v = v.replace(/^(\d{2})(\d{4})(\d*)$/,'($1) $2-$3');
+  else if(v.length > 2)
+    v = v.replace(/^(\d{2})(\d*)$/,'($1) $2');
+  else if(v.length > 0)
+    v = '(' + v;
+  el.value = v;
+}
+function mascaraWpp(el){
+  let v = el.value.replace(/\D/g,'').slice(0,13);
+  if(v.length > 12)
+    v = v.replace(/^(\d{2})(\d{2})(\d{5})(\d{4})$/,'+$1 ($2) $3-$4');
+  else if(v.length > 7)
+    v = v.replace(/^(\d{2})(\d{2})(\d*)$/,'+$1 ($2) $3');
+  else if(v.length > 4)
+    v = v.replace(/^(\d{2})(\d*)$/,'+$1 ($2');
+  else if(v.length > 0)
+    v = '+' + v;
+  el.value = v;
+}
+function mascaraCep(el){
+  let v = el.value.replace(/\D/g,'').slice(0,8);
+  if(v.length > 5) v = v.replace(/^(\d{5})(\d*)$/,'$1-$2');
+  el.value = v;
+}
+
+// ── Busca CEP (ViaCEP) ──
+async function buscarCep(val){
+  const cep = val.replace(/\D/g,'');
+  if(cep.length !== 8) return;
+  document.getElementById('cep-spin').style.display='block';
+  try {
+    const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const d = await r.json();
+    if(d.erro){ toast('CEP não encontrado.','err'); return; }
+    document.getElementById('cfg-rua').value    = d.logradouro || '';
+    document.getElementById('cfg-bairro').value = d.bairro     || '';
+    document.getElementById('cfg-cidade').value = d.localidade || '';
+    document.getElementById('cfg-uf').value     = d.uf         || '';
+    document.getElementById('cfg-num').focus();
+    toast('Endereço preenchido!');
+  } catch(e){ toast('Erro ao buscar CEP.','err'); }
+  finally { document.getElementById('cep-spin').style.display='none'; }
+}
+
+// ── Montar endereço completo (para campo legado) ──
+function montarEndereco(){
+  const r = document.getElementById('cfg-rua').value.trim();
+  const n = document.getElementById('cfg-num').value.trim();
+  const c = document.getElementById('cfg-comp').value.trim();
+  const b = document.getElementById('cfg-bairro').value.trim();
+  const ci= document.getElementById('cfg-cidade').value.trim();
+  const uf= document.getElementById('cfg-uf').value.trim().toUpperCase();
+  const cep= document.getElementById('cfg-cep').value.trim();
+  let end = '';
+  if(r) end += r;
+  if(n) end += ', ' + n;
+  if(c) end += ' — ' + c;
+  if(b) end += ' — ' + b;
+  if(ci||uf) end += ' — ' + [ci,uf].filter(Boolean).join('/');
+  if(cep) end += ' — CEP ' + cep;
+  return end;
 }
 
 init();
