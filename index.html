@@ -1356,6 +1356,7 @@ async function carregar(){
   const{data,error}=await db.from('pacientes').select('*').order('nome');
   if(error){toast('Erro ao carregar','vermelho');return;}
   pacs=data||[];
+  try{sessionStorage.setItem('pacs_cache',JSON.stringify(pacs));}catch(e){}
   stats();renderHoje();renderAlertas();renderPac();renderRel();
 }
 

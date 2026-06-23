@@ -259,13 +259,24 @@ var configClinica = {};
 
 // Carrega pacientes imediatamente via fetch direto (sem esperar o IIFE)
 (function(){
+  // Tenta primeiro pegar do sessionStorage (cache do index)
+  try {
+    var cached = sessionStorage.getItem('pacs_cache');
+    if(cached) { todosPacientes = JSON.parse(cached); return; }
+  } catch(e){}
+  
   var auth = JSON.parse(localStorage.getItem('clinica_auth')||'{}');
   if(!auth.ok) return;
   var token = auth.access_token || SB_KEY;
   fetch(SB_URL+'/rest/v1/pacientes?select=id,nome,telefone,data_nascimento,apelido&order=nome', {
     headers:{'apikey':SB_KEY,'Authorization':'Bearer '+token}
   }).then(function(r){ return r.json(); })
-    .then(function(data){ if(Array.isArray(data)) todosPacientes = data; })
+    .then(function(data){ 
+      if(Array.isArray(data)) {
+        todosPacientes = data;
+        try { sessionStorage.setItem('pacs_cache', JSON.stringify(data)); } catch(e){}
+      }
+    })
     .catch(function(){});
 })();
 
