@@ -271,9 +271,21 @@ function buscarPaciente(q){
   var lista = document.getElementById('busca-lista');
   if(!q || q.length < 2){ lista.classList.remove('show'); return; }
   if(!todosPacientes.length){
-    lista.innerHTML='<div class="busca-item"><span>⏳ Aguarde...</span></div>';
+    lista.innerHTML='<div class="busca-item"><span>⏳ Carregando...</span></div>';
     lista.classList.add('show');
-    setTimeout(function(){ if(document.getElementById('busca-input').value===q) buscarPaciente(q); },300);
+    // Tentar novamente várias vezes com intervalo crescente
+    var tentativas = 0;
+    var retry = function(){
+      tentativas++;
+      if(todosPacientes.length){
+        buscarPaciente(document.getElementById('busca-input').value);
+      } else if(tentativas < 10){
+        setTimeout(retry, 500);
+      } else {
+        lista.innerHTML='<div class="busca-item"><span style="color:var(--vermelho)">Erro ao carregar. Recarregue a página.</span></div>';
+      }
+    };
+    setTimeout(retry, 500);
     return;
   }
   var ql=q.toLowerCase().replace(/[áàãâä]/g,'a').replace(/[éèêë]/g,'e').replace(/[íìîï]/g,'i').replace(/[óòõôö]/g,'o').replace(/[úùûü]/g,'u').replace(/[ç]/g,'c');
