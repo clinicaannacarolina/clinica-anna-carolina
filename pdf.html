@@ -133,8 +133,8 @@
   <!-- Busca de paciente -->
   <div class="busca-wrap" id="busca-wrap">
     <input class="busca-input" type="text" id="busca-input"
-      placeholder="🔍 Buscar paciente pelo nome ou telefone..."
-      oninput="buscarPaciente(this.value)" autocomplete="off"/>
+      placeholder="⏳ Carregando pacientes..."
+      oninput="buscarPaciente(this.value)" autocomplete="off" disabled/>
     <div class="busca-lista" id="busca-lista"></div>
   </div>
 
@@ -729,6 +729,10 @@ function toast(msg,tipo='ok'){
       }
     }
   } catch(e){ console.error('Erro pacientes:',e); }
+  
+  // Habilitar busca após carregar
+  var inp = document.getElementById('busca-input');
+  if(inp){ inp.disabled=false; inp.placeholder='🔍 Buscar paciente pelo nome ou telefone...'; inp.focus(); }
   
   // 6. Init da página
   init();
