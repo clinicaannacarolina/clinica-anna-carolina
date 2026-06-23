@@ -305,13 +305,13 @@ function buscarPaciente(q){
   }).slice(0,8);
   if(!res.length){ lista.classList.remove('show'); return; }
   lista.innerHTML = res.map((p,i)=>`
-    <div class="busca-item" data-idx="${i}" onclick="selecionarPaciente(${i}, ${JSON.stringify(res).replace(/"/g,'&quot;')})">
+    <div class="busca-item" data-idx="${i}">
       <strong>${esc(p.nome)}</strong>
       <span>${p.telefone||'Sem telefone'}${p.data_nascimento?' · '+fDt(p.data_nascimento):''}</span>
     </div>`).join('');
-  // Delegação correta
+  // Delegação correta via event listeners
   lista.querySelectorAll('.busca-item').forEach((el,i)=>{
-    el.onclick = ()=> selecionarPacienteObj(res[i]);
+    el.addEventListener('mousedown', e=>{ e.preventDefault(); selecionarPacienteObj(res[i]); });
   });
   lista.classList.add('show');
 }
