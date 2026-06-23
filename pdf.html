@@ -661,45 +661,59 @@ function toast(msg,tipo='ok'){
   toastT=setTimeout(()=>el.classList.remove('show'),3000);
 }
 
-// ── Auth + renovação de token + init ──
+// ── Auth + init via fetch direto (sem SDK Supabase) ──
 (async function(){
+  // 1. Verificar auth
   var auth = JSON.parse(localStorage.getItem('clinica_auth')||'{}');
   if(!auth.ok) { window.location.href='login.html?r=pdf.html'; return; }
-  // Renovar token se próximo de expirar
-  if(auth.expires - Date.now() < 60 * 60 * 1000 && auth.refresh_token) {
+  
+  // 2. Renovar token se expirado ou próximo
+  if((auth.expires - Date.now() < 30 * 60 * 1000) && auth.refresh_token) {
     try {
-      var res = await fetch(SB_URL+'/auth/v1/token?grant_type=refresh_token', {
+      var rr = await fetch(SB_URL+'/auth/v1/token?grant_type=refresh_token', {
         method:'POST',
         headers:{'Content-Type':'application/json','apikey':SB_KEY},
-        body:JSON.stringify({refresh_token: auth.refresh_token})
+        body:JSON.stringify({refresh_token:auth.refresh_token})
       });
-      var d = await res.json();
-      if(res.ok && d.access_token) {
-        auth = {ok:true, expires:Date.now()+8*60*60*1000,
-                access_token:d.access_token,
-                refresh_token:d.refresh_token||auth.refresh_token};
-        localStorage.setItem('clinica_auth', JSON.stringify(auth));
+      var rd = await rr.json();
+      if(rr.ok && rd.access_token){
+        auth = {ok:true,expires:Date.now()+8*60*60*1000,
+                access_token:rd.access_token,
+                refresh_token:rd.refresh_token||auth.refresh_token};
+        localStorage.setItem('clinica_auth',JSON.stringify(auth));
       }
     } catch(e){}
   }
-  if(!auth.ok || auth.expires < Date.now()) { window.location.href='login.html?r=pdf.html'; return; }
+  
+  // 3. Verificar token ainda válido
+  if(!auth.ok || auth.expires < Date.now()){
+    window.location.href='login.html?r=pdf.html'; return;
+  }
+  
   authData = auth;
+  var token = auth.access_token;
+  
+  // 4. Criar cliente sb
   sb = sbClient();
   
-  // Carregar pacientes com token válido
+  // 5. Carregar pacientes via fetch direto (não usa SDK para evitar problema de storage)
   try {
     var cached = sessionStorage.getItem('pacs_cache');
-    if(cached) {
+    if(cached){
       todosPacientes = JSON.parse(cached);
     } else {
-      var rp = await sb.from('pacientes').select('id,nome,telefone,data_nascimento,apelido').order('nome');
-      if(rp.data) {
-        todosPacientes = rp.data;
-        try { sessionStorage.setItem('pacs_cache', JSON.stringify(rp.data)); } catch(e){}
+      var rp = await fetch(SB_URL+'/rest/v1/pacientes?select=id,nome,telefone,data_nascimento,apelido&order=nome', {
+        headers:{'apikey':SB_KEY,'Authorization':'Bearer '+token}
+      });
+      var dp = await rp.json();
+      if(Array.isArray(dp)){
+        todosPacientes = dp;
+        try{ sessionStorage.setItem('pacs_cache',JSON.stringify(dp)); }catch(e){}
       }
     }
-  } catch(e){}
+  } catch(e){ console.error('Erro pacientes:',e); }
   
+  // 6. Init da página
   init();
 })();
 </script>
