@@ -684,19 +684,17 @@ function toast(msg,tipo='ok'){
   _token = auth.access_token;
   
   // 3. Carregar pacientes
+  // Sempre busca fresco — sem cache
   try{
-    var cached=sessionStorage.getItem('pacs_cache');
-    if(cached){
-      todosPacientes=JSON.parse(cached);
+    sessionStorage.removeItem('pacs_cache');
+    var rp=await fetch(SB_URL+'/rest/v1/pacientes?select=id,nome,telefone,data_nascimento,apelido&order=nome',{
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+_token}
+    });
+    var dp=await rp.json();
+    if(Array.isArray(dp)){
+      todosPacientes=dp;
     } else {
-      var rp=await fetch(SB_URL+'/rest/v1/pacientes?select=id,nome,telefone,data_nascimento,apelido&order=nome',{
-        headers:{'apikey':SB_KEY,'Authorization':'Bearer '+_token}
-      });
-      var dp=await rp.json();
-      if(Array.isArray(dp)){
-        todosPacientes=dp;
-        try{sessionStorage.setItem('pacs_cache',JSON.stringify(dp));}catch(e){}
-      }
+      console.error('Resposta inesperada:', dp);
     }
   }catch(e){console.error('pacientes:',e);}
   
