@@ -256,6 +256,9 @@ textarea{resize:vertical;min-height:70px}
   <div style="display:flex;align-items:center;gap:0;flex-wrap:wrap">
     <div class="tabs" style="flex:1">
       <button class="tb active" onclick="aba('hoje',this)">⭐ Hoje</button>
+      <button class="tb" id="tb-relatorio" onclick="aba('relatorio',this)" style="display:none">📊 Relatório</button>
+      <button class="tb" id="tb-financeiro" onclick="aba('financeiro',this)" style="display:none">💰 Financeiro</button>
+      <button class="tb" id="tb-auditoria" onclick="aba('auditoria',this)" style="display:none">🔍 Auditoria</button>
       <button class="tb" onclick="aba('agenda',this)" id="tb-agenda">📅 Agenda<span id="badge-online" style="display:none;background:var(--vermelho);color:white;border-radius:50%;font-size:9px;font-weight:700;padding:1px 5px;margin-left:5px;vertical-align:top;line-height:16px"></span></button>
       <button class="tb" onclick="aba('alertas',this)">🔔 Alertas</button>
       <button class="tb" onclick="aba('pacientes',this)">👥 Pacientes</button>
@@ -4343,6 +4346,18 @@ if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.ser
 addTrat('f-trats');
 carregar();
 carregarAgenda();
+
+// Verificar se veio de redirect de módulo de gestão
+(function(){
+  var dest = sessionStorage.getItem('aba_destino');
+  if(dest){
+    sessionStorage.removeItem('aba_destino');
+    var btn = document.getElementById('tb-' + dest);
+    if(btn){
+      setTimeout(function(){ btn.click(); }, 800);
+    }
+  }
+})();
 </script>
 
 <!-- MODAL INFORMATIVOS PÓS-PROCEDIMENTO -->
