@@ -248,41 +248,49 @@
 </style>
 
 <script>
-// Variáveis globais
-var authData = JSON.parse(localStorage.getItem('clinica_auth')||'{}');
-var sb;
-var tipoAtual = 'ficha';
-var pacSelecionado = null;
+// ── Variáveis globais ──
+var _auth = JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+if(!_auth.ok || _auth.expires < Date.now()) window.location.href='login.html?r=pdf.html';
+
+var _token = _auth.access_token || SB_KEY;
 var todosPacientes = [];
+var pacSelecionado = null;
+var tipoAtual = 'ficha';
 var configClinica = {};
 
-// ── Init ──
-async function init(){
-  // Tipo da URL
-  const params = new URLSearchParams(window.location.search);
-  const tipo = params.get('tipo');
-  if(tipo) setTipo(tipo);
-
-  // Carrega config clínica
-  const {data:cfg} = await sb.from('config_clinica').select('*').limit(1);
-  if(cfg && cfg.length) configClinica = cfg[0];
-
-  // Carrega pacientes
-  const {data:pacs} = await sb.from('pacientes').select('id,nome,telefone,data_nascimento,apelido').order('nome');
-  todosPacientes = pacs || [];
-
-  // Data padrão recibo = hoje
-  document.getElementById('opt-data-rec').value = new Date().toISOString().split('T')[0];
-}
+// ── Carregar pacientes via XHR síncrono (garante que está pronto antes de qualquer digitação) ──
+(function(){
+  try {
+    // Tenta cache primeiro
+    var cached = sessionStorage.getItem('pacs_cache');
+    if(cached){ todosPacientes = JSON.parse(cached); return; }
+  } catch(e){}
+  
+  // XHR síncrono — bloqueia até carregar
+  try {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', SB_URL+'/rest/v1/pacientes?select=id,nome,telefone,data_nascimento,apelido&order=nome', false); // false = síncrono
+    xhr.setRequestHeader('apikey', SB_KEY);
+    xhr.setRequestHeader('Authorization', 'Bearer '+_token);
+    xhr.send();
+    if(xhr.status === 200){
+      var data = JSON.parse(xhr.responseText);
+      if(Array.isArray(data)){
+        todosPacientes = data;
+        try{ sessionStorage.setItem('pacs_cache', JSON.stringify(data)); }catch(e){}
+      }
+    }
+  } catch(e){ console.error('Erro XHR pacientes:', e); }
+})();
 
 // ── Tipo de documento ──
 function setTipo(tipo){
   tipoAtual = tipo;
-  ['ficha','orcamento','recibo'].forEach(t=>{
+  ['ficha','orcamento','recibo'].forEach(function(t){
     document.getElementById('btn-'+t).classList.toggle('active', t===tipo);
     document.getElementById('opcoes-'+t).style.display = t===tipo?'block':'none';
   });
-  const titulos = {ficha:'🗂️ Ficha do paciente', orcamento:'📋 Orçamento', recibo:'🧾 Recibo de pagamento'};
+  var titulos = {ficha:'🗂️ Ficha do paciente', orcamento:'📋 Orçamento', recibo:'🧾 Recibo de pagamento'};
   document.getElementById('hdr-titulo').textContent = titulos[tipo];
   document.getElementById('preview-wrap').classList.remove('show');
   verificarProntoGerar();
@@ -290,48 +298,38 @@ function setTipo(tipo){
 
 // ── Busca paciente ──
 function buscarPaciente(q){
-  const lista = document.getElementById('busca-lista');
+  var lista = document.getElementById('busca-lista');
   if(!q || q.length < 2){ lista.classList.remove('show'); return; }
   
-  // Se ainda carregando, aguarda e tenta novamente
-  if(!todosPacientes.length){
-    lista.innerHTML = '<div class="busca-item"><span>⏳ Carregando pacientes...</span></div>';
-    lista.classList.add('show');
-    setTimeout(function(){ 
-      if(document.getElementById('busca-input').value === q) buscarPaciente(q); 
-    }, 500);
-    return;
-  }
+  var ql = q.toLowerCase().replace(/[áàãâä]/g,'a').replace(/[éèêë]/g,'e').replace(/[íìîï]/g,'i').replace(/[óòõôö]/g,'o').replace(/[úùûü]/g,'u').replace(/[ç]/g,'c');
   
-  // Filtro simples e direto — sem normalize para garantir compatibilidade
-  var ql = q.toLowerCase();
   var res = todosPacientes.filter(function(p){
-    var nome = (p.nome||'').toLowerCase();
-    var apelido = (p.apelido||'').toLowerCase();
+    var nome = (p.nome||'').toLowerCase().replace(/[áàãâä]/g,'a').replace(/[éèêë]/g,'e').replace(/[íìîï]/g,'i').replace(/[óòõôö]/g,'o').replace(/[úùûü]/g,'u').replace(/[ç]/g,'c');
+    var apelido = (p.apelido||'').toLowerCase().replace(/[áàãâä]/g,'a').replace(/[éèêë]/g,'e').replace(/[íìîï]/g,'i').replace(/[óòõôö]/g,'o').replace(/[úùûü]/g,'u').replace(/[ç]/g,'c');
     var tel = (p.telefone||'').replace(/\D/g,'');
-    // Busca direta + busca sem acentos
-    var nomeSimp = nome.replace(/[áàãâä]/g,'a').replace(/[éèêë]/g,'e').replace(/[íìîï]/g,'i').replace(/[óòõôö]/g,'o').replace(/[úùûü]/g,'u').replace(/[ç]/g,'c');
-    var qlSimp = ql.replace(/[áàãâä]/g,'a').replace(/[éèêë]/g,'e').replace(/[íìîï]/g,'i').replace(/[óòõôö]/g,'o').replace(/[úùûü]/g,'u').replace(/[ç]/g,'c');
-    return nome.includes(ql) || nomeSimp.includes(qlSimp) || apelido.includes(ql) || tel.includes(q.replace(/\D/g,''));
+    return nome.includes(ql) || apelido.includes(ql) || tel.includes(q.replace(/\D/g,''));
   }).slice(0,8);
   
-  if(!res.length){ 
+  if(!res.length){
     lista.innerHTML = '<div class="busca-item"><span style="color:var(--ct)">Nenhum paciente encontrado.</span></div>';
-    lista.classList.add('show'); 
-    return; 
+    lista.classList.add('show');
+    return;
   }
-  lista.innerHTML = res.map(function(p,i){ return '<div class="busca-item" data-idx="'+i+'"><strong>'+esc(p.nome)+'</strong><span>'+(p.telefone||'Sem telefone')+(p.data_nascimento?' · '+fDt(p.data_nascimento):'')+'</span></div>'; }).join('');
+  lista.innerHTML = res.map(function(p,i){
+    return '<div class="busca-item" data-i="'+i+'"><strong>'+esc(p.nome)+'</strong><span>'+(p.telefone||'Sem telefone')+(p.data_nascimento?' · '+fDt(p.data_nascimento):'')+'</span></div>';
+  }).join('');
   lista.querySelectorAll('.busca-item').forEach(function(el,i){
     el.addEventListener('mousedown', function(e){ e.preventDefault(); selecionarPacienteObj(res[i]); });
   });
   lista.classList.add('show');
 }
+
 function selecionarPacienteObj(p){
   pacSelecionado = p;
-  const ini = (p.nome||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  var ini = (p.nome||'?').split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
   document.getElementById('pac-av').textContent = ini;
   document.getElementById('pac-nome-sel').textContent = p.nome;
-  const meta = [];
+  var meta = [];
   if(p.telefone) meta.push(p.telefone);
   if(p.data_nascimento) meta.push(fDt(p.data_nascimento));
   document.getElementById('pac-meta-sel').textContent = meta.join(' · ') || '—';
@@ -340,6 +338,7 @@ function selecionarPacienteObj(p){
   document.getElementById('busca-lista').classList.remove('show');
   verificarProntoGerar();
 }
+
 function trocarPaciente(){
   pacSelecionado = null;
   document.getElementById('pac-sel').style.display = 'none';
@@ -349,12 +348,29 @@ function trocarPaciente(){
   document.getElementById('btn-gerar').disabled = true;
   document.getElementById('preview-wrap').classList.remove('show');
 }
+
 function verificarProntoGerar(){
   document.getElementById('btn-gerar').disabled = !pacSelecionado;
 }
-document.addEventListener('click', e=>{
+
+document.addEventListener('click', function(e){
   if(!e.target.closest('.busca-wrap')) document.getElementById('busca-lista').classList.remove('show');
 });
+
+// ── Init ──
+function init(){
+  var params = new URLSearchParams(window.location.search);
+  var tipo = params.get('tipo');
+  if(tipo) setTipo(tipo);
+  document.getElementById('opt-data-rec').value = new Date().toISOString().split('T')[0];
+  
+  // Carregar config da clínica async (não bloqueia)
+  fetch(SB_URL+'/rest/v1/config_clinica?select=*&limit=1', {
+    headers:{'apikey':SB_KEY,'Authorization':'Bearer '+_token}
+  }).then(function(r){return r.json();}).then(function(d){
+    if(Array.isArray(d) && d.length) configClinica = d[0];
+  }).catch(function(){});
+}
 
 // ── Gerar documento ──
 async function gerarDoc(){
@@ -660,79 +676,9 @@ function toast(msg,tipo='ok'){
   toastT=setTimeout(()=>el.classList.remove('show'),3000);
 }
 
-// ── Auth + init via fetch direto (sem SDK Supabase) ──
-(async function(){
-  // 1. Verificar auth
-  var auth = JSON.parse(localStorage.getItem('clinica_auth')||'{}');
-  if(!auth.ok) { window.location.href='login.html?r=pdf.html'; return; }
-  
-  // 2. Renovar token se expirado ou próximo
-  if((auth.expires - Date.now() < 30 * 60 * 1000) && auth.refresh_token) {
-    try {
-      var rr = await fetch(SB_URL+'/auth/v1/token?grant_type=refresh_token', {
-        method:'POST',
-        headers:{'Content-Type':'application/json','apikey':SB_KEY},
-        body:JSON.stringify({refresh_token:auth.refresh_token})
-      });
-      var rd = await rr.json();
-      if(rr.ok && rd.access_token){
-        auth = {ok:true,expires:Date.now()+8*60*60*1000,
-                access_token:rd.access_token,
-                refresh_token:rd.refresh_token||auth.refresh_token};
-        localStorage.setItem('clinica_auth',JSON.stringify(auth));
-      }
-    } catch(e){}
-  }
-  
-  // 3. Verificar token ainda válido
-  if(!auth.ok || auth.expires < Date.now()){
-    window.location.href='login.html?r=pdf.html'; return;
-  }
-  
-  authData = auth;
-  var token = auth.access_token;
-  
-  // 4. Função de fetch autenticado (sem SDK)
-  window._sbFetch = function(path){ 
-    return fetch(SB_URL+'/rest/v1/'+path, {
-      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'}
-    }).then(function(r){ return r.json(); });
-  };
-  
-  // Criar sb como wrapper de fetch para compatibilidade
-  sb = {
-    from: function(table){
-      return {
-        select: function(cols){ 
-          var q = table+'?select='+encodeURIComponent(cols);
-          return {
-            limit: function(n){ return _sbFetch(q+'&limit='+n).then(function(d){ return {data:Array.isArray(d)?d:null}; }); },
-            order: function(col,opts){ return _sbFetch(q+'&order='+col+(opts&&opts.ascending===false?'.desc':'.asc')).then(function(d){ return {data:Array.isArray(d)?d:null}; }); },
-            eq: function(col,val){ return {order:function(c){ return _sbFetch(q+'&'+col+'=eq.'+encodeURIComponent(val)+'&order='+c).then(function(d){ return {data:Array.isArray(d)?d:null}; }); }, then:function(fn){ return _sbFetch(q+'&'+col+'=eq.'+encodeURIComponent(val)).then(function(d){ return fn({data:Array.isArray(d)?d:null}); }); }}; },
-            then: function(fn){ return _sbFetch(q).then(function(d){ return fn({data:Array.isArray(d)?d:null}); }); }
-          };
-        }
-      };
-    }
-  };
-  
-  // 5. Carregar pacientes
-  try {
-    var cached = sessionStorage.getItem('pacs_cache');
-    if(cached){
-      window.todosPacientes = todosPacientes = JSON.parse(cached);
-    } else {
-      var dp = await _sbFetch('pacientes?select=id,nome,telefone,data_nascimento,apelido&order=nome');
-      if(Array.isArray(dp)){
-        window.todosPacientes = todosPacientes = dp;
-        try{ sessionStorage.setItem('pacs_cache',JSON.stringify(dp)); }catch(e){}
-      }
-    }
-  } catch(e){ console.error('Erro pacientes:',e); }
-  
-  // 6. Init da página
-  init();
-})();
+
+// ── Iniciar ──
+init();
 </script>
 </body>
 </html>
