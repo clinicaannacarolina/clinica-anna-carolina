@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Documentos PDF — Clínica</title>
+  <script src="config.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{--verde:#1D9E75;--verde-c:#E1F5EE;--verde-e:#0F6E56;--vermelho:#E24B4A;--txt:#1a1916;--ct:#6B6860;--bg:#F7F6F3;--card:#fff;--borda:#E8E6E1}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);font-size:15px}
+    .hdr{background:var(--verde-e);color:#fff;padding:0 1.5rem;display:flex;align-items:center;gap:1rem;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+    .hdr a{color:rgba(255,255,255,.75);text-decoration:none;font-size:13px}
+    .hdr a:hover{color:#fff}
+    .hdr h1{font-size:15px;font-weight:600;flex:1}
+    .wrap{max-width:860px;margin:0 auto;padding:1.5rem}
+
+    /* Tabs tipo */
+    .tipos{display:flex;gap:.5rem;margin-bottom:1.5rem;background:var(--card);border-radius:12px;padding:4px;border:1px solid var(--borda)}
+    .tipo-btn{flex:1;padding:.6rem;border:none;border-radius:9px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;color:var(--ct);background:none;transition:.15s;display:flex;align-items:center;justify-content:center;gap:.4rem}
+    .tipo-btn.active{background:var(--verde);color:#fff}
+    .tipo-btn:not(.active):hover{background:var(--bg)}
+
+    /* Busca paciente */
+    .busca-wrap{position:relative;margin-bottom:1rem}
+    .busca-input{width:100%;padding:.75rem 1rem;border:1.5px solid var(--borda);border-radius:10px;font-size:14px;font-family:inherit;background:var(--card);color:var(--txt);transition:.15s}
+    .busca-input:focus{outline:none;border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,158,117,.1)}
+    .busca-lista{position:absolute;top:100%;left:0;right:0;z-index:50;background:var(--card);border:1.5px solid var(--verde);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.12);margin-top:3px;max-height:220px;overflow-y:auto;display:none}
+    .busca-lista.show{display:block}
+    .busca-item{padding:.75rem 1rem;cursor:pointer;border-bottom:1px solid var(--borda);font-size:14px;transition:.1s}
+    .busca-item:last-child{border-bottom:none}
+    .busca-item:hover{background:var(--verde-c)}
+    .busca-item strong{color:var(--txt);display:block}
+    .busca-item span{font-size:12px;color:var(--ct)}
+
+    /* Paciente selecionado */
+    .pac-sel{display:flex;align-items:center;gap:.875rem;padding:.875rem 1rem;background:var(--verde-c);border-radius:10px;margin-bottom:1rem;border:1px solid #9FE1CB}
+    .pac-av{width:40px;height:40px;border-radius:50%;background:var(--verde);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0}
+    .pac-info{flex:1}
+    .pac-nome{font-weight:700;font-size:14px;color:var(--verde-e)}
+    .pac-meta{font-size:12px;color:var(--ct)}
+    .pac-trocar{background:none;border:none;cursor:pointer;font-size:12px;color:var(--ct);text-decoration:underline;font-family:inherit}
+
+    /* Opções do documento */
+    .opcoes{background:var(--card);border-radius:12px;border:1px solid var(--borda);padding:1.25rem;margin-bottom:1rem}
+    .opc-title{font-size:12px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.875rem}
+    .fg{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+    @media(max-width:500px){.fg{grid-template-columns:1fr}}
+    .fi{display:flex;flex-direction:column;gap:.375rem}
+    .fi label{font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.04em}
+    .fi input,.fi select,.fi textarea{padding:.5rem .75rem;border:1.5px solid var(--borda);border-radius:8px;font-size:13px;font-family:inherit;color:var(--txt);background:var(--card);transition:.15s}
+    .fi input:focus,.fi select:focus,.fi textarea:focus{outline:none;border-color:var(--verde)}
+    .fi textarea{resize:vertical;min-height:72px}
+    .check-row{display:flex;align-items:center;gap:.5rem;font-size:13px;cursor:pointer}
+    .check-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--verde)}
+
+    /* Botão gerar */
+    .btn-gerar{width:100%;background:var(--verde);color:#fff;border:none;border-radius:10px;padding:.875rem;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s;display:flex;align-items:center;justify-content:center;gap:.5rem}
+    .btn-gerar:hover{background:var(--verde-e)}
+    .btn-gerar:disabled{opacity:.5;cursor:not-allowed}
+
+    /* Preview area */
+    .preview-wrap{margin-top:1.25rem;display:none}
+    .preview-wrap.show{display:block}
+    .preview-actions{display:flex;gap:.625rem;margin-bottom:.875rem}
+    .btn-imp{padding:.6rem 1.25rem;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;border:1.5px solid var(--borda);background:var(--card);color:var(--txt);transition:.15s;display:flex;align-items:center;gap:.4rem}
+    .btn-imp:hover{background:var(--bg)}
+    .btn-imp.pri{background:var(--verde);color:#fff;border-color:var(--verde)}
+    .btn-imp.pri:hover{background:var(--verde-e)}
+
+    /* Toast */
+    .toast{position:fixed;bottom:1.5rem;right:1.5rem;z-index:999;background:var(--txt);color:#fff;padding:.625rem 1.25rem;border-radius:10px;font-size:13px;font-weight:500;opacity:0;pointer-events:none;transition:.25s;transform:translateY(8px)}
+    .toast.show{opacity:1;transform:none}
+    .toast.ok{background:var(--verde-e)}
+    .toast.err{background:var(--vermelho)}
+
+    /* ── ESTILOS DO PDF (renderizado dentro da página) ── */
+    #doc-preview{
+      background:#fff;border:1px solid var(--borda);border-radius:12px;
+      padding:0;overflow:hidden;font-family:'DM Sans',sans-serif;
+    }
+    .doc-header{
+      background:var(--verde-e);color:#fff;padding:1.5rem 2rem;
+      display:flex;align-items:center;justify-content:space-between;gap:1rem;
+    }
+    .doc-logo{width:60px;height:60px;border-radius:10px;object-fit:contain;background:#fff;padding:4px}
+    .doc-clinica-nome{font-size:18px;font-weight:700}
+    .doc-clinica-esp{font-size:12px;opacity:.8;margin-top:2px}
+    .doc-clinica-contact{font-size:11px;opacity:.7;margin-top:6px;line-height:1.6}
+    .doc-tipo{font-size:11px;font-weight:700;background:rgba(255,255,255,.2);padding:3px 10px;border-radius:20px;white-space:nowrap}
+    .doc-body{padding:1.75rem 2rem}
+    .doc-section{margin-bottom:1.5rem}
+    .doc-section-title{font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--borda);padding-bottom:.5rem;margin-bottom:.875rem}
+    .doc-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem .75rem}
+    .doc-field{display:flex;flex-direction:column;gap:2px}
+    .doc-field-label{font-size:10px;color:var(--ct);text-transform:uppercase;letter-spacing:.04em}
+    .doc-field-value{font-size:13px;font-weight:500;color:var(--txt)}
+    .doc-table{width:100%;border-collapse:collapse;font-size:13px}
+    .doc-table th{background:#F7F6F3;padding:.5rem .75rem;text-align:left;font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.04em;border:1px solid var(--borda)}
+    .doc-table td{padding:.6rem .75rem;border:1px solid var(--borda);color:var(--txt)}
+    .doc-table tr:nth-child(even) td{background:#FAFAFA}
+    .doc-total{display:flex;justify-content:flex-end;margin-top:.875rem}
+    .doc-total-box{background:var(--verde-c);border-radius:8px;padding:.75rem 1.25rem;text-align:right}
+    .doc-total-label{font-size:11px;color:var(--ct)}
+    .doc-total-valor{font-size:22px;font-weight:700;color:var(--verde-e)}
+    .doc-obs{background:#F7F6F3;border-radius:8px;padding:.875rem;font-size:13px;color:var(--ct);line-height:1.6;margin-top:1rem}
+    .doc-assinatura{display:flex;gap:2rem;margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--borda)}
+    .doc-assin-item{flex:1;text-align:center}
+    .doc-assin-linha{border-bottom:1px solid var(--txt);margin-bottom:.375rem;height:40px}
+    .doc-assin-label{font-size:11px;color:var(--ct)}
+    .doc-footer{background:#F7F6F3;padding:.875rem 2rem;text-align:center;font-size:11px;color:var(--ct);border-top:1px solid var(--borda)}
+    .doc-num{font-size:11px;color:var(--ct);margin-top:4px}
+  </style>
+</head>
+<body>
+
+<div class="hdr">
+  <a href="gestao.html">← Gestão</a>
+  <h1 id="hdr-titulo">📄 Documentos PDF</h1>
+</div>
+
+<div class="wrap">
+
+  <!-- Seletor de tipo -->
+  <div class="tipos">
+    <button class="tipo-btn active" id="btn-ficha" onclick="setTipo('ficha')">🗂️ Ficha do paciente</button>
+    <button class="tipo-btn" id="btn-orcamento" onclick="setTipo('orcamento')">📋 Orçamento</button>
+    <button class="tipo-btn" id="btn-recibo" onclick="setTipo('recibo')">🧾 Recibo</button>
+  </div>
+
+  <!-- Busca de paciente -->
+  <div class="busca-wrap" id="busca-wrap">
+    <input class="busca-input" type="text" id="busca-input"
+      placeholder="🔍 Buscar paciente pelo nome ou telefone..."
+      oninput="buscarPaciente(this.value)" autocomplete="off"/>
+    <div class="busca-lista" id="busca-lista"></div>
+  </div>
+
+  <!-- Paciente selecionado -->
+  <div class="pac-sel" id="pac-sel" style="display:none">
+    <div class="pac-av" id="pac-av">?</div>
+    <div class="pac-info">
+      <div class="pac-nome" id="pac-nome-sel">—</div>
+      <div class="pac-meta" id="pac-meta-sel">—</div>
+    </div>
+    <button class="pac-trocar" onclick="trocarPaciente()">Trocar</button>
+  </div>
+
+  <!-- Opções do documento -->
+  <div class="opcoes" id="opcoes-ficha">
+    <div class="opc-title">Opções da ficha</div>
+    <div style="display:flex;flex-direction:column;gap:.5rem">
+      <label class="check-row"><input type="checkbox" id="opt-dados" checked/> Dados pessoais</label>
+      <label class="check-row"><input type="checkbox" id="opt-consultas" checked/> Histórico de consultas</label>
+      <label class="check-row"><input type="checkbox" id="opt-plano" checked/> Plano de tratamento</label>
+      <label class="check-row"><input type="checkbox" id="opt-financeiro"/> Histórico financeiro</label>
+    </div>
+  </div>
+
+  <div class="opcoes" id="opcoes-orcamento" style="display:none">
+    <div class="opc-title">Opções do orçamento</div>
+    <div class="fg">
+      <div class="fi">
+        <label>Validade do orçamento</label>
+        <select id="opt-validade">
+          <option value="15">15 dias</option>
+          <option value="30" selected>30 dias</option>
+          <option value="60">60 dias</option>
+          <option value="90">90 dias</option>
+        </select>
+      </div>
+      <div class="fi">
+        <label>Forma de pagamento sugerida</label>
+        <select id="opt-forma">
+          <option value="">A combinar</option>
+          <option value="À vista">À vista</option>
+          <option value="Cartão de crédito">Cartão de crédito</option>
+          <option value="Pix">Pix</option>
+          <option value="Parcelado">Parcelado</option>
+        </select>
+      </div>
+    </div>
+    <div class="fi" style="margin-top:.75rem">
+      <label>Observações</label>
+      <textarea id="opt-obs-orc" placeholder="Informações adicionais sobre o orçamento..."></textarea>
+    </div>
+  </div>
+
+  <div class="opcoes" id="opcoes-recibo" style="display:none">
+    <div class="opc-title">Dados do recibo</div>
+    <div class="fg">
+      <div class="fi">
+        <label>Descrição do serviço</label>
+        <input type="text" id="opt-servico" placeholder="Ex: Consulta de harmonização orofacial"/>
+      </div>
+      <div class="fi">
+        <label>Valor recebido (R$)</label>
+        <input type="number" id="opt-valor-rec" placeholder="0,00" min="0" step="0.01"/>
+      </div>
+      <div class="fi">
+        <label>Forma de pagamento</label>
+        <select id="opt-forma-rec">
+          <option value="Dinheiro">Dinheiro</option>
+          <option value="Pix">Pix</option>
+          <option value="Cartão de débito">Cartão de débito</option>
+          <option value="Cartão de crédito">Cartão de crédito</option>
+          <option value="Transferência">Transferência</option>
+        </select>
+      </div>
+      <div class="fi">
+        <label>Data do pagamento</label>
+        <input type="date" id="opt-data-rec"/>
+      </div>
+    </div>
+    <div class="fi" style="margin-top:.75rem">
+      <label>Observações</label>
+      <textarea id="opt-obs-rec" placeholder="Observações adicionais..."></textarea>
+    </div>
+  </div>
+
+  <button class="btn-gerar" id="btn-gerar" onclick="gerarDoc()" disabled>
+    📄 Gerar documento
+  </button>
+
+  <!-- Preview -->
+  <div class="preview-wrap" id="preview-wrap">
+    <div class="preview-actions">
+      <button class="btn-imp pri" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+      <button class="btn-imp" onclick="gerarDoc()">↻ Atualizar</button>
+    </div>
+    <div id="doc-preview"></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<style>
+@media print {
+  .hdr,.tipos,.busca-wrap,.pac-sel .pac-trocar,.opcoes,.btn-gerar,.preview-actions,.toast { display:none!important }
+  .wrap { padding:0; max-width:100% }
+  #doc-preview { border:none!important; border-radius:0!important }
+  body { background:#fff }
+  .preview-wrap { margin:0; display:block!important }
+}
+</style>
+
+<script>
+const authData = JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+if(!authData.ok || authData.expires < Date.now()) window.location.href='login.html?r=pdf.html';
+
+const {createClient} = supabase;
+const sb = createClient(SB_URL, SB_KEY, {
+  global:{headers:{Authorization:`Bearer ${authData.access_token||SB_KEY}`}}
+});
+
+let tipoAtual = 'ficha';
+let pacSelecionado = null;
+let todosPacientes = [];
+let configClinica = {};
+
+// ── Init ──
+async function init(){
+  // Tipo da URL
+  const params = new URLSearchParams(window.location.search);
+  const tipo = params.get('tipo');
+  if(tipo) setTipo(tipo);
+
+  // Carrega config clínica
+  const {data:cfg} = await sb.from('config_clinica').select('*').limit(1);
+  if(cfg && cfg.length) configClinica = cfg[0];
+
+  // Carrega pacientes
+  const {data:pacs} = await sb.from('pacientes').select('id,nome,telefone,data_nascimento,apelido').order('nome');
+  todosPacientes = pacs || [];
+
+  // Data padrão recibo = hoje
+  document.getElementById('opt-data-rec').value = new Date().toISOString().split('T')[0];
+}
+
+// ── Tipo de documento ──
+function setTipo(tipo){
+  tipoAtual = tipo;
+  ['ficha','orcamento','recibo'].forEach(t=>{
+    document.getElementById('btn-'+t).classList.toggle('active', t===tipo);
+    document.getElementById('opcoes-'+t).style.display = t===tipo?'block':'none';
+  });
+  const titulos = {ficha:'🗂️ Ficha do paciente', orcamento:'📋 Orçamento', recibo:'🧾 Recibo de pagamento'};
+  document.getElementById('hdr-titulo').textContent = titulos[tipo];
+  document.getElementById('preview-wrap').classList.remove('show');
+  verificarProntoGerar();
+}
+
+// ── Busca paciente ──
+function buscarPaciente(q){
+  const lista = document.getElementById('busca-lista');
+  if(!q || q.length < 2){ lista.classList.remove('show'); return; }
+  const ql = q.toLowerCase();
+  const res = todosPacientes.filter(p=>{
+    return (p.nome||'').toLowerCase().includes(ql) ||
+           (p.apelido||'').toLowerCase().includes(ql) ||
+           (p.telefone||'').replace(/\D/g,'').includes(q.replace(/\D/g,''));
+  }).slice(0,8);
+  if(!res.length){ lista.classList.remove('show'); return; }
+  lista.innerHTML = res.map((p,i)=>`
+    <div class="busca-item" data-idx="${i}" onclick="selecionarPaciente(${i}, ${JSON.stringify(res).replace(/"/g,'&quot;')})">
+      <strong>${esc(p.nome)}</strong>
+      <span>${p.telefone||'Sem telefone'}${p.data_nascimento?' · '+fDt(p.data_nascimento):''}</span>
+    </div>`).join('');
+  // Delegação correta
+  lista.querySelectorAll('.busca-item').forEach((el,i)=>{
+    el.onclick = ()=> selecionarPacienteObj(res[i]);
+  });
+  lista.classList.add('show');
+}
+function selecionarPacienteObj(p){
+  pacSelecionado = p;
+  const ini = (p.nome||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('pac-av').textContent = ini;
+  document.getElementById('pac-nome-sel').textContent = p.nome;
+  const meta = [];
+  if(p.telefone) meta.push(p.telefone);
+  if(p.data_nascimento) meta.push(fDt(p.data_nascimento));
+  document.getElementById('pac-meta-sel').textContent = meta.join(' · ') || '—';
+  document.getElementById('pac-sel').style.display = 'flex';
+  document.getElementById('busca-wrap').style.display = 'none';
+  document.getElementById('busca-lista').classList.remove('show');
+  verificarProntoGerar();
+}
+function trocarPaciente(){
+  pacSelecionado = null;
+  document.getElementById('pac-sel').style.display = 'none';
+  document.getElementById('busca-wrap').style.display = 'block';
+  document.getElementById('busca-input').value = '';
+  document.getElementById('busca-input').focus();
+  document.getElementById('btn-gerar').disabled = true;
+  document.getElementById('preview-wrap').classList.remove('show');
+}
+function verificarProntoGerar(){
+  document.getElementById('btn-gerar').disabled = !pacSelecionado;
+}
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.busca-wrap')) document.getElementById('busca-lista').classList.remove('show');
+});
+
+// ── Gerar documento ──
+async function gerarDoc(){
+  if(!pacSelecionado){ toast('Selecione um paciente.','err'); return; }
+  const btn = document.getElementById('btn-gerar');
+  btn.disabled=true; btn.textContent='⏳ Gerando...';
+
+  try {
+    if(tipoAtual==='ficha')      await gerarFicha();
+    else if(tipoAtual==='orcamento') await gerarOrcamento();
+    else await gerarRecibo();
+
+    document.getElementById('preview-wrap').classList.add('show');
+    document.getElementById('preview-wrap').scrollIntoView({behavior:'smooth',block:'start'});
+  } catch(e){
+    toast('Erro ao gerar documento: '+e.message,'err');
+  }
+  btn.disabled=false; btn.textContent='📄 Gerar documento';
+}
+
+// ── FICHA DO PACIENTE ──
+async function gerarFicha(){
+  const pac = pacSelecionado;
+  const opts = {
+    dados:     document.getElementById('opt-dados').checked,
+    consultas: document.getElementById('opt-consultas').checked,
+    plano:     document.getElementById('opt-plano').checked,
+    financeiro:document.getElementById('opt-financeiro').checked,
+  };
+
+  // Busca dados
+  const promises = [];
+  if(opts.consultas) promises.push(sb.from('agenda').select('data,hora,procedimento,status,observacao').eq('paciente_id',pac.id).order('data',{ascending:false}).limit(20));
+  else promises.push(Promise.resolve({data:[]}));
+  if(opts.plano) promises.push(sb.from('planos_tratamento').select('id,criado_em,status,observacoes,plano_itens(descricao,valor,status)').eq('paciente_id',pac.id).order('criado_em',{ascending:false}).limit(5));
+  else promises.push(Promise.resolve({data:[]}));
+  if(opts.financeiro) promises.push(sb.from('financeiro').select('descricao,valor,tipo,status,data_vencimento,data_pagamento').eq('paciente_id',pac.id).order('data_vencimento',{ascending:false}).limit(20));
+  else promises.push(Promise.resolve({data:[]}));
+
+  const [r1,r2,r3] = await Promise.all(promises);
+  const consultas = r1.data||[];
+  const planos    = r2.data||[];
+  const financeiro= r3.data||[];
+
+  const html = `
+    ${docHeader('FICHA DO PACIENTE')}
+    <div class="doc-body">
+      ${opts.dados ? `
+      <div class="doc-section">
+        <div class="doc-section-title">Dados pessoais</div>
+        <div class="doc-grid">
+          <div class="doc-field"><div class="doc-field-label">Nome completo</div><div class="doc-field-value">${esc(pac.nome)}</div></div>
+          <div class="doc-field"><div class="doc-field-label">Telefone</div><div class="doc-field-value">${esc(pac.telefone)||'—'}</div></div>
+          <div class="doc-field"><div class="doc-field-label">Data de nascimento</div><div class="doc-field-value">${pac.data_nascimento?fDt(pac.data_nascimento)+' ('+idade(pac.data_nascimento)+' anos)':'—'}</div></div>
+          <div class="doc-field"><div class="doc-field-label">Data de emissão</div><div class="doc-field-value">${fDtHoje()}</div></div>
+        </div>
+      </div>` : ''}
+
+      ${opts.consultas && consultas.length ? `
+      <div class="doc-section">
+        <div class="doc-section-title">Histórico de consultas (últimas ${consultas.length})</div>
+        <table class="doc-table">
+          <tr><th>Data</th><th>Horário</th><th>Procedimento</th><th>Status</th></tr>
+          ${consultas.map(c=>`<tr>
+            <td>${fDt(c.data)}</td>
+            <td>${c.hora||'—'}</td>
+            <td>${esc(c.procedimento||'—')}</td>
+            <td>${statusLabel(c.status)}</td>
+          </tr>`).join('')}
+        </table>
+      </div>` : ''}
+
+      ${opts.plano && planos.length ? `
+      <div class="doc-section">
+        <div class="doc-section-title">Planos de tratamento</div>
+        ${planos.map(pl=>`
+          <div style="margin-bottom:1rem">
+            <div style="font-size:12px;font-weight:600;color:var(--ct);margin-bottom:.5rem">
+              Plano de ${fDt(pl.criado_em)} — <span style="color:${pl.status==='quitado'?'var(--verde)':'var(--ct)'}">${pl.status||'ativo'}</span>
+            </div>
+            ${pl.plano_itens && pl.plano_itens.length ? `
+            <table class="doc-table">
+              <tr><th>Procedimento</th><th style="text-align:right">Valor</th><th>Status</th></tr>
+              ${pl.plano_itens.map(it=>`<tr>
+                <td>${esc(it.descricao||'—')}</td>
+                <td style="text-align:right">${it.valor?'R$ '+fmt(it.valor):'—'}</td>
+                <td>${it.status||'—'}</td>
+              </tr>`).join('')}
+              <tr style="font-weight:700">
+                <td colspan="2" style="text-align:right">Total</td>
+                <td>R$ ${fmt(pl.plano_itens.reduce((s,i)=>s+Number(i.valor||0),0))}</td>
+              </tr>
+            </table>` : '<div style="font-size:13px;color:var(--ct)">Sem itens cadastrados.</div>'}
+            ${pl.observacoes?`<div class="doc-obs">${esc(pl.observacoes)}</div>`:''}
+          </div>`).join('')}
+      </div>` : ''}
+
+      ${opts.financeiro && financeiro.length ? `
+      <div class="doc-section">
+        <div class="doc-section-title">Histórico financeiro</div>
+        <table class="doc-table">
+          <tr><th>Descrição</th><th>Tipo</th><th style="text-align:right">Valor</th><th>Vencimento</th><th>Status</th></tr>
+          ${financeiro.map(f=>`<tr>
+            <td>${esc(f.descricao||'—')}</td>
+            <td>${f.tipo==='receita'?'Receita':'Despesa'}</td>
+            <td style="text-align:right">R$ ${fmt(f.valor)}</td>
+            <td>${fDt(f.data_vencimento)}</td>
+            <td>${f.status==='recebido'?'✅ Recebido':f.status==='vencido'?'⚠️ Vencido':'⏳ Pendente'}</td>
+          </tr>`).join('')}
+        </table>
+      </div>` : ''}
+
+      ${docAssinatura()}
+    </div>
+    ${docFooter()}`;
+
+  document.getElementById('doc-preview').innerHTML = html;
+}
+
+// ── ORÇAMENTO ──
+async function gerarOrcamento(){
+  const pac = pacSelecionado;
+  const validade = document.getElementById('opt-validade').value;
+  const forma    = document.getElementById('opt-forma').value;
+  const obs      = document.getElementById('opt-obs-orc').value.trim();
+
+  // Busca último plano de tratamento
+  const {data:planos} = await sb.from('planos_tratamento')
+    .select('id,criado_em,observacoes,plano_itens(descricao,valor)')
+    .eq('paciente_id',pac.id).order('criado_em',{ascending:false}).limit(1);
+
+  const plano = planos && planos[0];
+  const itens = plano?.plano_itens || [];
+  const total = itens.reduce((s,i)=>s+Number(i.valor||0),0);
+
+  const dtValidade = new Date();
+  dtValidade.setDate(dtValidade.getDate() + parseInt(validade));
+
+  const html = `
+    ${docHeader('ORÇAMENTO')}
+    <div class="doc-body">
+      <div class="doc-section">
+        <div class="doc-section-title">Dados do paciente</div>
+        <div class="doc-grid">
+          <div class="doc-field"><div class="doc-field-label">Nome</div><div class="doc-field-value">${esc(pac.nome)}</div></div>
+          <div class="doc-field"><div class="doc-field-label">Telefone</div><div class="doc-field-value">${esc(pac.telefone)||'—'}</div></div>
+          <div class="doc-field"><div class="doc-field-label">Data de emissão</div><div class="doc-field-value">${fDtHoje()}</div></div>
+          <div class="doc-field"><div class="doc-field-label">Válido até</div><div class="doc-field-value">${fDtObj(dtValidade)}</div></div>
+        </div>
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-section-title">Procedimentos</div>
+        ${itens.length ? `
+        <table class="doc-table">
+          <tr><th>#</th><th>Procedimento</th><th style="text-align:right">Valor</th></tr>
+          ${itens.map((it,i)=>`<tr>
+            <td style="width:40px;color:var(--ct)">${i+1}</td>
+            <td>${esc(it.descricao||'—')}</td>
+            <td style="text-align:right;font-weight:600">R$ ${fmt(it.valor||0)}</td>
+          </tr>`).join('')}
+        </table>
+        <div class="doc-total">
+          <div class="doc-total-box">
+            <div class="doc-total-label">Total do orçamento</div>
+            <div class="doc-total-valor">R$ ${fmt(total)}</div>
+            ${forma?`<div style="font-size:11px;color:var(--ct);margin-top:2px">${esc(forma)}</div>`:''}
+          </div>
+        </div>` : `<div style="font-size:13px;color:var(--ct);padding:.5rem 0">Nenhum procedimento encontrado no plano de tratamento. Cadastre um plano de tratamento para o paciente primeiro.</div>`}
+      </div>
+
+      ${obs?`<div class="doc-obs"><strong>Observações:</strong> ${esc(obs)}</div>`:''}
+      ${docAssinatura('Paciente','Profissional')}
+    </div>
+    ${docFooter()}`;
+
+  document.getElementById('doc-preview').innerHTML = html;
+}
+
+// ── RECIBO ──
+async function gerarRecibo(){
+  const pac     = pacSelecionado;
+  const servico = document.getElementById('opt-servico').value.trim() || 'Consulta / Procedimento';
+  const valor   = parseFloat(document.getElementById('opt-valor-rec').value) || 0;
+  const forma   = document.getElementById('opt-forma-rec').value;
+  const data    = document.getElementById('opt-data-rec').value;
+  const obs     = document.getElementById('opt-obs-rec').value.trim();
+
+  const num = 'REC-' + Date.now().toString().slice(-6);
+
+  const html = `
+    ${docHeader('RECIBO DE PAGAMENTO')}
+    <div class="doc-body">
+      <div style="text-align:center;margin-bottom:1.5rem">
+        <div style="font-size:36px;font-weight:700;color:var(--verde-e)">R$ ${fmt(valor)}</div>
+        <div style="font-size:13px;color:var(--ct);margin-top:4px">Valor recebido</div>
+        <div class="doc-num">${num}</div>
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-section-title">Dados do pagamento</div>
+        <div class="doc-grid">
+          <div class="doc-field"><div class="doc-field-label">Pagador</div><div class="doc-field-value">${esc(pac.nome)}</div></div>
+          <div class="doc-field"><div class="doc-field-label">Telefone</div><div class="doc-field-value">${esc(pac.telefone)||'—'}</div></div>
+          <div class="doc-field"><div class="doc-field-label">Serviço prestado</div><div class="doc-field-value">${esc(servico)}</div></div>
+          <div class="doc-field"><div class="doc-field-label">Forma de pagamento</div><div class="doc-field-value">${esc(forma)}</div></div>
+          <div class="doc-field"><div class="doc-field-label">Data do pagamento</div><div class="doc-field-value">${data?fDt(data):fDtHoje()}</div></div>
+          <div class="doc-field"><div class="doc-field-label">Valor por extenso</div><div class="doc-field-value">${valorPorExtenso(valor)}</div></div>
+        </div>
+      </div>
+
+      ${obs?`<div class="doc-obs"><strong>Observações:</strong> ${esc(obs)}</div>`:''}
+
+      <div style="background:var(--verde-c);border-radius:8px;padding:.875rem;font-size:12px;color:var(--verde-e);margin-top:1rem;line-height:1.6">
+        Declaro que recebi a importância de <strong>R$ ${fmt(valor)}</strong> referente a <strong>${esc(servico)}</strong>, 
+        para boa e devida quitação do pagamento acima descrito.
+      </div>
+
+      ${docAssinatura('Pagador ('+esc(pac.nome)+')','Profissional')}
+    </div>
+    ${docFooter()}`;
+
+  document.getElementById('doc-preview').innerHTML = html;
+}
+
+// ── Componentes do documento ──
+function docHeader(tipo){
+  const c = configClinica;
+  const contatos = [];
+  if(c.telefone) contatos.push('Tel: '+c.telefone);
+  if(c.whatsapp) contatos.push('WhatsApp: '+c.whatsapp);
+  if(c.email) contatos.push(c.email);
+  const end = [c.rua&&c.numero?c.rua+', '+c.numero:c.rua||'', c.bairro, c.cidade&&c.uf?c.cidade+'/'+c.uf:''].filter(Boolean).join(' — ');
+
+  return `<div class="doc-header" style="background:${c.cor_principal||'#0F6E56'}">
+    <div>
+      <div class="doc-clinica-nome">${esc(c.nome||CLINICA_CONFIG.nome)}</div>
+      <div class="doc-clinica-esp">${esc(c.especialidade||CLINICA_CONFIG.especialidade)}</div>
+      ${contatos.length||end?`<div class="doc-clinica-contact">${[...contatos,end].filter(Boolean).join(' · ')}</div>`:''}
+    </div>
+    <div style="text-align:right">
+      <img class="doc-logo" src="${esc(c.logo_url||'logo.jpg')}" alt="Logo" onerror="this.style.display='none'"/>
+      <div><span class="doc-tipo" style="margin-top:8px;display:inline-block">${tipo}</span></div>
+    </div>
+  </div>`;
+}
+
+function docAssinatura(esq='Paciente', dir='Profissional'){
+  const profissional = configClinica.nome || CLINICA_CONFIG.nome;
+  return `<div class="doc-assinatura">
+    <div class="doc-assin-item">
+      <div class="doc-assin-linha"></div>
+      <div class="doc-assin-label">${esc(esq)}</div>
+    </div>
+    <div class="doc-assin-item">
+      <div class="doc-assin-linha"></div>
+      <div class="doc-assin-label">${dir==='Profissional'?esc(profissional):esc(dir)}</div>
+    </div>
+  </div>`;
+}
+
+function docFooter(){
+  return `<div class="doc-footer">
+    Documento gerado em ${fDtHoje()} · ${esc(configClinica.nome||CLINICA_CONFIG.nome)} · ${esc(configClinica.especialidade||CLINICA_CONFIG.especialidade)}
+  </div>`;
+}
+
+// ── Utilitários ──
+function fmt(v){return Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function esc(s){if(!s)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function fDt(s){if(!s)return '—';const[y,m,d]=(s.split('T')[0]).split('-');return `${d}/${m}/${y}`;}
+function fDtHoje(){return fDt(new Date().toISOString());}
+function fDtObj(d){return fDt(d.toISOString());}
+function idade(s){if(!s)return null;const n=new Date(),b=new Date(s);let a=n.getFullYear()-b.getFullYear();if(n<new Date(n.getFullYear(),b.getMonth(),b.getDate()))a--;return a;}
+function statusLabel(s){const m={realizado:'✅ Realizado',cancelado:'❌ Cancelado',pendente:'⏳ Pendente',faltou:'🚫 Faltou'};return m[s]||s||'—';}
+function valorPorExtenso(v){
+  const n=Math.round(v*100)/100;
+  if(n===0)return 'zero reais';
+  const reais=Math.floor(n);
+  const centavos=Math.round((n-reais)*100);
+  const unidades=['','um','dois','três','quatro','cinco','seis','sete','oito','nove','dez','onze','doze','treze','quatorze','quinze','dezesseis','dezessete','dezoito','dezenove'];
+  const dezenas=['','','vinte','trinta','quarenta','cinquenta','sessenta','setenta','oitenta','noventa'];
+  const centenas=['','cem','duzentos','trezentos','quatrocentos','quinhentos','seiscentos','setecentos','oitocentos','novecentos'];
+  function conv(n){
+    if(n===0)return '';
+    if(n<20)return unidades[n];
+    if(n<100)return dezenas[Math.floor(n/10)]+(n%10?' e '+unidades[n%10]:'');
+    if(n===100)return 'cem';
+    return centenas[Math.floor(n/100)]+(n%100?' e '+conv(n%100):'');
+  }
+  let ext='';
+  if(reais>0) ext+=conv(reais)+(reais===1?' real':' reais');
+  if(centavos>0) ext+=(reais>0?' e ':'')+conv(centavos)+(centavos===1?' centavo':' centavos');
+  return ext.charAt(0).toUpperCase()+ext.slice(1);
+}
+
+let toastT;
+function toast(msg,tipo='ok'){
+  const el=document.getElementById('toast');
+  el.textContent=(tipo==='err'?'⚠️ ':'✅ ')+msg;
+  el.className='toast show '+(tipo==='err'?'err':'ok');
+  clearTimeout(toastT);
+  toastT=setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+init();
+</script>
+</body>
+</html>
