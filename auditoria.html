@@ -4,11 +4,11 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Auditoria — Clínica</title>
-  <script src="config.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
   <script src="config.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  
 <script>
 // Auth check — redireciona para login se não autenticado
 try{
@@ -296,13 +296,124 @@ textarea{resize:vertical;min-height:70px}
 <div id="_toast" class="toast"></div>
 <script>
 
-const authData = JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+var authData = JSON.parse(localStorage.getItem('clinica_auth')||'{}');
 if(!authData.ok || authData.expires < Date.now()) window.location.href='login.html';
 if(typeof renovarTokenSeNecessario === 'function') renovarTokenSeNecessario();
-const db = sbClient();
+var db = sbClient();
 
 const MESES_N=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
+// ── Log de auditoria global ──
+
+function fDt(s){if(!s)return'—';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`;}
+// Escapa caracteres HTML perigosos antes de inserir dados de paciente/agenda via innerHTML (previne XSS armazenado)
+function escapeHtml(s){if(s===null||s===undefined)return'';return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function dias(dr){if(!dr)return null;const h=new Date();h.setHours(0,0,0,0);const r=new Date(dr+'T12:00:00');return Math.ceil((r-h)/86400000);}
+function anivHoje(dn){if(!dn)return false;const[,m,d]=dn.split('-');return m===String(HOJE.getMonth()+1).padStart(2,'0')&&d===String(HOJE.getDate()).padStart(2,'0');}
+function chamada(p){return p.apelido||p.nome.split(' ')[0];}
+function fmtBRL(v){return v?'R$ '+parseFloat(v).toLocaleString('pt-BR',{minimumFractionDigits:2}):'—';}
+function J(p){return JSON.stringify(p).replace(/'/g,"&#39;");}
+
+// TRATAMENTOS
+const TRLIST=[
+
+const TRLIST=[
+  {g:'── Harmonização Orofacial ──'},
+  {n:'Botox (toxina botulínica)',m:6},
+  {n:'Botox para bruxismo (masseter)',m:6},
+  {n:'Botox para sorriso gengival',m:6},
+  {n:'Preenchimento labial',m:12},
+  {n:'Preenchimento de bigode chinês',m:12},
+  {n:'Preenchimento de olheiras',m:12},
+  {n:'Preenchimento de mandíbula',m:18},
+  {n:'Preenchimento de mento (queixo)',m:18},
+  {n:'Preenchimento de têmporas',m:18},
+  {n:'Preenchimento de maçãs do rosto',m:12},
+  {n:'Radiesse (hidroxiapatita de cálcio)',m:18},
+  {n:'Enzima hialuronidase (dissolução)',m:0},
+  {n:'Bichectomia',m:0},
+  {n:'Rinomodelação',m:12},
+  {n:'Lifting com fios de PDO',m:18},
+  {n:'Bioestimulador de colágeno',m:6},
+  {n:'Skinbooster',m:6},
+  {n:'PRP / PRF (plasma rico em plaquetas)',m:6},
+  {n:'Lipo de papada (Deoxicolato)',m:0},
+  {n:'Harmonização do sorriso',m:12},
+  {g:'── Estética Dental ──'},
+  {n:'Clareamento dental (consultório)',m:6},
+  {n:'Clareamento dental (caseiro)',m:6},
+  {n:'Facetas de porcelana',m:24},
+  {n:'Facetas de resina',m:12},
+  {n:'Lentes de contato dental',m:24},
+  {n:'Design de sorriso',m:24},
+  {n:'Restauração estética (resina)',m:12},
+  {n:'Contorno gengival / Gengivoplastia',m:12},
+  {n:'Alongamento de coroa clínica',m:12},
+  {n:'Micropigmentação labial',m:18},
+  {n:'Fechamento de diastema (resina)',m:12},
+  {g:'── Prevenção e Manutenção ──'},
+  {n:'Profilaxia (limpeza dental)',m:6},
+  {n:'Raspagem e alisamento radicular',m:3},
+  {n:'Aplicação de flúor',m:6},
+  {n:'Aplicação de selante',m:12},
+  {n:'Consulta de manutenção',m:6},
+  {n:'Radiografia (RX)',m:0},
+  {g:'── Dentística / Restauração ──'},
+  {n:'Restauração (resina composta)',m:12},
+  {n:'Restauração (amálgama)',m:12},
+  {n:'Restauração de urgência',m:0},
+  {n:'Tratamento de cárie',m:12},
+  {n:'Proteção pulpar',m:0},
+  {g:'── Endodontia ──'},
+  {n:'Tratamento de canal (unirradicular)',m:0},
+  {n:'Tratamento de canal (multirradicular)',m:0},
+  {n:'Retratamento de canal',m:0},
+  {n:'Apicectomia',m:0},
+  {g:'── Próteses ──'},
+  {n:'Coroa de porcelana',m:12},
+  {n:'Coroa metalocerâmica',m:12},
+  {n:'Coroa sobre implante',m:12},
+  {n:'Prótese fixa (ponte)',m:12},
+  {n:'Prótese parcial removível (PPR)',m:12},
+  {n:'Prótese total (dentadura)',m:12},
+  {n:'Prótese sobre implante (protocolo)',m:12},
+  {n:'Inlay / Onlay',m:12},
+  {n:'Núcleo metálico fundido (NMF)',m:12},
+  {g:'── Implantes ──'},
+  {n:'Implante dentário',m:6},
+  {n:'Implante com carga imediata',m:6},
+  {n:'Mini implante',m:6},
+  {n:'Enxerto ósseo',m:6},
+  {n:'Levantamento de seio maxilar',m:6},
+  {n:'Regeneração óssea guiada (ROG)',m:6},
+  {g:'── Periodontia ──'},
+  {n:'Tratamento periodontal',m:3},
+  {n:'Cirurgia periodontal',m:3},
+  {n:'Manutenção periodontal',m:3},
+  {n:'Enxerto gengival',m:6},
+  {g:'── Ortodontia ──'},
+  {n:'Aparelho ortodôntico (metálico)',m:1},
+  {n:'Aparelho ortodôntico (estético)',m:1},
+  {n:'Alinhador invisível',m:2},
+  {n:'Manutenção ortodôntica',m:1},
+  {n:'Contenção ortodôntica',m:6},
+  {g:'── Cirurgia Oral ──'},
+  {n:'Extração simples',m:0},
+  {n:'Extração de siso (terceiro molar)',m:0},
+  {n:'Frenectomia',m:0},
+  {n:'Cirurgia ortognática',m:0},
+  {n:'Osteotomia',m:0},
+  {g:'── Outros ──'},
+  {n:'Placa de bruxismo (esplinte)',m:12},
+  {n:'Placa clareadora',m:6},
+  {n:'Consulta / avaliação',m:0},
+  {n:'Urgência odontológica',m:0},
+  {n:'Outro',m:0},
+];
+const PRAZOS=[0,1,2,3,6,12,18,24];
+
+
+function toast(m,t){var e=document.getElementById('_toast');if(!e)return;e.textContent=m;e.className='toast show '+(t||'ok');setTimeout(function(){e.classList.remove('show');},3000);}
 // ── Log de auditoria global ──
 async function logAuditoria(acao, descricao, paciente_id=null){
   try{
@@ -317,31 +428,6 @@ async function logAuditoria(acao, descricao, paciente_id=null){
 
 // ── Tela de Auditoria ──
 let audOffset=0;
-async function renderAuditoria(append=false){
-function fDt(s){if(!s)return'—';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`;}
-// Escapa caracteres HTML perigosos antes de inserir dados de paciente/agenda via innerHTML (previne XSS armazenado)
-function escapeHtml(s){if(s===null||s===undefined)return'';return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function dias(dr){if(!dr)return null;const h=new Date();h.setHours(0,0,0,0);const r=new Date(dr+'T12:00:00');return Math.ceil((r-h)/86400000);}
-function anivHoje(dn){if(!dn)return false;const[,m,d]=dn.split('-');return m===String(HOJE.getMonth()+1).padStart(2,'0')&&d===String(HOJE.getDate()).padStart(2,'0');}
-function chamada(p){return p.apelido||p.nome.split(' ')[0];}
-function fmtBRL(v){return v?'R$ '+parseFloat(v).toLocaleString('pt-BR',{minimumFractionDigits:2}):'—';}
-function J(p){return JSON.stringify(p).replace(/'/g,"&#39;");}
-
-// TRATAMENTOS
-const TRLIST=[
-  {g:'── Harmonização Orofacial ──'},
-  {n:'Botox (toxina botulínica)',m:6},
-  {n:'Botox para bruxismo (masseter)',m:6},
-  {n:'Botox para sorriso gengival',m:6},
-  {n:'Preenchimento labial',m:12},
-  {n:'Preenchimento de bigode chinês',m:12},
-  {n:'Preenchimento de olheiras',m:12},
-  {n:'Preenchimento de mandíbula',m:18},
-  {n:'Preenchimento de mento (queixo)',m:18},
-  {n:'Preenchimento de têmporas',m:18},
-  {n:'Preenchimento de maçãs do rosto',m:12},
-  {n:'Radiesse (hidroxiapatita de cálcio)',m:18},
-function toast(m,t){const e=document.getElementById('_toast');if(!e)return;e.textContent=m;e.className='toast show '+(t||'ok');setTimeout(()=>e.classList.remove('show'),3000);}
 async function renderAuditoria(append=false){
   const el=document.getElementById('aud-lista');
   const elMais=document.getElementById('aud-mais');
@@ -377,13 +463,8 @@ async function renderAuditoria(append=false){
   audOffset+=data.length;
 }
 
-// ── Badge de agendamentos online pendentes ──
-async function atualizarBadgeOnline(){
-  try{
-    const{data}=await db.from('agenda').select('id',{count:'exact',head:true}).eq('status','aguardando');
-    const badge=document.getElementById('badge-online');
-    if(!badge) return;
-var audOffset=0;var audDados=[];carregarAuditoria();
+
+var audOffset=0;renderAuditoria();
 </script>
 </body>
 </html>
