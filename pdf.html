@@ -249,44 +249,13 @@
 </style>
 
 <script>
-// ── Auth + renovação de token ──
-(async function(){
-  var auth = JSON.parse(localStorage.getItem('clinica_auth')||'{}');
-  if(!auth.ok) { window.location.href='login.html?r=pdf.html'; return; }
-  
-  // Token expirado ou próximo de expirar — renovar
-  if(auth.expires - Date.now() < 60 * 60 * 1000) {
-    if(auth.refresh_token) {
-      try {
-        var res = await fetch(SB_URL+'/auth/v1/token?grant_type=refresh_token', {
-          method:'POST',
-          headers:{'Content-Type':'application/json','apikey':SB_KEY},
-          body:JSON.stringify({refresh_token: auth.refresh_token})
-        });
-        var data = await res.json();
-        if(res.ok && data.access_token) {
-          auth = {ok:true, expires:Date.now()+8*60*60*1000,
-                  access_token:data.access_token,
-                  refresh_token:data.refresh_token||auth.refresh_token};
-          localStorage.setItem('clinica_auth', JSON.stringify(auth));
-        }
-      } catch(e){}
-    }
-    if(auth.expires < Date.now()) { window.location.href='login.html?r=pdf.html'; return; }
-  }
-  
-  window._authData = auth;
-  window.sb = sbClient();
-  init();
-})();
-
+// Variáveis globais
 var authData = JSON.parse(localStorage.getItem('clinica_auth')||'{}');
-var sb; // será atribuído pelo IIFE acima
-
-let tipoAtual = 'ficha';
-let pacSelecionado = null;
-let todosPacientes = [];
-let configClinica = {};
+var sb;
+var tipoAtual = 'ficha';
+var pacSelecionado = null;
+var todosPacientes = [];
+var configClinica = {};
 
 // ── Init ──
 async function init(){
@@ -689,6 +658,32 @@ function toast(msg,tipo='ok'){
   toastT=setTimeout(()=>el.classList.remove('show'),3000);
 }
 
+// ── Auth + renovação de token + init ──
+(async function(){
+  var auth = JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+  if(!auth.ok) { window.location.href='login.html?r=pdf.html'; return; }
+  // Renovar token se próximo de expirar
+  if(auth.expires - Date.now() < 60 * 60 * 1000 && auth.refresh_token) {
+    try {
+      var res = await fetch(SB_URL+'/auth/v1/token?grant_type=refresh_token', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','apikey':SB_KEY},
+        body:JSON.stringify({refresh_token: auth.refresh_token})
+      });
+      var d = await res.json();
+      if(res.ok && d.access_token) {
+        auth = {ok:true, expires:Date.now()+8*60*60*1000,
+                access_token:d.access_token,
+                refresh_token:d.refresh_token||auth.refresh_token};
+        localStorage.setItem('clinica_auth', JSON.stringify(auth));
+      }
+    } catch(e){}
+  }
+  if(!auth.ok || auth.expires < Date.now()) { window.location.href='login.html?r=pdf.html'; return; }
+  authData = auth;
+  sb = sbClient();
+  init();
+})();
 </script>
 </body>
 </html>
