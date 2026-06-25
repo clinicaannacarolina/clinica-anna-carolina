@@ -282,9 +282,9 @@ function gerarFicha(){
     fin:document.getElementById('opt-financeiro').checked
   };
   var promises=[
-    opts.consultas?api('agenda','select=data,hora,procedimento,status&eq.paciente_id='+pac.id+'&order=data.desc&limit=20'):Promise.resolve([]),
-    opts.plano?api('planos_tratamento','select=id,criado_em,status,observacoes,plano_itens(descricao,valor,status)&eq.paciente_id='+pac.id+'&order=criado_em.desc&limit=5'):Promise.resolve([]),
-    opts.fin?api('financeiro','select=descricao,valor,tipo,status,data_vencimento&eq.paciente_id='+pac.id+'&order=data_vencimento.desc&limit=20'):Promise.resolve([])
+    opts.consultas?api('agenda','select=data,hora,procedimento,status&paciente_id=eq.'+pac.id+'&order=data.desc&limit=20'):Promise.resolve([]),
+    opts.plano?api('planos_tratamento','select=id,criado_em,status,observacoes,plano_itens(descricao,valor,status)&paciente_id=eq.'+pac.id+'&order=criado_em.desc&limit=5'):Promise.resolve([]),
+    opts.fin?api('financeiro','select=descricao,valor,tipo,status,data_vencimento&paciente_id=eq.'+pac.id+'&order=data_vencimento.desc&limit=20'):Promise.resolve([])
   ];
   return Promise.all(promises).then(function(rs){
     var cons=Array.isArray(rs[0])?rs[0]:[];
@@ -333,7 +333,7 @@ function gerarFicha(){
 // ── ORÇAMENTO ──
 function gerarOrcamento(){
   var pac=PAC;
-  return api('planos_tratamento','select=id,criado_em,observacoes,plano_itens(descricao,valor)&eq.paciente_id='+pac.id+'&order=criado_em.desc&limit=1')
+  return api('planos_tratamento','select=id,criado_em,observacoes,plano_itens(descricao,valor)&paciente_id=eq.'+pac.id+'&order=criado_em.desc&limit=1')
   .then(function(planos){
     var pl=Array.isArray(planos)&&planos[0]?planos[0]:null;
     var itens=pl&&pl.plano_itens?pl.plano_itens:[];
