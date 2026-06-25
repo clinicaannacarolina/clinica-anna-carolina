@@ -283,7 +283,7 @@ function gerarFicha(){
   };
   var promises=[
     opts.consultas?api('agenda','select=data,hora,procedimento,status&paciente_id=eq.'+pac.id+'&order=data.desc&limit=20'):Promise.resolve([]),
-    opts.plano?api('planos_tratamento','select=id,criado_em,status,observacoes,plano_itens(descricao,valor,status)&paciente_id=eq.'+pac.id+'&order=criado_em.desc&limit=5'):Promise.resolve([]),
+    opts.plano?api('planos_tratamento','select=id,criado_em,status,observacoes,plano_itens(procedimento,valor,status)&paciente_id=eq.'+pac.id+'&order=criado_em.desc&limit=5'):Promise.resolve([]),
     opts.fin?api('financeiro','select=descricao,valor,tipo,status,data_vencimento&paciente_id=eq.'+pac.id+'&order=data_vencimento.desc&limit=20'):Promise.resolve([])
   ];
   return Promise.all(promises).then(function(rs){
@@ -311,7 +311,7 @@ function gerarFicha(){
         html+='<div style="margin-bottom:1rem"><div style="font-size:12px;color:var(--ct);margin-bottom:.5rem">Plano de '+dt(pl.criado_em)+' — '+(pl.status||'ativo')+'</div>';
         if(pl.plano_itens&&pl.plano_itens.length){
           html+='<table class="doc-table"><tr><th>Procedimento</th><th>Valor</th><th>Status</th></tr>';
-          pl.plano_itens.forEach(function(it){html+='<tr><td>'+esc(it.descricao||'—')+'</td><td>'+(it.valor?'R$ '+fmt(it.valor):'—')+'</td><td>'+(it.status||'—')+'</td></tr>';});
+          pl.plano_itens.forEach(function(it){html+='<tr><td>'+esc(it.procedimento||'—')+'</td><td>'+(it.valor?'R$ '+fmt(it.valor):'—')+'</td><td>'+(it.status||'—')+'</td></tr>';});
           html+='</table>';
         }
         if(pl.observacoes)html+='<div class="doc-obs">'+esc(pl.observacoes)+'</div>';
@@ -333,7 +333,7 @@ function gerarFicha(){
 // ── ORÇAMENTO ──
 function gerarOrcamento(){
   var pac=PAC;
-  return api('planos_tratamento','select=id,criado_em,observacoes,plano_itens(descricao,valor)&paciente_id=eq.'+pac.id+'&order=criado_em.desc&limit=1')
+  return api('planos_tratamento','select=id,criado_em,observacoes,plano_itens(procedimento,valor)&paciente_id=eq.'+pac.id+'&order=criado_em.desc&limit=1')
   .then(function(planos){
     var pl=Array.isArray(planos)&&planos[0]?planos[0]:null;
     var itens=pl&&pl.plano_itens?pl.plano_itens:[];
@@ -352,7 +352,7 @@ function gerarOrcamento(){
     if(itens.length){
       html+='<div class="doc-section"><div class="doc-section-title">Procedimentos</div>';
       html+='<table class="doc-table"><tr><th>#</th><th>Procedimento</th><th style="text-align:right">Valor</th></tr>';
-      itens.forEach(function(it,i){html+='<tr><td style="width:40px;color:var(--ct)">'+(i+1)+'</td><td>'+esc(it.descricao||'—')+'</td><td style="text-align:right;font-weight:600">R$ '+fmt(it.valor||0)+'</td></tr>';});
+      itens.forEach(function(it,i){html+='<tr><td style="width:40px;color:var(--ct)">'+(i+1)+'</td><td>'+esc(it.procedimento||'—')+'</td><td style="text-align:right;font-weight:600">R$ '+fmt(it.valor||0)+'</td></tr>';});
       html+='</table>';
       html+='<div class="doc-total"><div class="doc-total-box"><div class="doc-total-label">Total</div><div class="doc-total-valor">R$ '+fmt(total)+'</div>'+(forma?'<div style="font-size:11px;color:var(--ct)">'+esc(forma)+'</div>':'')+'</div></div>';
       html+='</div>';
