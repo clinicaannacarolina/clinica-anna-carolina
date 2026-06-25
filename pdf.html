@@ -340,8 +340,15 @@ function gerarOrcamento(){
     var total=itens.reduce(function(s,i){return s+Number(i.valor||0);},0);
     var val=Number(document.getElementById('opt-validade').value||30);
     var forma=document.getElementById('opt-forma').value;
-    var obs=document.getElementById('opt-obs-orc').value||(pl&&pl.obs?pl.obs:'');
+    // Só usa pl.obs se o usuário não digitou nada E se não for apenas lista de procedimentos
+    var obsManual=document.getElementById('opt-obs-orc').value.trim();
+    var obsPlano=pl&&pl.obs?pl.obs.trim():'';
+    var procNomes=itens.map(function(it){return(it.procedimento||'').toLowerCase().trim();});
+    var partes=obsPlano.toLowerCase().split(/[+\n,;]/).map(function(s){return s.trim();}).filter(Boolean);
+    var obsEhRedundante=obsPlano&&procNomes.length>0&&procNomes.every(function(p){return partes.some(function(pt){return pt.includes(p)||p.includes(pt);});});
+    var obs=obsManual||(obsEhRedundante?'':obsPlano);
     var cond=pl&&pl.condicoes_pagamento?pl.condicoes_pagamento:'';
+
     var dtVal=new Date();dtVal.setDate(dtVal.getDate()+val);
     var html=cabecalho('ORÇAMENTO')+'<div class="doc-body">';
     html+='<div class="doc-section"><div class="doc-section-title">Dados do paciente</div><div class="doc-grid">';
