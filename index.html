@@ -300,6 +300,7 @@ textarea{resize:vertical;min-height:70px}
       <button class="fin-tab" onclick="finTab('despesas',this)" style="padding:8px 16px;border:none;background:none;font-weight:500;color:var(--ct);cursor:pointer;white-space:nowrap">🔴 Despesas</button>
       <button class="fin-tab" onclick="finTab('fluxo',this)" style="padding:8px 16px;border:none;background:none;font-weight:500;color:var(--ct);cursor:pointer;white-space:nowrap">📊 Fluxo de Caixa</button>
       <button class="fin-tab" onclick="finTab('procs',this)" style="padding:8px 16px;border:none;background:none;font-weight:500;color:var(--ct);cursor:pointer;white-space:nowrap">🏆 Procedimentos</button>
+      <button class="fin-tab" onclick="finTab('inadimplencia',this)" style="padding:8px 16px;border:none;background:none;font-weight:500;color:var(--ct);cursor:pointer;white-space:nowrap">🚨 Inadimplência</button>
     </div>
 
     <!-- Conteúdo das tabs -->
@@ -307,6 +308,7 @@ textarea{resize:vertical;min-height:70px}
     <div id="fin-despesas" style="display:none"></div>
     <div id="fin-fluxo" style="display:none"></div>
     <div id="fin-procs" style="display:none"></div>
+    <div id="fin-inadimplencia" style="display:none"></div>
   </div>
 
   <!-- HOJE -->
@@ -2554,6 +2556,7 @@ function finTab(tab, btn){
   document.getElementById('fin-despesas').style.display=tab==='despesas'?'':'none';
   document.getElementById('fin-fluxo').style.display=tab==='fluxo'?'':'none';
   document.getElementById('fin-procs').style.display=tab==='procs'?'':'none';
+  document.getElementById('fin-inadimplencia').style.display=tab==='inadimplencia'?'':'none';
   renderFinAtual();
 }
 
@@ -2651,11 +2654,143 @@ function renderFinDashboard(){
     </div>`;
 }
 
+
+// ══════════════════════════════════════════
+// INADIMPLÊNCIA
+// ══════════════════════════════════════════
+async function renderInadimplencia(){
+  const el = document.getElementById('fin-inadimplencia');
+  if(!el) return;
+  el.innerHTML = '<div style="font-size:13px;color:var(--ct);padding:1rem 0">⏳ Carregando...</div>';
+
+  const hoje = new Date();
+  const hojeStr = hoje.toISOString().split('T')[0];
+
+  // Buscar TODOS os pendentes vencidos (sem filtro de mês)
+  const {data, error} = await db.from('financeiro')
+    .select('*')
+    .eq('tipo','receita')
+    .eq('status','pendente')
+    .lt('data', hojeStr)
+    .order('data', {ascending:true});
+
+  if(error){el.innerHTML='<div style="color:var(--ct);font-size:13px">Erro ao carregar.</div>';return;}
+  if(!data||!data.length){
+    el.innerHTML='<div style="background:var(--verde-c);border-radius:10px;padding:1.25rem;text-align:center"><div style="font-size:24px">✅</div><div style="font-weight:600;color:var(--verde-e);margin-top:4px">Nenhuma inadimplência!</div><div style="font-size:13px;color:var(--ct);margin-top:4px">Todos os pagamentos estão em dia.</div></div>';
+    return;
+  }
+
+  const totalInad = data.reduce((s,l)=>s+(parseFloat(l.valor)||0),0);
+  const maxDias = Math.max(...data.map(l=>Math.floor((hoje-new Date(l.data+'T12:00:00'))/(1000*60*60*24))));
+
+  // Agrupar por paciente (via descrição)
+  const porPac = {};
+  data.forEach(l=>{
+    const key = l.paciente_id || l.descricao || 'sem-id';
+    if(!porPac[key]) porPac[key] = {nome: l.descricao?.split(' — ')[1] || l.descricao || '—', paciente_id: l.paciente_id, itens:[]};
+    porPac[key].itens.push(l);
+  });
+
+  // Ordenar por total devedor (maior primeiro)
+  const grupos = Object.values(porPac).sort((a,b)=>{
+    const ta = a.itens.reduce((s,i)=>s+(parseFloat(i.valor)||0),0);
+    const tb = b.itens.reduce((s,i)=>s+(parseFloat(i.valor)||0),0);
+    return tb-ta;
+  });
+
+  // Buscar nomes reais dos pacientes se tiver paciente_id
+  const ids = [...new Set(grupos.filter(g=>g.paciente_id).map(g=>g.paciente_id))];
+  let nomesMap = {};
+  if(ids.length){
+    const {data:pData} = await db.from('pacientes').select('id,nome,telefone').in('id',ids);
+    (pData||[]).forEach(p=>{ nomesMap[p.id]={nome:p.nome,telefone:p.telefone}; });
+  }
+
+  let html = '';
+
+  // Cards de resumo
+  html += `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1rem">
+    <div style="background:var(--vermelho-c);border-radius:10px;padding:12px;border:1px solid #f7c1c1">
+      <div style="font-size:10px;font-weight:700;color:#791F1F;text-transform:uppercase;letter-spacing:.04em">Total vencido</div>
+      <div style="font-size:20px;font-weight:700;color:#791F1F;margin:4px 0">${fmtBRL(totalInad)}</div>
+      <div style="font-size:11px;color:#791F1F">${data.length} lançamento${data.length>1?'s':''}</div>
+    </div>
+    <div style="background:var(--amarelo-c);border-radius:10px;padding:12px;border:1px solid #fac775">
+      <div style="font-size:10px;font-weight:700;color:#633806;text-transform:uppercase;letter-spacing:.04em">Pacientes</div>
+      <div style="font-size:20px;font-weight:700;color:#633806;margin:4px 0">${grupos.length}</div>
+      <div style="font-size:11px;color:#633806">com débito em aberto</div>
+    </div>
+    <div style="background:#F0F9FF;border-radius:10px;padding:12px;border:1px solid #BAE6FD">
+      <div style="font-size:10px;font-weight:700;color:#0369A1;text-transform:uppercase;letter-spacing:.04em">Maior atraso</div>
+      <div style="font-size:20px;font-weight:700;color:#0369A1;margin:4px 0">${maxDias}d</div>
+      <div style="font-size:11px;color:#0369A1">de vencimento</div>
+    </div>
+  </div>`;
+
+  // Lista por paciente
+  html += '<div style="display:flex;flex-direction:column;gap:8px">';
+  grupos.forEach(g=>{
+    const info = nomesMap[g.paciente_id] || {};
+    const nome = info.nome || g.nome || '—';
+    const tel = (info.telefone||'').replace(/\D/g,'');
+    const totalPac = g.itens.reduce((s,i)=>s+(parseFloat(i.valor)||0),0);
+    const maiorAtraso = Math.max(...g.itens.map(i=>Math.floor((hoje-new Date(i.data+'T12:00:00'))/(1000*60*60*24))));
+    const corAtraso = maiorAtraso>60?'var(--vermelho)':maiorAtraso>30?'#d97706':'#8a6000';
+
+    const msgWA = encodeURIComponent(`Olá ${nome.split(' ')[0]}! Identificamos um pagamento pendente no valor de ${fmtBRL(totalPac)}. Poderia entrar em contato conosco para regularizarmos? 😊`);
+    const linkWA = tel ? `https://wa.me/55${tel}?text=${msgWA}` : '';
+    const linkFicha = g.paciente_id ? `paciente.html?id=${g.paciente_id}` : '';
+
+    html += `<div style="background:var(--card);border-radius:10px;border:1px solid var(--borda);padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.04)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <div>
+          <div style="font-weight:700;font-size:14px;color:var(--txt)">${escapeHtml(nome)}</div>
+          <div style="font-size:12px;color:${corAtraso};font-weight:600;margin-top:2px">⏰ ${maiorAtraso} dia${maiorAtraso>1?'s':''} de atraso</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:18px;font-weight:700;color:var(--vermelho)">${fmtBRL(totalPac)}</div>
+          <div style="font-size:11px;color:var(--ct)">${g.itens.length} parcela${g.itens.length>1?'s':''}</div>
+        </div>
+      </div>
+      <div style="margin-bottom:10px">
+        ${g.itens.map(i=>{
+          const dias=Math.floor((hoje-new Date(i.data+'T12:00:00'))/(1000*60*60*24));
+          const desc=(i.descricao||'').split(' — ')[0];
+          return`<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid var(--borda)">
+            <span style="color:var(--ct);flex:1">${escapeHtml(desc)}</span>
+            <span style="color:var(--ct);margin:0 8px">${fDt(i.data)}</span>
+            <span style="font-weight:600;color:var(--vermelho);white-space:nowrap">${fmtBRL(i.valor||0)}</span>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${linkWA?`<a href="${linkWA}" target="_blank" style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;background:#25D366;color:white;border-radius:7px;font-size:12px;font-weight:600;text-decoration:none">📲 Cobrar WhatsApp</a>`:''}
+        ${linkFicha?`<a href="${linkFicha}" style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;background:var(--verde-c);color:var(--verde-e);border-radius:7px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid var(--verde)">👤 Ver ficha</a>`:''}
+        <button onclick="marcarPagoInad('${g.itens.map(i=>i.id).join(',')}')" style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;background:var(--bg);color:var(--txt);border:1px solid var(--borda);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">✅ Marcar como pago</button>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
+async function marcarPagoInad(idsStr){
+  const ids = idsStr.split(',').filter(Boolean);
+  if(!ids.length) return;
+  if(!confirm('Marcar ' + ids.length + ' lançamento(s) como recebido?')) return;
+  await Promise.all(ids.map(id=>db.from('financeiro').update({status:'recebido'}).eq('id',id)));
+  toast('Marcado como recebido ✓','verde');
+  renderInadimplencia();
+  carregarFinanceiro();
+}
+
 // ── Renderizar lista atual ──
 function renderFinAtual(){
   if(_finTab==='receitas') renderFinLista('receita','fin-receitas');
   else if(_finTab==='despesas') renderFinLista('despesa','fin-despesas');
   else if(_finTab==='procs') renderTopProcedimentos();
+  else if(_finTab==='inadimplencia') renderInadimplencia();
   else renderFluxo();
 }
 
