@@ -4628,6 +4628,62 @@ Vamos agendar um horário para você?`);
     }).join('');
 }
 
+// ══════════════════════════════════════════
+// ENVIO WHATSAPP — integração configurável
+// ══════════════════════════════════════════
+const WZ_KEY = 'clinica_wz_config';
+
+function wzCfg(){ return JSON.parse(localStorage.getItem(WZ_KEY)||'{}'); }
+
+// Retorna true se integração ativa para este tipo
+function wzAtivo(tipo){
+  const c=wzCfg();
+  if(!c.ativo) return false;
+  if(tipo==='confirmacao'&&!c.nConfirmacao) return false;
+  if(tipo==='retorno'&&!c.nRetorno) return false;
+  if(tipo==='cobranca'&&!c.nCobranca) return false;
+  if(tipo==='aniversario'&&!c.nAniversario) return false;
+  return true;
+}
+
+// Enviar mensagem via API ou abrir WA Web
+async function wzEnviar(telefone, mensagem, tipo){
+  const tel=(telefone||'').replace(/\D/g,'');
+  if(!tel){toast('Telefone não cadastrado','vermelho');return;}
+  const cfg=wzCfg();
+
+  if(wzAtivo(tipo)){
+    // Enviar via API
+    try{
+      if(cfg.provedor==='zapi'){
+        const r=await fetch(`https://api.z-api.io/instances/${cfg.zapiInstance}/token/${cfg.zapiToken}/send-text`,{
+          method:'POST',
+          headers:{'Content-Type':'application/json','Client-Token':cfg.zapiClientToken||''},
+          body:JSON.stringify({phone:'55'+tel,message:mensagem})
+        });
+        const d=await r.json();
+        if(r.ok) toast('✅ Mensagem enviada via WhatsApp!','verde');
+        else toast('Erro Z-API: '+(d.message||d.error),'vermelho');
+      } else {
+        const r=await fetch(`${cfg.evoUrl}/message/sendText/${cfg.evoInstance}`,{
+          method:'POST',
+          headers:{'Content-Type':'application/json','apikey':cfg.evoKey},
+          body:JSON.stringify({number:'55'+tel,text:mensagem})
+        });
+        const d=await r.json();
+        if(r.ok) toast('✅ Mensagem enviada via WhatsApp!','verde');
+        else toast('Erro Evolution: '+(d.message||JSON.stringify(d)),'vermelho');
+      }
+    }catch(e){
+      toast('Falha na API — abrindo WA Web','vermelho');
+      window.open('https://wa.me/55'+tel+'?text='+encodeURIComponent(mensagem),'_blank');
+    }
+  } else {
+    // Fallback: WA Web normal
+    window.open('https://wa.me/55'+tel+'?text='+encodeURIComponent(mensagem),'_blank');
+  }
+}
+
 function exportarPacientesCSV(){
   if(!pacs.length){toast('Nenhum paciente para exportar','vermelho');return;}
   const headers=['Nome','Apelido','Telefone','CPF','RG','Nascimento','Sexo','Endereço','Instagram','Facebook','Como Conheceu','Indicação','Procedimento','Cadastro'];

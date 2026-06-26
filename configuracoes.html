@@ -123,6 +123,22 @@
 
     .divider{height:1px;background:var(--borda);margin:1rem 0}
     .label-sec{font-size:11px;font-weight:700;color:var(--ct);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.75rem}
+  /* Toggle switch */
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:.75rem 0;border-bottom:1px solid var(--borda)}
+  .toggle-row:last-child{border-bottom:none}
+  .toggle-info{flex:1}
+  .toggle-title{font-size:13px;font-weight:600;color:var(--txt)}
+  .toggle-desc{font-size:11px;color:var(--ct);margin-top:2px}
+  .toggle{position:relative;width:44px;height:24px;flex-shrink:0}
+  .toggle input{opacity:0;width:0;height:0}
+  .toggle-slider{position:absolute;inset:0;background:var(--borda);border-radius:24px;cursor:pointer;transition:.2s}
+  .toggle-slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .toggle input:checked+.toggle-slider{background:var(--verde)}
+  .toggle input:checked+.toggle-slider:before{transform:translateX(20px)}
+  .integ-status{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;margin-left:.5rem}
+  .integ-status.ok{background:var(--verde-c);color:var(--verde-e)}
+  .integ-status.err{background:#FCE7F3;color:#9D174D}
+  .integ-status.off{background:var(--bg);color:var(--ct)}
   </style>
 </head>
 <body>
@@ -322,6 +338,135 @@
     </div>
   </div>
 
+  <!-- Integrações WhatsApp -->
+  <div class="secao">
+    <div class="sec-hdr">
+      <span class="sec-icon">📲</span>
+      <span class="sec-title">Integração WhatsApp</span>
+      <span class="sec-sub" id="integ-status-badge"><span class="integ-status off">⚪ Desativada</span></span>
+    </div>
+    <div class="sec-body">
+
+      <div style="font-size:12px;color:var(--ct);margin-bottom:1rem;line-height:1.6;background:var(--bg);border-radius:8px;padding:.75rem 1rem">
+        Quando ativada, os botões de WhatsApp do sistema disparam mensagens automaticamente via API, sem abrir o WhatsApp Web.<br/>
+        Compatible com <strong>Z-API</strong> e <strong>Evolution API</strong>. Deixe configurado agora — ative quando quiser.
+      </div>
+
+      <!-- Ativar integração -->
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <div class="toggle-title">Ativar integração WhatsApp</div>
+          <div class="toggle-desc">Quando desativado, usa o WhatsApp Web normal</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="wz-ativo" onchange="onWzToggle()"/>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div id="wz-config" style="margin-top:1rem;display:none">
+
+        <!-- Provedor -->
+        <div class="fg full" style="margin-bottom:1rem">
+          <div class="fi">
+            <label>Provedor</label>
+            <select id="wz-provedor" onchange="onWzProvedor()">
+              <option value="zapi">Z-API</option>
+              <option value="evolution">Evolution API</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Z-API campos -->
+        <div id="wz-zapi-fields">
+          <div class="fg" style="margin-bottom:.875rem">
+            <div class="fi">
+              <label>Instance ID</label>
+              <input type="text" id="wz-zapi-instance" placeholder="Ex: 3C4A1B2D5E6F..."/>
+              <span class="hint">Encontrado no painel Z-API → Instâncias</span>
+            </div>
+            <div class="fi">
+              <label>Token</label>
+              <input type="text" id="wz-zapi-token" placeholder="Cole seu token aqui"/>
+              <span class="hint">Z-API → Instância → Security Token</span>
+            </div>
+          </div>
+          <div class="fg full" style="margin-bottom:.875rem">
+            <div class="fi">
+              <label>Client Token (opcional)</label>
+              <input type="text" id="wz-zapi-client-token" placeholder="Cole o client-token se exigido"/>
+              <span class="hint">Algumas contas Z-API exigem este header adicional</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Evolution API campos -->
+        <div id="wz-evo-fields" style="display:none">
+          <div class="fg" style="margin-bottom:.875rem">
+            <div class="fi">
+              <label>URL da API</label>
+              <input type="text" id="wz-evo-url" placeholder="https://sua-evolution.com"/>
+              <span class="hint">URL da sua instância Evolution API</span>
+            </div>
+            <div class="fi">
+              <label>API Key</label>
+              <input type="text" id="wz-evo-key" placeholder="Cole sua API Key aqui"/>
+            </div>
+          </div>
+          <div class="fg full" style="margin-bottom:.875rem">
+            <div class="fi">
+              <label>Nome da instância</label>
+              <input type="text" id="wz-evo-instance" placeholder="Ex: clinica-anna"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- Teste de conexão -->
+        <div style="display:flex;gap:.75rem;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap">
+          <button onclick="testarConexaoWZ()" style="padding:.5rem 1.25rem;background:var(--verde-c);color:var(--verde-e);border:1.5px solid var(--verde);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">🔌 Testar conexão</button>
+          <span id="wz-teste-result" style="font-size:12px;color:var(--ct)"></span>
+        </div>
+
+        <div style="border-top:1px solid var(--borda);padding-top:1rem;margin-top:.5rem">
+          <div style="font-size:12px;font-weight:700;color:var(--txt);margin-bottom:.75rem">Notificações automáticas</div>
+
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-title">✅ Confirmação de consulta</div>
+              <div class="toggle-desc">Dispara ao confirmar presença na agenda</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="wz-n-confirmacao"/><span class="toggle-slider"></span></label>
+          </div>
+
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-title">🔔 Lembrete de retorno</div>
+              <div class="toggle-desc">Dispara ao clicar em "Lembrar retorno" nos alertas</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="wz-n-retorno"/><span class="toggle-slider"></span></label>
+          </div>
+
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-title">🚨 Cobrança de inadimplência</div>
+              <div class="toggle-desc">Dispara ao clicar em "Cobrar WhatsApp" na inadimplência</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="wz-n-cobranca"/><span class="toggle-slider"></span></label>
+          </div>
+
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-title">🎂 Parabéns de aniversário</div>
+              <div class="toggle-desc">Dispara ao clicar em "Parabenizar" nos aniversariantes</div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="wz-n-aniversario"/><span class="toggle-slider"></span></label>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
   <!-- Salvar -->
   <button class="bsalvar" id="btn-salvar" onclick="salvar()">💾 Salvar todas as configurações</button>
 
@@ -341,6 +486,116 @@ let corAtual = '#1D9E75';
 let pinNovo = '';
 let pinTamanhoAtual = 4;
 const PIN_MIN = 4, PIN_MAX = 6;
+
+// ══════════════════════════════════════════
+// INTEGRAÇÃO WHATSAPP
+// ══════════════════════════════════════════
+const WZ_KEY = 'clinica_wz_config';
+
+function wzCarregar(){
+  const cfg = JSON.parse(localStorage.getItem(WZ_KEY)||'{}');
+  if(cfg.ativo) document.getElementById('wz-ativo').checked = true;
+  if(cfg.provedor) document.getElementById('wz-provedor').value = cfg.provedor;
+  if(cfg.zapiInstance) document.getElementById('wz-zapi-instance').value = cfg.zapiInstance;
+  if(cfg.zapiToken) document.getElementById('wz-zapi-token').value = cfg.zapiToken;
+  if(cfg.zapiClientToken) document.getElementById('wz-zapi-client-token').value = cfg.zapiClientToken;
+  if(cfg.evoUrl) document.getElementById('wz-evo-url').value = cfg.evoUrl;
+  if(cfg.evoKey) document.getElementById('wz-evo-key').value = cfg.evoKey;
+  if(cfg.evoInstance) document.getElementById('wz-evo-instance').value = cfg.evoInstance;
+  if(cfg.nConfirmacao) document.getElementById('wz-n-confirmacao').checked = true;
+  if(cfg.nRetorno) document.getElementById('wz-n-retorno').checked = true;
+  if(cfg.nCobranca) document.getElementById('wz-n-cobranca').checked = true;
+  if(cfg.nAniversario) document.getElementById('wz-n-aniversario').checked = true;
+  onWzToggle(false);
+  onWzProvedor();
+  atualizarBadgeWZ(cfg);
+}
+
+function wzSalvar(){
+  const cfg = {
+    ativo: document.getElementById('wz-ativo').checked,
+    provedor: document.getElementById('wz-provedor').value,
+    zapiInstance: document.getElementById('wz-zapi-instance').value.trim(),
+    zapiToken: document.getElementById('wz-zapi-token').value.trim(),
+    zapiClientToken: document.getElementById('wz-zapi-client-token').value.trim(),
+    evoUrl: document.getElementById('wz-evo-url').value.trim(),
+    evoKey: document.getElementById('wz-evo-key').value.trim(),
+    evoInstance: document.getElementById('wz-evo-instance').value.trim(),
+    nConfirmacao: document.getElementById('wz-n-confirmacao').checked,
+    nRetorno: document.getElementById('wz-n-retorno').checked,
+    nCobranca: document.getElementById('wz-n-cobranca').checked,
+    nAniversario: document.getElementById('wz-n-aniversario').checked,
+  };
+  localStorage.setItem(WZ_KEY, JSON.stringify(cfg));
+  atualizarBadgeWZ(cfg);
+  return cfg;
+}
+
+function atualizarBadgeWZ(cfg){
+  const badge = document.getElementById('integ-status-badge');
+  if(!cfg||!cfg.ativo){
+    badge.innerHTML = '<span class="integ-status off">⚪ Desativada</span>';
+  } else {
+    badge.innerHTML = '<span class="integ-status ok">🟢 Ativa</span>';
+  }
+}
+
+function onWzToggle(salvar=true){
+  const ativo = document.getElementById('wz-ativo').checked;
+  document.getElementById('wz-config').style.display = ativo ? 'block' : 'none';
+  if(salvar) wzSalvar();
+}
+
+function onWzProvedor(){
+  const p = document.getElementById('wz-provedor').value;
+  document.getElementById('wz-zapi-fields').style.display = p==='zapi' ? 'block' : 'none';
+  document.getElementById('wz-evo-fields').style.display = p==='evolution' ? 'block' : 'none';
+}
+
+async function testarConexaoWZ(){
+  const cfg = wzSalvar();
+  const res = document.getElementById('wz-teste-result');
+  res.textContent = '⏳ Testando...';
+  try{
+    if(cfg.provedor==='zapi'){
+      if(!cfg.zapiInstance||!cfg.zapiToken){res.textContent='❌ Preencha Instance ID e Token';return;}
+      const headers = {'Content-Type':'application/json','Client-Token':cfg.zapiClientToken||''};
+      const r = await fetch(`https://api.z-api.io/instances/${cfg.zapiInstance}/token/${cfg.zapiToken}/status`,{headers});
+      const d = await r.json();
+      if(r.ok && d.connected){
+        res.textContent = '✅ Conectado! Número: '+(d.smartphoneConnected||'WhatsApp OK');
+      } else {
+        res.textContent = '❌ Erro: '+(d.message||d.error||JSON.stringify(d));
+      }
+    } else {
+      if(!cfg.evoUrl||!cfg.evoKey||!cfg.evoInstance){res.textContent='❌ Preencha URL, API Key e Instância';return;}
+      const r = await fetch(`${cfg.evoUrl}/instance/fetchInstances`,{
+        headers:{'apikey':cfg.evoKey,'Content-Type':'application/json'}
+      });
+      const d = await r.json();
+      if(r.ok){
+        const inst = Array.isArray(d)?d.find(i=>i.instance?.instanceName===cfg.evoInstance):null;
+        res.textContent = inst ? '✅ Instância encontrada: '+inst.instance.state : '✅ API conectada (verifique o nome da instância)';
+      } else {
+        res.textContent = '❌ Erro: '+(d.message||JSON.stringify(d));
+      }
+    }
+  }catch(e){
+    res.textContent = '❌ Falha de conexão: '+e.message;
+  }
+}
+
+// Função global para enviar mensagem via API (usada pelo index.html)
+// Salva no localStorage para o index.html consumir
+function wzEnviarMensagem(telefone, mensagem, tipoNotif){
+  const cfg = JSON.parse(localStorage.getItem(WZ_KEY)||'{}');
+  if(!cfg.ativo) return false; // não está ativo, usar WA Web
+  if(tipoNotif==='confirmacao' && !cfg.nConfirmacao) return false;
+  if(tipoNotif==='retorno' && !cfg.nRetorno) return false;
+  if(tipoNotif==='cobranca' && !cfg.nCobranca) return false;
+  if(tipoNotif==='aniversario' && !cfg.nAniversario) return false;
+  return true; // está ativo e notif habilitada
+}
 
 // ── Init ──
 async function init(){
@@ -374,6 +629,7 @@ async function init(){
     atualizarPreview();
   }
   renderPdots();
+  wzCarregar();
 }
 
 // ── Preview ao vivo ──
@@ -525,6 +781,7 @@ async function salvar(){
   btn.disabled=false; btn.textContent='💾 Salvar todas as configurações';
 
   if(error){ toast('Erro ao salvar: '+error.message,'err'); return; }
+  wzSalvar();
   toast('Configurações salvas!');
   atualizarPreview();
 }
