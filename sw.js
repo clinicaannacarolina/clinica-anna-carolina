@@ -1,38 +1,114 @@
 // ═══════════════════════════════════════════════════════════════
-// Service Worker — Sistema de Gestão Clínica
-// Responsável por: exibir notificações push locais e permitir
-// instalação do app como PWA (Progressive Web App).
+// Service Worker — Clínica Dra. Anna Carolina Dias
+// v3 — cache inteligente + notificações + instalação PWA
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'clinica-cache-v1';
+const CACHE_NAME = 'clinica-cache-v3';
 
-// ── Instalação ──
+// Arquivos do app que ficam em cache (shell do app)
+const APP_SHELL = [
+  './index.html',
+  './login.html',
+  './config.js',
+  './manifest.json',
+  './logo.jpg',
+  './paciente.html',
+  './gestao.html',
+  './pdf.html',
+  './backup.html',
+  './configuracoes.html',
+  './estoque.html',
+  './auditoria.html',
+  './custohora.html',
+  './documentos.html',
+  './relatorio.html',
+  './financeiro.html',
+];
+
+// ── Instalação: pré-cachear o shell do app ──
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      // Tenta cachear cada arquivo individualmente (falha silenciosa)
+      return Promise.allSettled(
+        APP_SHELL.map(url => cache.add(url).catch(() => {}))
+      );
+    }).then(() => self.skipWaiting())
+  );
 });
 
-// ── Ativação ──
+// ── Ativação: limpar caches antigos ──
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter(k => k !== CACHE_NAME)
+          .map(k => caches.delete(k))
+      )
+    ).then(() => self.clients.claim())
+  );
 });
 
-// ── Recebe mensagens do app (index.html) pedindo para mostrar notificação ──
+// ── Fetch: Network First para dados, Cache First para assets ──
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  // Requisições ao Supabase — sempre direto à rede (dados em tempo real)
+  if (url.hostname.includes('supabase.co') || url.hostname.includes('supabase.io')) {
+    return; // passthrough
+  }
+
+  // Requisições externas (fonts, CDN) — passthrough
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  // Arquivos do app: Cache First com fallback para rede
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request).then((response) => {
+        // Cachear resposta válida
+        if (response && response.status === 200 && response.type === 'basic') {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+        }
+        return response;
+      }).catch(() => {
+        // Offline fallback: retorna index.html para navegação
+        if (event.request.mode === 'navigate') {
+          return caches.match('./index.html');
+        }
+      });
+    })
+  );
+});
+
+// ── Notificações push locais ──
 self.addEventListener('message', (event) => {
   const data = event.data || {};
+
   if (data.type === 'SHOW_NOTIFICATION') {
     const { title, body, tag, url } = data;
-    self.registration.showNotification(title || 'Clínica', {
+    self.registration.showNotification(title || 'Clínica Anna Carolina', {
       body: body || '',
       tag: tag || 'clinica-notif',
-      icon: 'logo.jpg',
-      badge: 'logo.jpg',
+      icon: './logo.jpg',
+      badge: './logo.jpg',
       data: { url: url || './index.html' },
       requireInteraction: false,
+      vibrate: [200, 100, 200],
     });
+  }
+
+  // Forçar atualização do cache (chamado ao salvar novo deploy)
+  if (data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
   }
 });
 
-// ── Clique na notificação: abre/foca a aba do sistema ──
+// ── Clique na notificação ──
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const targetUrl = (event.notification.data && event.notification.data.url) || './index.html';
@@ -40,8 +116,10 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (client.url.includes('index.html') && 'focus' in client) {
-          return client.focus();
+        if (client.url.includes('clinicaannacarolina') && 'focus' in client) {
+          client.focus();
+          client.navigate(targetUrl);
+          return;
         }
       }
       if (self.clients.openWindow) {
@@ -49,10 +127,4 @@ self.addEventListener('notificationclick', (event) => {
       }
     })
   );
-});
-
-// ── Fetch: passthrough simples (sem cache agressivo, para sempre pegar dados atualizados) ──
-self.addEventListener('fetch', (event) => {
-  // Não interceptamos requisições — deixamos passar direto à rede.
-  // Isso evita servir dados desatualizados de pacientes/agenda.
 });
