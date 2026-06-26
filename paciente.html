@@ -1761,10 +1761,9 @@ async function renderFinanceiro(){
   const { data: planos } = await db.from('planos_tratamento')
     .select('*').eq('paciente_id', pac.id).order('criado_em', { ascending: false });
 
-  // 2. Buscar TODOS os lançamentos financeiros do paciente (receitas + créditos)
+  // 2. Buscar TODOS os lançamentos financeiros do paciente
   const { data: lancamentos } = await db.from('financeiro')
-    .select('*').eq('paciente_id', pac.id)
-    .in('tipo', ['receita','credito'])
+    .select('*').eq('paciente_id', pac.id).eq('tipo','receita')
     .order('data', { ascending: false });
 
   const fins = lancamentos || [];
@@ -1783,8 +1782,8 @@ async function renderFinanceiro(){
   });
 
   // 4. Calcular totais globais
-  const finsReceita = fins.filter(l => l.tipo === 'receita');
-  const finsCredito = fins.filter(l => l.tipo === 'credito' && l.status === 'disponivel');
+  const finsCredito = fins.filter(l => l.categoria === 'Crédito Paciente' && l.status === 'pendente');
+  const finsReceita = fins.filter(l => l.categoria !== 'Crédito Paciente');
   let totalGasto = 0, totalPago = 0, totalPendente = 0, totalCredito = 0;
   finsReceita.forEach(l => {
     const v = parseFloat(l.valor) || 0;

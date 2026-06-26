@@ -2302,8 +2302,9 @@ async function verificarCreditoPaciente(pacId){
     const {data} = await db.from('financeiro')
       .select('valor,descricao')
       .eq('paciente_id', pacId)
-      .eq('tipo','credito')
-      .eq('status','disponivel');
+      .eq('tipo','receita')
+      .eq('categoria','Crédito Paciente')
+      .eq('status','pendente');
     const total = (data||[]).reduce((s,l)=>s+(parseFloat(l.valor)||0),0);
     const aviso = document.getElementById('modal-aviso-credito-pac');
     if(!aviso) return;
@@ -2513,15 +2514,15 @@ if(!selecionados.length){toast('Marque ao menos um tratamento!','vermelho');retu
   // Registrar crédito se valor recebido > total
   if(creditoGerado > 0 && pacSelecionada?.id){
     await db.from('financeiro').insert({
-      tipo:'credito',
+      tipo:'receita',
       data:dataAtend,
-      descricao:'Crédito — ' + pacSelecionada.nome + ' (pago a mais em ' + descFin + ')',
-      categoria:'credito-paciente',
+      descricao:'💚 Crédito disponível — ' + pacSelecionada.nome + ' (pago a mais em ' + descFin + ')',
+      categoria:'Crédito Paciente',
       valor:creditoGerado,
       forma_pagamento:pgto,
-      status:'disponivel',
+      status:'pendente',
       paciente_id:pacSelecionada.id,
-      obs:'Gerado automaticamente: recebeu '+fmtBRL(valorRecebidoFinal)+' para procedimento de '+fmtBRL(valorTotal)
+      obs:'Crédito a abater no próximo procedimento. Recebeu '+fmtBRL(valorRecebidoFinal)+' para procedimento de '+fmtBRL(valorTotal)
     });
     toast('💚 Crédito de '+fmtBRL(creditoGerado)+' registrado para '+pacSelecionada.nome,'verde');
   }
