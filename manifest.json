@@ -6,27 +6,27 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#0F6E56",
+  "background_color": "#ffffff",
   "theme_color": "#0F6E56",
   "lang": "pt-BR",
   "categories": ["medical", "health", "productivity"],
   "icons": [
     {
-      "src": "logo.jpg",
+      "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/jpeg",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "logo.jpg",
+      "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/jpeg",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "logo.jpg",
+      "src": "icon-maskable.png",
       "sizes": "512x512",
-      "type": "image/jpeg",
+      "type": "image/png",
       "purpose": "maskable"
     }
   ],
@@ -36,37 +36,28 @@
       "short_name": "Hoje",
       "description": "Ver agenda e consultas do dia",
       "url": "./index.html?aba=hoje&utm_source=pwa_shortcut",
-      "icons": [{ "src": "logo.jpg", "sizes": "96x96", "type": "image/jpeg" }]
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Agenda",
       "short_name": "Agenda",
       "description": "Agendar consultas",
       "url": "./index.html?aba=agenda&utm_source=pwa_shortcut",
-      "icons": [{ "src": "logo.jpg", "sizes": "96x96", "type": "image/jpeg" }]
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Pacientes",
       "short_name": "Pacientes",
       "description": "Lista de pacientes",
       "url": "./index.html?aba=pacientes&utm_source=pwa_shortcut",
-      "icons": [{ "src": "logo.jpg", "sizes": "96x96", "type": "image/jpeg" }]
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Financeiro",
       "short_name": "Financeiro",
       "description": "Lançamentos e relatórios financeiros",
       "url": "./index.html?aba=financeiro&utm_source=pwa_shortcut",
-      "icons": [{ "src": "logo.jpg", "sizes": "96x96", "type": "image/jpeg" }]
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "logo.jpg",
-      "sizes": "540x720",
-      "type": "image/jpeg",
-      "form_factor": "narrow",
-      "label": "Tela principal — agenda e pacientes"
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }
