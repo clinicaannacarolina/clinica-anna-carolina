@@ -1761,9 +1761,10 @@ async function renderFinanceiro(){
   const { data: planos } = await db.from('planos_tratamento')
     .select('*').eq('paciente_id', pac.id).order('criado_em', { ascending: false });
 
-  // 2. Buscar TODOS os lançamentos financeiros do paciente
+  // 2. Buscar TODOS os lançamentos financeiros do paciente (receitas + créditos)
   const { data: lancamentos } = await db.from('financeiro')
-    .select('*').eq('paciente_id', pac.id).eq('tipo', 'receita')
+    .select('*').eq('paciente_id', pac.id)
+    .in('tipo', ['receita','credito'])
     .order('data', { ascending: false });
 
   const fins = lancamentos || [];
@@ -1782,13 +1783,16 @@ async function renderFinanceiro(){
   });
 
   // 4. Calcular totais globais
-  let totalGasto = 0, totalPago = 0, totalPendente = 0;
-  fins.forEach(l => {
+  const finsReceita = fins.filter(l => l.tipo === 'receita');
+  const finsCredito = fins.filter(l => l.tipo === 'credito' && l.status === 'disponivel');
+  let totalGasto = 0, totalPago = 0, totalPendente = 0, totalCredito = 0;
+  finsReceita.forEach(l => {
     const v = parseFloat(l.valor) || 0;
     totalGasto += v;
     if (l.status === 'recebido') totalPago += v;
     else totalPendente += v;
   });
+  finsCredito.forEach(l => { totalCredito += parseFloat(l.valor) || 0; });
   // Legado sem financeiro: usar tratamentos_adicionais
   const tratsLeg = pac.tratamentos_adicionais || [];
   if (!fins.length && tratsLeg.length) {
@@ -1812,7 +1816,31 @@ async function renderFinanceiro(){
     <div class="rc"><div class="ri" style="background:var(--verde-c)">💰</div><div><div class="rn">${fmtBRL(totalGasto)}</div><div class="rl">Total gasto</div></div></div>
     <div class="rc"><div class="ri" style="background:var(--verde-c)">✅</div><div><div class="rn">${fmtBRL(totalPago)}</div><div class="rl">Total pago</div></div></div>
     <div class="rc"><div class="ri" style="background:${totalPendente>0?'var(--amarelo-c)':'var(--verde-c)'}">⏳</div><div><div class="rn" style="color:${totalPendente>0?'var(--amarelo)':'var(--verde)'}">${totalPendente>0?fmtBRL(totalPendente):'Quitado'}</div><div class="rl">A receber</div></div></div>
+    ${totalCredito>0?`<div class="rc" style="border:2px solid var(--verde);background:var(--verde-c)"><div class="ri" style="background:#fff">💚</div><div><div class="rn" style="color:var(--verde-e)">${fmtBRL(totalCredito)}</div><div class="rl" style="color:var(--verde-e);font-weight:700">Crédito disponível</div></div></div>`:''}
   `;
+
+  // ── Renderizar créditos disponíveis ──
+  if(totalCredito > 0){
+    const credEl = document.getElementById('fin-historico');
+    const credHtml = `<div style="background:var(--verde-c);border:2px solid var(--verde);border-radius:12px;padding:14px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--verde-e)">💚 Crédito disponível</div>
+          <div style="font-size:12px;color:var(--verde-e);margin-top:2px">Pode ser usado no próximo atendimento</div>
+        </div>
+        <div style="font-size:20px;font-weight:700;color:var(--verde-e)">${fmtBRL(totalCredito)}</div>
+      </div>
+      <div style="margin-top:10px;border-top:1px solid rgba(0,0,0,.08);padding-top:8px">
+        ${finsCredito.map(l=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;color:var(--verde-e)">
+          <span>${escHtml(l.descricao||'Crédito')}</span>
+          <span style="font-weight:600">${fmtBRL(l.valor)} · ${fDt(l.data)}</span>
+        </div>`).join('')}
+      </div>
+    </div>`;
+    credEl.innerHTML = credHtml;
+  } else {
+    document.getElementById('fin-historico').innerHTML = '';
+  }
 
   // ── Renderizar card de plano ──
   function renderCardPlano(plano, lancsDoPlano) {

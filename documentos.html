@@ -510,6 +510,18 @@ textarea{resize:vertical}
       </div>
     </div>
 
+    <!-- Valor recebido / crédito -->
+    <div id="modal-credito-box">
+      <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Valor recebido (se diferente do total)</label>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:4px;flex-wrap:wrap">
+        <input type="number" id="modal-valor-recebido" min="0" step="0.01" placeholder="Deixe em branco se igual ao total"
+          style="flex:1;min-width:150px;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px"
+          oninput="calcCreditoOuDebito()"/>
+        <div id="modal-credito-info" style="font-size:12px;font-weight:600;display:none"></div>
+      </div>
+      <div id="modal-aviso-credito-pac" style="display:none;margin-top:6px;background:var(--verde-c);border:1.5px solid var(--verde);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;color:var(--verde-e)"></div>
+    </div>
+
     <!-- Observação -->
     <div>
       <label style="font-size:11px;font-weight:600;color:var(--ct);text-transform:uppercase;letter-spacing:.04em">Observação (opcional)</label>
@@ -2251,11 +2263,69 @@ function abrirModalRealizado(){
     </label>`).join('');
 
   atualizarTotalSelecionado();
+  // Limpar campo crédito e verificar saldo disponível
+  const vrInput = document.getElementById('modal-valor-recebido');
+  if(vrInput) vrInput.value = '';
+  const credInfo = document.getElementById('modal-credito-info');
+  if(credInfo){ credInfo.style.display='none'; }
+  verificarCreditoPaciente(pacSelecionada.id);
   document.getElementById('modal-realizado').style.display='flex';
 }
 
 
 // ── PAGAMENTO PARCIAL ──
+// ── Crédito / saldo a favor ──
+function calcCreditoOuDebito(){
+  const totalEl = document.getElementById('modal-total-sel');
+  const total = parseFloat((totalEl?.textContent||'').replace(/[^0-9,]/g,'').replace(',','.')) || 0;
+  const recebido = parseFloat(document.getElementById('modal-valor-recebido')?.value) || 0;
+  const info = document.getElementById('modal-credito-info');
+  if(!info) return;
+  if(!recebido || recebido === total){ info.style.display='none'; return; }
+  if(recebido > total){
+    const credito = recebido - total;
+    info.style.display='block';
+    info.style.color='var(--verde-e)';
+    info.textContent='💚 Crédito gerado: '+fmtBRL(credito)+' (será registrado como saldo a favor)';
+  } else {
+    const faltou = total - recebido;
+    info.style.display='block';
+    info.style.color='var(--amarelo)';
+    info.textContent='⚠️ Falta receber: '+fmtBRL(faltou);
+  }
+}
+
+// Verificar se paciente tem crédito ao abrir modal
+async function verificarCreditoPaciente(pacId){
+  if(!pacId) return;
+  try{
+    const {data} = await db.from('financeiro')
+      .select('valor,descricao')
+      .eq('paciente_id', pacId)
+      .eq('tipo','credito')
+      .eq('status','disponivel');
+    const total = (data||[]).reduce((s,l)=>s+(parseFloat(l.valor)||0),0);
+    const aviso = document.getElementById('modal-aviso-credito-pac');
+    if(!aviso) return;
+    if(total > 0){
+      aviso.style.display='block';
+      aviso.innerHTML='💰 Paciente tem <strong>'+fmtBRL(total)+'</strong> de crédito disponível — deseja usar neste atendimento? <button onclick="usarCreditoPaciente('+total+')" style="margin-left:8px;padding:3px 10px;background:var(--verde);color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">Usar crédito</button>';
+    } else {
+      aviso.style.display='none';
+    }
+  }catch(e){}
+}
+
+function usarCreditoPaciente(totalCredito){
+  const totalEl = document.getElementById('modal-total-sel');
+  const total = parseFloat((totalEl?.textContent||'').replace(/[^0-9,]/g,'').replace(',','.')) || 0;
+  const restante = Math.max(0, total - totalCredito);
+  document.getElementById('modal-valor-recebido').value = restante > 0 ? restante.toFixed(2) : '0';
+  calcCreditoOuDebito();
+  const aviso = document.getElementById('modal-aviso-credito-pac');
+  if(aviso) aviso.innerHTML='✅ Crédito de '+fmtBRL(totalCredito)+' será abatido neste atendimento.';
+}
+
 function toggleParcial(){
   const check = document.getElementById('modal-parcial-check').checked;
   const box = document.getElementById('modal-parcial-box');
@@ -2377,12 +2447,19 @@ if(!selecionados.length){toast('Marque ao menos um tratamento!','vermelho');retu
     const lembretaData=document.getElementById('modal-lembrete-data')?.value||null;
     const lembreteDias=parseInt(document.getElementById('modal-lembrete-dias')?.value)||30;
 
+    // Verificar valor recebido diferente (crédito ou débito)
+    const valorRecebidoInput = parseFloat(document.getElementById('modal-valor-recebido')?.value)||0;
+    const valorRecebidoFinal = valorRecebidoInput > 0 ? valorRecebidoInput : valorTotal;
+    const creditoGerado = valorRecebidoFinal > valorTotal ? valorRecebidoFinal - valorTotal : 0;
+    const debitoRestante = valorRecebidoFinal < valorTotal && !parcialCheck ? valorTotal - valorRecebidoFinal : 0;
+
     if(parcialCheck && entrada > 0 && restante > 0){
       // Lançar entrada como pago
       await db.from('financeiro').insert({
         tipo:'receita', data:dataAtend, descricao:descFin+' (entrada)',
         categoria:categoriaOrc, valor:entrada,
-        forma_pagamento:pgto, status:'recebido', obs:obs||null
+        forma_pagamento:pgto, status:'recebido', obs:obs||null,
+        paciente_id:pacSelecionada.id
       });
       // Lançar restante como pendente
       await db.from('financeiro').insert({
@@ -2390,7 +2467,8 @@ if(!selecionados.length){toast('Marque ao menos um tratamento!','vermelho');retu
         descricao:descFin+' (restante)',
         categoria:categoriaOrc, valor:restante,
         forma_pagamento:pgto, status:'pendente',
-        obs:`Vencimento em ${lembreteDias} dias`
+        obs:`Vencimento em ${lembreteDias} dias`,
+        paciente_id:pacSelecionada.id
       });
       // Criar lembrete no sistema
       if(lembretaData){
@@ -2411,6 +2489,10 @@ if(!selecionados.length){toast('Marque ao menos um tratamento!','vermelho');retu
         categoria:categoriaOrc, valor:valorTotal,
         forma_pagamento:pgto, status, obs:obs||null
       };
+      // Ajustar valor se recebeu diferente
+      if(valorRecebidoInput > 0 && valorRecebidoInput !== valorTotal){
+        objFin.valor = Math.min(valorRecebidoFinal, valorTotal);
+      }
       const{error:errFin}=await db.from('financeiro').insert(objFin);
       // Se crédito parcelado, criar parcelas futuras
       if(!errFin&&pgto.startsWith('credito-')&&pgto!=='credito-1x'){
@@ -2426,6 +2508,36 @@ if(!selecionados.length){toast('Marque ao menos um tratamento!','vermelho');retu
         if(extras.length) await db.from('financeiro').insert(extras);
       }
     }
+  }
+
+  // Registrar crédito se valor recebido > total
+  if(creditoGerado > 0 && pacSelecionada?.id){
+    await db.from('financeiro').insert({
+      tipo:'credito',
+      data:dataAtend,
+      descricao:'Crédito — ' + pacSelecionada.nome + ' (pago a mais em ' + descFin + ')',
+      categoria:'credito-paciente',
+      valor:creditoGerado,
+      forma_pagamento:pgto,
+      status:'disponivel',
+      paciente_id:pacSelecionada.id,
+      obs:'Gerado automaticamente: recebeu '+fmtBRL(valorRecebidoFinal)+' para procedimento de '+fmtBRL(valorTotal)
+    });
+    toast('💚 Crédito de '+fmtBRL(creditoGerado)+' registrado para '+pacSelecionada.nome,'verde');
+  }
+  // Registrar débito restante se recebeu menos (sem ser parcial)
+  if(debitoRestante > 0 && pacSelecionada?.id){
+    await db.from('financeiro').insert({
+      tipo:'receita',
+      data:dataAtend,
+      descricao:descFin+' (saldo pendente)',
+      categoria:categoriaOrc,
+      valor:debitoRestante,
+      forma_pagamento:pgto,
+      status:'pendente',
+      paciente_id:pacSelecionada.id,
+      obs:'Valor recebido: '+fmtBRL(valorRecebidoFinal)+' — faltou: '+fmtBRL(debitoRestante)
+    });
   }
 
   // Dar baixa automática nos produtos utilizados (se houver)
