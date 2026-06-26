@@ -565,7 +565,19 @@ textarea{resize:vertical;min-height:70px}
       <div id="rel-aniversariantes"></div>
     </div>
     <div class="card">
-      <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--txt)">⏰ Retornos vencidos (sem reagendamento)</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:13px;font-weight:600;color:var(--txt)">⏰ Retornos vencidos (sem reagendamento)</div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <select id="ret-venc-filtro" onchange="renderRetornosVencidos()" style="font-size:12px;padding:5px 10px;border:1.5px solid var(--borda);border-radius:8px">
+            <option value="0">Todos</option>
+            <option value="365">+ 1 ano</option>
+            <option value="180">+ 6 meses</option>
+            <option value="90">+ 90 dias</option>
+            <option value="30">+ 30 dias</option>
+          </select>
+          <button onclick="arquivarEmMassa()" style="font-size:12px;padding:5px 12px;border:1.5px solid var(--borda);border-radius:8px;background:var(--bg);color:var(--ct);cursor:pointer;font-family:inherit;font-weight:600">🗃️ Arquivar filtrados</button>
+        </div>
+      </div>
       <div id="rel-retornos-vencidos"></div>
     </div>
   </div>
@@ -4499,6 +4511,41 @@ Muitos parabéns! 🥳💚`);
 // ══════════════════════════════════════════
 // RETORNOS VENCIDOS
 // ══════════════════════════════════════════
+// cache dos vencidos para o arquivar em massa
+var _retVencidosCache=[];
+
+async function arquivarEmMassa(){
+  if(!_retVencidosCache.length){toast('Nenhum retorno para arquivar','vermelho');return;}
+  const filtro=parseInt(document.getElementById('ret-venc-filtro')?.value||0);
+  const lista=filtro>0?_retVencidosCache.filter(v=>v.diasAtraso>=filtro):_retVencidosCache;
+  if(!lista.length){toast('Nenhum retorno no filtro selecionado','vermelho');return;}
+  const label=filtro>0?`com mais de ${filtro} dias`:'todos';
+  if(!confirm(`Arquivar ${lista.length} retorno(s) ${label}? Eles não aparecerão mais nesta lista.`)) return;
+
+  // Agrupar por paciente para fazer 1 update por paciente
+  const porPac={};
+  lista.forEach(v=>{
+    if(!porPac[v.pac.id]) porPac[v.pac.id]={pac:v.pac,chaves:[]};
+    porPac[v.pac.id].chaves.push(v.chave);
+  });
+
+  let ok=0,erros=0;
+  await Promise.all(Object.values(porPac).map(async g=>{
+    const rs={...(g.pac.retornos_status||{})};
+    g.chaves.forEach(c=>{rs[c]='arquivado';});
+    const{error}=await db.from('pacientes').update({retornos_status:rs}).eq('id',g.pac.id);
+    if(error) erros++;
+    else{
+      g.pac.retornos_status=rs;
+      ok++;
+    }
+  }));
+
+  toast(`${lista.length} retorno(s) arquivados ✓`,'verde');
+  renderRetornosVencidos();
+  renderAlertas();
+}
+
 function renderRetornosVencidos(){
   const el=document.getElementById('rel-retornos-vencidos');
   if(!el) return;
@@ -4522,17 +4569,22 @@ function renderRetornosVencidos(){
     });
   });
 
-  // Ordenar por maior atraso
+  // Salvar cache completo antes de filtrar
   vencidos.sort((a,b)=>b.diasAtraso-a.diasAtraso);
+  _retVencidosCache=[...vencidos];
 
-  if(!vencidos.length){
-    el.innerHTML='<div style="color:var(--verde);font-size:13px;padding:.5rem 0">✅ Nenhum retorno vencido sem reagendamento!</div>';
+  // Aplicar filtro de período
+  const filtroMin=parseInt(document.getElementById('ret-venc-filtro')?.value||0);
+  const vencidosFiltrados=filtroMin>0?vencidos.filter(v=>v.diasAtraso>=filtroMin):vencidos;
+
+  if(!vencidosFiltrados.length){
+    el.innerHTML=`<div style="color:var(--verde);font-size:13px;padding:.5rem 0">✅ ${filtroMin>0?'Nenhum retorno com mais de '+filtroMin+' dias.':'Nenhum retorno vencido sem reagendamento!'}</div>`;
     return;
   }
 
   // Agrupar por paciente (um paciente pode ter múltiplos tratamentos vencidos)
   const porPac={};
-  vencidos.forEach(v=>{
+  vencidosFiltrados.forEach(v=>{
     if(!porPac[v.pac.id]) porPac[v.pac.id]={pac:v.pac,itens:[]};
     porPac[v.pac.id].itens.push(v);
   });
@@ -4541,7 +4593,10 @@ function renderRetornosVencidos(){
     Math.max(...b.itens.map(i=>i.diasAtraso))-Math.max(...a.itens.map(i=>i.diasAtraso))
   );
 
-  el.innerHTML=`<div style="font-size:12px;color:var(--ct);margin-bottom:10px">${vencidos.length} retorno${vencidos.length>1?'s':''} vencido${vencidos.length>1?'s':''} em ${grupos.length} paciente${grupos.length>1?'s':''}</div>`+
+  const totalFiltrado=vencidosFiltrados.length;
+  const totalGeral=_retVencidosCache.length;
+  const labelFiltro=filtroMin>0?` (filtrando +${filtroMin}d — ${totalGeral} no total)`:' ';
+  el.innerHTML=`<div style="font-size:12px;color:var(--ct);margin-bottom:10px">${totalFiltrado} retorno${totalFiltrado>1?'s':''} vencido${totalFiltrado>1?'s':''} em ${grupos.length} paciente${grupos.length>1?'s':''}${labelFiltro}</div>`+
     grupos.map(g=>{
       const p=g.pac;
       const tel=(p.telefone||'').replace(/\D/g,'');
