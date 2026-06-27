@@ -2431,11 +2431,15 @@ function calcCreditoOuDebito(){
 }
 
 // Verificar se paciente tem crédito ao abrir modal
+// IDs dos créditos a dar baixa quando confirmar
+var _creditosParaBaixar = [];
+
 async function verificarCreditoPaciente(pacId){
   if(!pacId) return;
+  _creditosParaBaixar = [];
   try{
     const {data} = await db.from('financeiro')
-      .select('valor,descricao')
+      .select('id,valor,descricao')
       .eq('paciente_id', pacId)
       .eq('tipo','receita')
       .eq('categoria','Crédito Paciente')
@@ -2445,19 +2449,21 @@ async function verificarCreditoPaciente(pacId){
     if(!aviso) return;
     if(total > 0){
       aviso.style.display='block';
-      aviso.innerHTML='💰 Paciente tem <strong>'+fmtBRL(total)+'</strong> de crédito disponível — deseja usar neste atendimento? <button onclick="usarCreditoPaciente('+total+')" style="margin-left:8px;padding:3px 10px;background:var(--verde);color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">Usar crédito</button>';
+      aviso.innerHTML='💰 Paciente tem <strong>'+fmtBRL(total)+'</strong> de crédito disponível — deseja usar neste atendimento? <button onclick="usarCreditoPaciente('+total+','+JSON.stringify((data||[]).map(l=>l.id)).replace(/"/g,"'")+')" style="margin-left:8px;padding:3px 10px;background:var(--verde);color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">Usar crédito</button>';
     } else {
       aviso.style.display='none';
     }
   }catch(e){}
 }
 
-function usarCreditoPaciente(totalCredito){
+function usarCreditoPaciente(totalCredito, ids){
   const totalEl = document.getElementById('modal-total-sel');
   const total = parseFloat((totalEl?.textContent||'').replace(/[^0-9,]/g,'').replace(',','.')) || 0;
   const restante = Math.max(0, total - totalCredito);
   document.getElementById('modal-valor-recebido').value = restante > 0 ? restante.toFixed(2) : '0';
   calcCreditoOuDebito();
+  // Guardar IDs para dar baixa ao confirmar
+  _creditosParaBaixar = Array.isArray(ids) ? ids : (typeof ids==='string'?ids.split(','):[]);
   const aviso = document.getElementById('modal-aviso-credito-pac');
   if(aviso) aviso.innerHTML='✅ Crédito de '+fmtBRL(totalCredito)+' será abatido neste atendimento.';
 }
@@ -2674,6 +2680,14 @@ if(!selecionados.length){toast('Marque ao menos um tratamento!','vermelho');retu
       paciente_id:pacSelecionada.id,
       obs:'Valor recebido: '+fmtBRL(valorRecebidoFinal)+' — faltou: '+fmtBRL(debitoRestante)
     });
+  }
+
+  // Dar baixa nos créditos usados (marcar como recebido)
+  if(_creditosParaBaixar && _creditosParaBaixar.length > 0){
+    await Promise.all(_creditosParaBaixar.map(id=>
+      db.from('financeiro').update({status:'recebido',obs:'Crédito utilizado em '+dataAtend}).eq('id',id)
+    ));
+    _creditosParaBaixar = [];
   }
 
   // Dar baixa automática nos produtos utilizados (se houver)
