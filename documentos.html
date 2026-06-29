@@ -3475,7 +3475,7 @@ window.confirmarRealizado = async function() {
         obs: descProcs || document.getElementById('orc-obs')?.value || null
       }).select().single();
 
-      if (ePlano) { console.error('[FIN DEBUG] Erro criar plano:', ePlano); toast('Erro ao criar plano: ' + ePlano.message, 'vermelho'); if (btn) { btn.disabled=false; btn.textContent='✅ Confirmar e registrar'; } return; }
+      if (ePlano) { toast('Erro ao criar plano: ' + ePlano.message, 'vermelho'); if (btn) { btn.disabled=false; btn.textContent='✅ Confirmar e registrar'; } return; }
       planoId = novoPlano?.id;
 
       // Inserir itens
@@ -3514,9 +3514,9 @@ window.confirmarRealizado = async function() {
           status: novoStatus, 
           data_realizacao: dataAtend 
         }).eq('id', r.itemId);
-        if (eItem) console.error('[FIN DEBUG] Erro atualizar item:', eItem, r);
+        
       } else {
-        console.warn('[FIN DEBUG] itemId não encontrado para:', r.trat);
+        
       }
     }
 
@@ -3852,7 +3852,7 @@ window.salvarDoc = async function(tipo) {
   toast('Orçamento salvo ✓', 'verde');
 };
 
-console.log('✅ Patch Plano de Tratamento carregado');
+
 </script>
 
 </body>
