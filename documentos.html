@@ -3670,8 +3670,6 @@ window.confirmarRealizado = async function() {
     document.getElementById('modal-parcial-box').style.display = 'none';
 
     // Oferecer agendar retorno se tiver data de verificação
-    const verData = document.getElementById('modal-ver-data')?.value;
-    const verDias = parseInt(document.getElementById('modal-ver-dias')?.value||0);
     if(verDias > 0 && verData && pacSelecionada){
       const realizados = window._modalRealizados || [];
       const descRetorno = realizados.length ? realizados.map(r=>r.trat).join(' + ') : 'Retorno';
