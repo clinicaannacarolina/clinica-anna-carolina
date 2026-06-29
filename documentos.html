@@ -3716,12 +3716,13 @@ async function confirmarAgendarRetorno(){
   try{
     const {error} = await db.from('agenda').insert({
       paciente_id: dados.paciente_id,
+      nome: dados.nome,
+      telefone: dados.telefone||null,
+      procedimento: 'Retorno — ' + dados.procedimento,
       data: data,
       hora: hora,
-      procedimento: dados.procedimento,
       status: 'agendado',
-      tipo: 'retorno',
-      obs: 'Retorno agendado automaticamente após procedimento'
+      observacao: 'Retorno agendado automaticamente'
     });
 
     if(error) throw error;
