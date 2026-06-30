@@ -383,7 +383,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-
 
 <script>
 const {createClient}=supabase;
-const db=createClient(SB_URL,SB_KEY);
+const db=sbClient();
 // Aviso automático: qualquer insert/update/delete/upsert que falhar mostra toast de erro,
 // mesmo que o código que chamou não verifique 'error' explicitamente.
 (function(){
