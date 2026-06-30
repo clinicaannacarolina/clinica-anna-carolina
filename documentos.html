@@ -980,7 +980,8 @@ async function excluirDoc(id){
   // Documentos comuns — exclusão simples
   if(doc.tipo!=='orcamento'){
     if(!confirm('Excluir este documento?'))return;
-    await db.from('documentos').delete().eq('id',id);
+    const{error:eDelDoc}=await db.from('documentos').delete().eq('id',id);
+    if(eDelDoc){toast('Erro ao excluir documento','vermelho');return;}
     toast('Documento excluído');carregarDocsSalvos();
     return;
   }
@@ -1026,7 +1027,8 @@ async function excluirDoc(id){
       const lancsDesc=[...(l1||[]),...(l2||[])];
       if(lancsDesc.length){
         const ids=lancsDesc.map(l=>l.id);
-        await db.from('financeiro').delete().in('id',ids);
+        const{error:eFinDel}=await db.from('financeiro').delete().in('id',ids);
+        if(eFinDel) console.warn('[fin-del]',eFinDel);
         const tot=lancsDesc.reduce((s,l)=>s+(l.valor||0),0);
         resumo.push(`${lancsDesc.length} lançamento(s) financeiro(s) (${tot.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})})`);
       }
@@ -1037,7 +1039,8 @@ async function excluirDoc(id){
     // 1. Excluir lançamentos financeiros vinculados
     const{data:lancs}=await db.from('financeiro').select('id,valor').eq('orcamento_id',planoId);
     if(lancs&&lancs.length){
-      await db.from('financeiro').delete().eq('orcamento_id',planoId);
+      const{error:eFinOrc}=await db.from('financeiro').delete().eq('orcamento_id',planoId);
+      if(eFinOrc) console.warn('[fin-orc]',eFinOrc);
       const totalFin=lancs.reduce((s,l)=>s+(l.valor||0),0);
       resumo.push(`${lancs.length} lançamento(s) financeiro(s) (${totalFin.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})})`);
     }
@@ -1048,16 +1051,20 @@ async function excluirDoc(id){
       for(const mov of movs){
         const{data:prod}=await db.from('produtos').select('quantidade').eq('id',mov.produto_id).single();
         if(prod){
-          await db.from('produtos').update({quantidade:(prod.quantidade||0)+(mov.quantidade||0)}).eq('id',mov.produto_id);
+          const{error:eProdQ}=await db.from('produtos').update({quantidade:(prod.quantidade||0)+(mov.quantidade||0)}).eq('id',mov.produto_id);
+          if(eProdQ) console.warn('[prod-qtd]',eProdQ);
         }
       }
-      await db.from('estoque_movimentos').delete().eq('plano_id',planoId).eq('tipo','uso');
+      const{error:eEstMov}=await db.from('estoque_movimentos').delete().eq('plano_id',planoId).eq('tipo','uso');
+      if(eEstMov) console.warn('[est-mov]',eEstMov);
       resumo.push(`${movs.length} produto(s) estornado(s) ao estoque`);
     }
 
     // 3. Excluir itens e plano de tratamento
-    await db.from('plano_itens').delete().eq('plano_id',planoId);
-    await db.from('planos_tratamento').delete().eq('id',planoId);
+    const{error:eItDel}=await db.from('plano_itens').delete().eq('plano_id',planoId);
+    if(eItDel) console.warn('[it-del]',eItDel);
+    const{error:ePlDel}=await db.from('planos_tratamento').delete().eq('id',planoId);
+    if(ePlDel) console.warn('[pl-del]',ePlDel);
     resumo.push('Plano de tratamento excluído');
 
     // Limpar estado em memória se for o plano ativo
@@ -1067,7 +1074,8 @@ async function excluirDoc(id){
   }
 
   // 4. Excluir o documento
-  await db.from('documentos').delete().eq('id',id);
+  const{error:eDocOrc}=await db.from('documentos').delete().eq('id',id);
+  if(eDocOrc){toast('Erro ao excluir orçamento','vermelho');return;}
 
   toast('Orçamento excluído ✓ '+(resumo.length?resumo.join(' · '):''),'verde');
   carregarDocsSalvos();
@@ -2655,14 +2663,15 @@ if(!selecionados.length){toast('Marque ao menos um tratamento!','vermelho');retu
 
     if(parcialCheck && entrada > 0 && restante > 0){
       // Lançar entrada como pago
-      await db.from('financeiro').insert({
+      const{error:eFinEnt}=await db.from('financeiro').insert({
         tipo:'receita', data:dataAtend, descricao:descFin+' (entrada)',
         categoria:categoriaOrc, valor:entrada,
         forma_pagamento:pgto, status:'recebido', obs:obs||null,
         paciente_id:pacSelecionada.id
       });
+      if(eFinEnt) console.warn('[fin-ent]',eFinEnt);
       // Lançar restante como pendente
-      await db.from('financeiro').insert({
+      const{error:eFinRest}=await db.from('financeiro').insert({
         tipo:'receita', data:lembretaData||dataAtend,
         descricao:descFin+' (restante)',
         categoria:categoriaOrc, valor:restante,
@@ -2670,6 +2679,7 @@ if(!selecionados.length){toast('Marque ao menos um tratamento!','vermelho');retu
         obs:`Vencimento em ${lembreteDias} dias`,
         paciente_id:pacSelecionada.id
       });
+      if(eFinRest) console.warn('[fin-rest]',eFinRest);
       // Criar lembrete no sistema
       if(lembretaData){
         const pacAtual2=pacs.find(p=>p.id===pacSelecionada.id);
@@ -2680,7 +2690,8 @@ if(!selecionados.length){toast('Marque ao menos um tratamento!','vermelho');retu
           tipo:'cobranca',
           criado_em:dataAtend
         });
-        await db.from('pacientes').update({lembretes}).eq('id',pacSelecionada.id);
+        const{error:eLemb}=await db.from('pacientes').update({lembretes}).eq('id',pacSelecionada.id);
+  if(eLemb) console.warn('[lembretes]',eLemb);
       }
     } else {
       // Pagamento normal
@@ -2705,14 +2716,14 @@ if(!selecionados.length){toast('Marque ao menos um tratamento!','vermelho');retu
           extras.push({...objFin,data:dt.toISOString().split('T')[0],valor:valorParc,
             descricao:`${descFin} (${i+1}/${parcelas})`,status:'pendente'});
         }
-        if(extras.length) await db.from('financeiro').insert(extras);
+        if(extras.length){ const{error:eExtras}=await db.from('financeiro').insert(extras); if(eExtras) console.warn('[fin-extras]',eExtras); }
       }
     }
   }
 
   // Registrar crédito se valor recebido > total
   if(creditoGerado > 0 && pacSelecionada?.id){
-    await db.from('financeiro').insert({
+    const{error:eFinCred}=await db.from('financeiro').insert({
       tipo:'receita',
       data:dataAtend,
       descricao:'💚 Crédito disponível — ' + pacSelecionada.nome + ' (pago a mais em ' + descFin + ')',
@@ -2727,7 +2738,7 @@ if(!selecionados.length){toast('Marque ao menos um tratamento!','vermelho');retu
   }
   // Registrar débito restante se recebeu menos (sem ser parcial)
   if(debitoRestante > 0 && pacSelecionada?.id){
-    await db.from('financeiro').insert({
+    const{error:eFinDeb}=await db.from('financeiro').insert({
       tipo:'receita',
       data:dataAtend,
       descricao:descFin+' (saldo pendente)',
@@ -2756,7 +2767,8 @@ if(!selecionados.length){toast('Marque ao menos um tratamento!','vermelho');retu
     const{data:docOrc}=await db.from('documentos').select('id,dados').eq('paciente_id',pacSelecionada.id).eq('tipo','orcamento').order('criado_em',{ascending:false}).limit(1);
     if(docOrc&&docOrc[0]){
       const dadosAtualiz={...docOrc[0].dados, produtos_baixados:true};
-      await db.from('documentos').update({dados:dadosAtualiz}).eq('id',docOrc[0].id);
+      const{error:eUpDoc}=await db.from('documentos').update({dados:dadosAtualiz}).eq('id',docOrc[0].id);
+  if(eUpDoc) console.warn('[upd-doc]',eUpDoc);
     }
   }
 
@@ -2887,7 +2899,8 @@ async function baixarProdutosEstoque(produtosUsados, pacienteId, planoId){
     const prod = _produtosEstoque.find(p=>p.id===item.produto_id);
     if(prod){
       const novaQtd = Math.max(0,(prod.quantidade||0)-item.qtd);
-      await db.from('produtos').update({quantidade:novaQtd}).eq('id',item.produto_id);
+      const{error:eProdUpd}=await db.from('produtos').update({quantidade:novaQtd}).eq('id',item.produto_id);
+        if(eProdUpd) console.warn('[prod-upd]',eProdUpd);
       prod.quantidade = novaQtd;
     }
   }
@@ -3303,7 +3316,8 @@ function renderItensPlano() {
 // Persiste a categoria/dente de um item já existente do plano (não eram salvos antes)
 async function atualizarCategoriaDenteItem(itemId, categoria, dente){
   if(!itemId) return;
-  await db.from('plano_itens').update({categoria, dente}).eq('id', itemId);
+  const{error:eItUpd}=await db.from('plano_itens').update({categoria, dente}).eq('id', itemId);
+        if(eItUpd) console.warn('[item-upd]',eItUpd);
   const item=window._planoAtual?.itens?.find(i=>i.id===itemId);
   if(item){ item.categoria=categoria; item.dente=dente; }
 }
@@ -3313,7 +3327,8 @@ async function cancelarItem(itemId, btn) {
   if (!confirm('Cancelar este procedimento do plano?')) return;
   
   if (window._planoAtual?.id) {
-    await db.from('plano_itens').update({ status: 'cancelado' }).eq('id', itemId);
+    const{error:eItCan}=await db.from('plano_itens').update({ status: 'cancelado' }).eq('id', itemId);
+        if(eItCan){ toast('Erro ao cancelar item','vermelho'); return; }
     // Atualizar localmente
     const item = window._planoAtual.itens.find(i => i.id === itemId);
     if (item) item.status = 'cancelado';
@@ -3506,9 +3521,10 @@ window.confirmarRealizado = async function() {
       planoId = novoPlano?.id;
 
       // Inserir itens
-      await db.from('plano_itens').insert(
+      const{error:eItIns}=await db.from('plano_itens').insert(
         todosItens.map(i => ({ ...i, plano_id: planoId, paciente_id: pacSelecionada.id }))
       );
+      if(eItIns){toast('Erro ao salvar itens do plano','vermelho');return;}
 
       // Buscar itens criados para ter os IDs
       const { data: itens } = await db.from('plano_itens').select('*').eq('plano_id', planoId);
@@ -3535,7 +3551,7 @@ window.confirmarRealizado = async function() {
       // Itens novos adicionados manualmente (sem correspondência no banco) — criar registro
       const semItemId = [...realizados, ...pendentes].filter(r => !r.itemId);
       if (semItemId.length) {
-        const { data: novosItens } = await db.from('plano_itens').insert(
+        const { data: novosItens, error: eNovosIt } = await db.from('plano_itens').insert(
           semItemId.map(r => ({
             plano_id: planoId,
             paciente_id: pacSelecionada.id,
@@ -3590,7 +3606,7 @@ window.confirmarRealizado = async function() {
       const descGrupo = itensGrupo.map(r => r.trat).join(' + ');
 
       if (valorPagoGrupo > 0) {
-        await db.from('financeiro').insert({
+        const{error:eFinPago}=await db.from('financeiro').insert({
           paciente_id: pacSelecionada.id,
           orcamento_id: planoId,
           tipo: 'receita',
@@ -3604,7 +3620,7 @@ window.confirmarRealizado = async function() {
         });
       } else if (totalGrupo > 0 && statusPgto === 'pendente' && !isParcial) {
         // Status marcado como A receber sem parcial
-        await db.from('financeiro').insert({
+        const{error:eFinPend}=await db.from('financeiro').insert({
           paciente_id: pacSelecionada.id,
           orcamento_id: planoId,
           tipo: 'receita',
@@ -3621,7 +3637,7 @@ window.confirmarRealizado = async function() {
       // Valor a receber (APENAS pagamento parcial; quando status='pendente' sem
       // parcial, o bloco acima já lançou o valor total do grupo)
       if (isParcial && valorPendenteGrupo > 0) {
-        await db.from('financeiro').insert({
+        const{error:eFinParc}=await db.from('financeiro').insert({
           paciente_id: pacSelecionada.id,
           orcamento_id: planoId,
           tipo: 'receita',
@@ -3695,7 +3711,7 @@ window.confirmarRealizado = async function() {
       });
     }
 
-    await db.from('pacientes').update({
+    const{error:ePacTrat}=await db.from('pacientes').update({
       tratamentos_adicionais: [...tratsAntigos, ...novosTrats],
       atendimentos: atsAtualizados,
       lembretes
@@ -3708,7 +3724,8 @@ window.confirmarRealizado = async function() {
       // Marcar orçamento como baixado (preserva produtos para histórico, mas não restaura no próximo)
       const{data:docOrc}=await db.from('documentos').select('id,dados').eq('paciente_id',pacSelecionada.id).eq('tipo','orcamento').order('criado_em',{ascending:false}).limit(1);
       if(docOrc&&docOrc[0]){
-        await db.from('documentos').update({dados:{...docOrc[0].dados,produtos_baixados:true}}).eq('id',docOrc[0].id);
+        const{error:eDocProd}=await db.from('documentos').update({dados:{...docOrc[0].dados,produtos_baixados:true}}).eq('id',docOrc[0].id);
+        if(eDocProd) console.warn('[doc-prod]',eDocProd);
       }
     }
     limparProdutosOrc();
@@ -3833,7 +3850,8 @@ window.salvarDoc = async function(tipo) {
   if (window._planoAtual?.id) {
     // Atualizar plano existente
     const descProcsUpd = itens.map(i => i.trat).join(' + ');
-    await db.from('planos_tratamento').update({ validade, condicoes_pagamento: condicoes, obs: descProcsUpd || obs, atualizado_em: new Date().toISOString() }).eq('id', window._planoAtual.id);
+    const{error:ePlUpd}=await db.from('planos_tratamento').update({ validade, condicoes_pagamento: condicoes, obs: descProcsUpd || obs, atualizado_em: new Date().toISOString() }).eq('id', window._planoAtual.id);
+    if(ePlUpd){toast('Erro ao atualizar plano','vermelho');return;}
 
     // Buscar itens existentes do plano para evitar duplicação
     const { data: itensExist } = await db.from('plano_itens').select('id,procedimento,valor,status').eq('plano_id', window._planoAtual.id);
@@ -3843,7 +3861,7 @@ window.salvarDoc = async function(tipo) {
       if (item.itemId) {
         usados.add(item.itemId);
         // Persiste categoria/dente também em itens já existentes (não eram salvos antes)
-        await db.from('plano_itens').update({ categoria: item.categoria, dente: item.dente }).eq('id', item.itemId);
+        const{error:eItCatUpd}=await db.from('plano_itens').update({ categoria: item.categoria, dente: item.dente }).eq('id', item.itemId);
         continue;
       }
       // Antes de inserir, verificar se já existe item igual não vinculado (mesmo procedimento + valor)
@@ -3853,7 +3871,7 @@ window.salvarDoc = async function(tipo) {
         Math.abs(parseFloat(ie.valor||0) - parseFloat(item.val||0)) < 0.01
       );
       if (match) { usados.add(match.id); continue; } // já existe — não duplica
-      const { data: novoItem } = await db.from('plano_itens').insert({
+      const { data: novoItem, error: eNovoIt } = await db.from('plano_itens').insert({
         plano_id: window._planoAtual.id,
         paciente_id: pacSelecionada.id,
         procedimento: item.trat,
@@ -3871,7 +3889,7 @@ window.salvarDoc = async function(tipo) {
   } else {
     // Criar novo plano + itens
     const descProcsOrc = itens.map(i => i.trat).join(' + ');
-    const { data: novoPlano } = await db.from('planos_tratamento').insert({
+    const { data: novoPlano, error: eNovoPlano } = await db.from('planos_tratamento').insert({
       paciente_id: pacSelecionada.id,
       status: 'ativo',
       validade,
@@ -3879,7 +3897,7 @@ window.salvarDoc = async function(tipo) {
       obs: descProcsOrc || obs
     }).select().single();
 
-    await db.from('plano_itens').insert(
+    const{error:eItensNovo}=await db.from('plano_itens').insert(
       itens.map(i => ({ plano_id: novoPlano.id, paciente_id: pacSelecionada.id, procedimento: i.trat, valor: i.val, categoria: i.categoria, dente: i.dente, status: 'orcado' }))
     );
 
@@ -3900,7 +3918,7 @@ window.salvarDoc = async function(tipo) {
   }
 
   // Também salvar na tabela documentos para histórico (com plano_id para exclusão em cascata)
-  await db.from('documentos').insert({
+  const{error:eDocOrcFinal}=await db.from('documentos').insert({
     paciente_id: pacSelecionada.id,
     tipo: 'orcamento',
     dados: {
