@@ -415,7 +415,7 @@ textarea{resize:vertical}
       </div>
     </div>
 
-    <div style="display:flex;gap:.75rem">
+    <div id="ret-acoes-1" style="display:flex;gap:.75rem">
       <button onclick="document.getElementById('modal-agendar-retorno').style.display='none'" 
         style="flex:1;padding:.75rem;border:1.5px solid var(--borda);border-radius:8px;background:var(--card);font-size:14px;cursor:pointer;font-family:inherit;color:var(--ct)">
         Agora não
@@ -424,6 +424,23 @@ textarea{resize:vertical}
         style="flex:2;padding:.75rem;border:none;border-radius:8px;background:var(--verde);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">
         📅 Agendar retorno
       </button>
+    </div>
+
+    <!-- Tela 2: sucesso + WhatsApp -->
+    <div id="ret-acoes-2" style="display:none">
+      <div style="background:var(--verde-c);border-radius:10px;padding:12px;margin-bottom:1rem;color:var(--verde-e);font-size:13px;font-weight:600">
+        ✅ Retorno agendado com sucesso!
+      </div>
+      <div style="display:flex;gap:.75rem">
+        <button onclick="document.getElementById('modal-agendar-retorno').style.display='none'" 
+          style="flex:1;padding:.75rem;border:1.5px solid var(--borda);border-radius:8px;background:var(--card);font-size:14px;cursor:pointer;font-family:inherit;color:var(--ct)">
+          Fechar
+        </button>
+        <a id="btn-whatsapp-retorno" href="#" target="_blank"
+          style="flex:2;padding:.75rem;border:none;border-radius:8px;background:#25D366;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px">
+          📲 Avisar no WhatsApp
+        </a>
+      </div>
     </div>
   </div>
 </div>
@@ -3685,6 +3702,8 @@ window.confirmarRealizado = async function() {
         procedimento: descRetorno,
         data: verData
       };
+      document.getElementById('ret-acoes-1').style.display='flex';
+      document.getElementById('ret-acoes-2').style.display='none';
       setTimeout(()=>document.getElementById('modal-agendar-retorno').style.display='flex', 400);
     }
 
@@ -3727,8 +3746,20 @@ async function confirmarAgendarRetorno(){
 
     if(error) throw error;
 
-    document.getElementById('modal-agendar-retorno').style.display='none';
     toast('📅 Retorno agendado para '+fDt(data)+' às '+hora+'!','verde');
+
+    // Montar link do WhatsApp com a mensagem
+    const tel = (dados.telefone||'').replace(/\D/g,'');
+    if(tel){
+      const primeiroNome = (dados.nome||'').split(' ')[0];
+      const msg = `Olá ${primeiroNome}! 😊\n\nSeu retorno para *${dados.procedimento}* foi agendado para *${fDt(data)} às ${hora}*.\n\nQualquer dúvida, estamos à disposição! 💚`;
+      document.getElementById('btn-whatsapp-retorno').href = 'https://wa.me/55'+tel+'?text='+encodeURIComponent(msg);
+      document.getElementById('ret-acoes-1').style.display='none';
+      document.getElementById('ret-acoes-2').style.display='block';
+    } else {
+      document.getElementById('modal-agendar-retorno').style.display='none';
+    }
+
     window._retornoParaAgendar = null;
   }catch(e){
     toast('Erro ao agendar: '+e.message,'vermelho');
