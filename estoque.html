@@ -667,7 +667,7 @@ async function salvarProduto(){
     // Lançar ajuste se quantidade foi alterada manualmente
     if(qtdNova!==qtdAnterior){
       const diff=qtdNova-qtdAnterior;
-      await db.from('estoque_movimentos').insert({
+      const{error:eMovAj}=await db.from('estoque_movimentos').insert({
         produto_id:id,
         tipo:'ajuste',
         quantidade:Math.abs(diff),
@@ -681,7 +681,7 @@ async function salvarProduto(){
     if(error){toast('Erro ao salvar: '+error.message,'vermelho');return;}
     // Lançar entrada inicial se quantidade > 0
     if(qtdNova>0&&data?.id){
-      await db.from('estoque_movimentos').insert({
+      const{error:eMovEnt}=await db.from('estoque_movimentos').insert({
         produto_id:data.id,
         tipo:'entrada',
         quantidade:qtdNova,
@@ -743,7 +743,8 @@ async function salvarEntradaRapida(){
   if(lote) atualizacao.lote_atual=lote;
   if(fabricacao) atualizacao.fabricacao_atual=fabricacao;
   if(validade) atualizacao.validade_atual=validade;
-  await db.from('produtos').update(atualizacao).eq('id',prodId);
+  const{error:eProdEnt}=await db.from('produtos').update(atualizacao).eq('id',prodId);
+  if(eProdEnt){toast('Erro ao registrar entrada','vermelho');return;}
   toast('Entrada registrada ✅','verde');
   const pEnt=_produtos.find(p=>p.id===prodId);
   await logAuditoria('Entrada de estoque', `${pEnt?.nome||prodId} · +${qtd} ${pEnt?.unidade||'un'}${lote?' · Lote: '+lote:''}`);
@@ -797,7 +798,8 @@ async function salvarMovimento(){
   if(tipo==='entrada'&&lote) atualizacaoMov.lote_atual=lote;
   if(tipo==='entrada'&&fabricacao) atualizacaoMov.fabricacao_atual=fabricacao;
   if(tipo==='entrada'&&validade) atualizacaoMov.validade_atual=validade;
-  await db.from('produtos').update(atualizacaoMov).eq('id',prodId);
+  const{error:eProdMov}=await db.from('produtos').update(atualizacaoMov).eq('id',prodId);
+  if(eProdMov){toast('Erro ao registrar movimentação','vermelho');return;}
   toast('Movimentação registrada ✓','verde');
   const pMov=_produtos.find(p=>p.id===prodId);
   await logAuditoria('Movimentação de estoque', `${pMov?.nome||prodId} · ${tipo} · ${qtd} ${pMov?.unidade||'un'}`);

@@ -1463,7 +1463,8 @@ async function excluirDoc(id){
   // Documentos comuns — exclusão simples
   if(doc.tipo!=='orcamento'){
     if(!confirm('Excluir este documento?')) return;
-    await db.from('documentos').delete().eq('id',id);
+    const{error:eDelDoc}=await db.from('documentos').delete().eq('id',id);
+    if(eDelDoc){toast('Erro ao excluir documento','vermelho');return;}
     toast('Documento excluído');
     await registrarHistorico('Documento excluído', `Tipo: ${doc.tipo} · Data: ${fDt(doc.data_assinatura||doc.criado_em?.split('T')[0])}`);
     renderDocumentos();
@@ -1507,7 +1508,8 @@ async function excluirDoc(id){
     const{data:l2}=await db.from('financeiro').select('id,valor').eq('paciente_id',doc.paciente_id).eq('descricao',descExata+' (restante)');
     const lancsDesc=[...(l1||[]),...(l2||[])];
     if(lancsDesc.length){
-      await db.from('financeiro').delete().in('id',lancsDesc.map(l=>l.id));
+      const{error:eFinDel}=await db.from('financeiro').delete().in('id',lancsDesc.map(l=>l.id));
+      if(eFinDel) console.warn('[fin-del]',eFinDel);
       const tot=lancsDesc.reduce((s,l)=>s+(l.valor||0),0);
       resumo.push(`${lancsDesc.length} lançamento(s) (${tot.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})})`);
     }
@@ -1517,7 +1519,8 @@ async function excluirDoc(id){
     // Lançamentos por orcamento_id
     const{data:lancs}=await db.from('financeiro').select('id,valor').eq('orcamento_id',planoId);
     if(lancs&&lancs.length){
-      await db.from('financeiro').delete().eq('orcamento_id',planoId);
+      const{error:eFinOrc}=await db.from('financeiro').delete().eq('orcamento_id',planoId);
+      if(eFinOrc) console.warn('[fin-orc]',eFinOrc);
       const totalFin=lancs.reduce((s,l)=>s+(l.valor||0),0);
       resumo.push(`${lancs.length} lançamento(s) por vínculo (${totalFin.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})})`);
     }
@@ -1527,19 +1530,22 @@ async function excluirDoc(id){
     if(movs&&movs.length){
       for(const mov of movs){
         const{data:prod}=await db.from('produtos').select('quantidade').eq('id',mov.produto_id).single();
-        if(prod) await db.from('produtos').update({quantidade:(prod.quantidade||0)+(mov.quantidade||0)}).eq('id',mov.produto_id);
+        if(prod){ const{error:eProdUpd}=await db.from('produtos').update({quantidade:(prod.quantidade||0)+(mov.quantidade||0)}).eq('id',mov.produto_id); if(eProdUpd) console.warn('[prod-upd]',eProdUpd); }
       }
-      await db.from('estoque_movimentos').delete().eq('plano_id',planoId).eq('tipo','uso');
+      const{error:eEstMov}=await db.from('estoque_movimentos').delete().eq('plano_id',planoId).eq('tipo','uso');
       resumo.push(`${movs.length} produto(s) estornado(s)`);
     }
 
     // Excluir plano + itens
-    await db.from('plano_itens').delete().eq('plano_id',planoId);
-    await db.from('planos_tratamento').delete().eq('id',planoId);
+    const{error:eItDel}=await db.from('plano_itens').delete().eq('plano_id',planoId);
+    if(eItDel) console.warn('[it-del]',eItDel);
+    const{error:ePlDel}=await db.from('planos_tratamento').delete().eq('id',planoId);
+    if(ePlDel) console.warn('[pl-del]',ePlDel);
     resumo.push('Plano excluído');
   }
 
-  await db.from('documentos').delete().eq('id',id);
+  const{error:eDocOrc}=await db.from('documentos').delete().eq('id',id);
+  if(eDocOrc){toast('Erro ao excluir orçamento','vermelho');return;}
   toast('Orçamento excluído ✓ '+(resumo.length?resumo.join(' · '):''),'verde');
   await registrarHistorico('Orçamento excluído', resumo.join(' · ')||'Orçamento removido');
   renderDocumentos();
@@ -1623,7 +1629,8 @@ async function salvarLembr(){
 
 async function delLembr(lid){
   const lembs=(pac.lembretes||[]).filter(l=>l.id!==lid);
-  await db.from('pacientes').update({lembretes:lembs}).eq('id',pac.id);
+  const{error:eLemb}=await db.from('pacientes').update({lembretes:lembs}).eq('id',pac.id);
+  if(eLemb) console.warn('[lemb]',eLemb);
   pac.lembretes=lembs;
   toast('Lembrete removido ✓');
   await registrarHistorico('Lembrete removido', 'Lembrete excluído da ficha');
@@ -2146,7 +2153,7 @@ async function adicionarPagamentoPlano(planoId, descPlano) {
     if (lancsPlano) {
       const tot = lancsPlano.reduce((s,l)=>s+(parseFloat(l.valor)||0),0);
       const pago = lancsPlano.filter(l=>l.status==='recebido').reduce((s,l)=>s+(parseFloat(l.valor)||0),0);
-      if (pago >= tot) await db.from('planos_tratamento').update({status:'quitado'}).eq('id', planoId);
+      if (pago >= tot){ const{error:ePlQuit}=await db.from('planos_tratamento').update({status:'quitado'}).eq('id', planoId); if(ePlQuit) console.warn('[pl-quit]',ePlQuit); }
     }
     document.body.removeChild(overlay);
     toast('Pagamento registrado ✅', 'verde');
@@ -2341,7 +2348,8 @@ async function removerFoto(){
   _fotoBase64=null;
   document.getElementById('foto-url-input').value='';
   pac.foto_url=null;
-  await db.from('pacientes').update({foto_url:null}).eq('id',pac.id);
+  const{error:eFotoRem}=await db.from('pacientes').update({foto_url:null}).eq('id',pac.id);
+  if(eFotoRem) console.warn('[foto-rem]',eFotoRem);
   document.getElementById('m-foto-pac').classList.remove('open');
   renderHero();
   toast('Foto removida','verde');

@@ -1004,7 +1004,8 @@ async function atualizarBadgeOnline(){
 // ── Bloqueio de horário ──
 async function desbloquearHorario(id){
   if(!confirm('Remover o bloqueio deste horário?')) return;
-  await db.from('agenda').delete().eq('id',id);
+  const{error:eDelBloq}=await db.from('agenda').delete().eq('id',id);
+  if(eDelBloq){toast('Erro ao remover bloqueio','vermelho');return;}
   toast('Bloqueio removido ✓','verde');
   logAuditoria('Bloqueio removido','Horário desbloqueado');
   carregarAgenda();
@@ -1554,7 +1555,8 @@ async function arquivarAlerta(pacId, nomeTrat){
   const chave = `${pacId}_${nomeTrat}`;
   const status = p.retornos_status||{};
   status[chave] = 'arquivado';
-  await db.from('pacientes').update({retornos_status:status}).eq('id',pacId);
+  const{error:eRetArq}=await db.from('pacientes').update({retornos_status:status}).eq('id',pacId);
+  if(eRetArq){toast('Erro ao arquivar alerta','vermelho');return;}
   // Atualizar local
   p.retornos_status = status;
   toast('Alerta arquivado ✓','verde');
@@ -2182,9 +2184,9 @@ async function salvarAtend(){
         procedimento:t.nome,valor:parseFloat(t.valor)||0,
         status:'pendente',data_realizacao:dataAtend
       }));
-      if(itens.length) await db.from('plano_itens').insert(itens);
+      if(itens.length){ const{error:eItIns}=await db.from('plano_itens').insert(itens); if(eItIns) console.warn('[it-ins]',eItIns); }
       // 4. Lançar receita no financeiro vinculada ao plano
-      await db.from('financeiro').insert({
+      const{error:eFinAtend}=await db.from('financeiro').insert({
         tipo:'receita',data:dataAtend,
         descricao:`${descProcedimentos} — ${pacNome}`,
         categoria:'Harmonização Orofacial',
@@ -3095,7 +3097,7 @@ async function salvarLancamento(){
         extras.push({...obj,data:dt.toISOString().split('T')[0],valor:valorParc,
           descricao:`${desc} (${i+1}/${parcelas})`,status:'pendente'});
       }
-      if(extras.length) await db.from('financeiro').insert(extras);
+      if(extras.length){ const{error:eExtras}=await db.from('financeiro').insert(extras); if(eExtras) console.warn('[extras]',eExtras); }
     }
   }
   
@@ -3117,7 +3119,8 @@ async function editarLancamento(id){
 
 async function excluirLancamento(id){
   if(!confirm('Excluir este lançamento?')) return;
-  await db.from('financeiro').delete().eq('id',id);
+  const{error:eFinExcl}=await db.from('financeiro').delete().eq('id',id);
+  if(eFinExcl){toast('Erro ao excluir lançamento','vermelho');return;}
   toast('Excluído ✓','verde');
   await logAuditoria('Lançamento financeiro excluído', `ID: ${id}`);
   carregarFinanceiro();
@@ -3158,7 +3161,7 @@ async function lancarReceitaAtendimento(pacNome, trats, dataAtend){
   const valorTotal = trats.reduce((s,t)=>s+(parseFloat(t.valor)||0),0);
   if(!valorTotal) return;
   const desc = trats.map(t=>t.nome).join(' + ');
-  await db.from('financeiro').insert({
+  const{error:eFinRap}=await db.from('financeiro').insert({
     tipo:'receita', data:dataAtend,
     descricao:`${desc} - ${pacNome}`,
     categoria:'Harmonização Orofacial',
@@ -3652,7 +3655,8 @@ async function salvarConsulta(){
       document.getElementById('m-fds').classList.add('open');
       return; // aguarda ação do usuário no modal
     }
-    await db.from('agenda').insert(recPayloads);
+    const{error:eAgRec}=await db.from('agenda').insert(recPayloads);
+    if(eAgRec){toast('Erro ao salvar consultas recorrentes','vermelho');return;}
     toast(`Consulta salva! ✓ (+ ${recQtd-1} repetição${recQtd-1>1?'ões':''} criadas)`,'verde');
   } else {
     toast(`Consulta salva! ✓`,'verde');
@@ -3676,7 +3680,8 @@ async function fdsManterTodas(){
 async function _fdsGravarEFechar(){
   document.getElementById('m-fds').classList.remove('open');
   const qtd=window._fdsQtd||2;
-  await db.from('agenda').insert(window._fdsPayloads);
+  const{error:eAgFds}=await db.from('agenda').insert(window._fdsPayloads);
+  if(eAgFds){toast('Erro ao salvar consultas','vermelho');return;}
   toast(`Consulta salva! ✓ (+ ${qtd-1} repetição${qtd-1>1?'ões':''} criadas)`,'verde');
   const data=window._fdsPayloadPrincipal?.data||agDia;
   agDia=data;fchAg();carregarAgenda();
@@ -4236,7 +4241,8 @@ async function fecharDia(){
   if(!pend.length){toast('Nenhuma consulta pendente — dia já encerrado!','verde');return;}
   if(!confirm(`Marcar ${pend.length} consulta${pend.length!==1?'s':''} pendente${pend.length!==1?'s':''} como "faltou"?`)) return;
   for(const c of pend){
-    await db.from('agenda').update({status:'faltou'}).eq('id',c.id);
+    const{error:eFaltou}=await db.from('agenda').update({status:'faltou'}).eq('id',c.id);
+    if(eFaltou) console.warn('[faltou]',eFaltou);
   }
   toast(`${pend.length} consulta${pend.length!==1?'s':''} marcada${pend.length!==1?'s':''} como faltou`,'verde');
   await carregarAgenda();
@@ -4286,7 +4292,8 @@ async function renderPedidosOnline(){
 }
 
 async function aprovarPedido(id){
-  await db.from('agenda').update({status:'agendado'}).eq('id',id);
+  const{error:eAprova}=await db.from('agenda').update({status:'agendado'}).eq('id',id);
+  if(eAprova){toast('Erro ao aprovar pedido','vermelho');return;}
   toast('✅ Pedido aprovado! Paciente pode ser notificada.','verde');
   await carregarAgenda();
   renderPedidosOnline();
@@ -4294,7 +4301,8 @@ async function aprovarPedido(id){
 
 async function rejeitarPedido(id, tel, nome){
   if(!confirm(`Recusar o pedido de ${nome}?`)) return;
-  await db.from('agenda').update({status:'cancelado'}).eq('id',id);
+  const{error:eRejeita}=await db.from('agenda').update({status:'cancelado'}).eq('id',id);
+  if(eRejeita){toast('Erro ao rejeitar pedido','vermelho');return;}
   if(tel){
     const telF='55'+tel.replace(/\D/g,'');
     const msg=`Olá ${nome.split(' ')[0]}! 😊\n\nInfelizmente o horário solicitado não está mais disponível.\n\nPor favor, acesse o link de agendamento para escolher outro horário, ou entre em contato diretamente.\n\nDra. Anna Carolina Dias — (17) 98211-3940`;
