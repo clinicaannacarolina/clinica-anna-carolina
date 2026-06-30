@@ -3522,6 +3522,26 @@ window.confirmarRealizado = async function() {
           if (item) r.itemId = item.id;
         }
       });
+      // Itens novos adicionados manualmente (sem correspondência no banco) — criar registro
+      const semItemId = [...realizados, ...pendentes].filter(r => !r.itemId);
+      if (semItemId.length) {
+        const { data: novosItens } = await db.from('plano_itens').insert(
+          semItemId.map(r => ({
+            plano_id: planoId,
+            paciente_id: pacSelecionada.id,
+            procedimento: r.trat,
+            valor: r.val,
+            categoria: r.categoria || 'Harmonização Orofacial',
+            dente: r.dente || '',
+            status: 'orcado'
+          }))
+        ).select();
+        if (novosItens) {
+          semItemId.forEach((r, idx) => { r.itemId = novosItens[idx]?.id; });
+          // Atualizar window._planoAtual.itens com os novos itens
+          if (window._planoAtual?.itens) window._planoAtual.itens.push(...novosItens);
+        }
+      }
     }
 
     for (const r of realizados) {
@@ -3531,9 +3551,15 @@ window.confirmarRealizado = async function() {
           status: novoStatus, 
           data_realizacao: dataAtend 
         }).eq('id', r.itemId);
-        
-      } else {
-        
+
+        // Atualizar localmente em window._planoAtual para refletir na tela
+        if (!eItem && window._planoAtual?.itens) {
+          const itemLocal = window._planoAtual.itens.find(i => i.id === r.itemId);
+          if (itemLocal) {
+            itemLocal.status = novoStatus;
+            itemLocal.data_realizacao = dataAtend;
+          }
+        }
       }
     }
 
@@ -3678,9 +3704,11 @@ window.confirmarRealizado = async function() {
     limparProdutosOrc();
 
     toast('Atendimento e lançamento financeiro registrados! ✓', 'verde');
-    
-    // Não recarregar do banco — apenas limpar produtos (já baixados)
-    limparProdutosOrc();
+
+    // Re-renderizar a tela de itens do orçamento com os status atualizados
+    renderItensPlano();
+    calcTotal();
+
     // Fechar modal
     document.getElementById('modal-realizado').style.display = 'none';
     document.getElementById('modal-parcial-check').checked = false;
