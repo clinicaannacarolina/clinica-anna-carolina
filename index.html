@@ -2043,8 +2043,8 @@ async function renderRelExec(){
 }
 
 // WHATSAPP
-function abrRet(p,trat){mWppPac=p;mWppTipo='ret';mWppTrat=trat||null;document.getElementById('m-titulo').textContent='🔔 Lembrete de retorno';document.getElementById('m-tel').textContent=p.telefone;document.getElementById('m-msg').textContent=msgRetorno(p);document.getElementById('m-marcar').style.display='inline-flex';document.getElementById('m-enviar').className='btn wpp';document.getElementById('m-wpp').classList.add('open');}
-function abrAniv(p){mWppPac=p;mWppTipo='aniv';document.getElementById('m-titulo').textContent='🎂 Parabéns';document.getElementById('m-tel').textContent=p.telefone;document.getElementById('m-msg').textContent=msgAniv(p);document.getElementById('m-marcar').style.display='none';document.getElementById('m-enviar').className='btn anv';document.getElementById('m-wpp').classList.add('open');}
+function abrRet(p,trat){mWppPac=p;mWppTipo='ret';mWppTrat=trat||null;document.getElementById('m-titulo').textContent='🔔 Lembrete de retorno';document.getElementById('m-tel').textContent=p.telefone;document.getElementById('m-msg').textContent=msgRetorno(p);document.getElementById('m-marcar').style.display='inline-flex';document.getElementById('m-enviar').className='btn wpp';const _mWpp=document.getElementById('m-wpp');_mWpp.dataset.abertoEm=Date.now();_mWpp.classList.add('open');}
+function abrAniv(p){mWppPac=p;mWppTipo='aniv';document.getElementById('m-titulo').textContent='🎂 Parabéns';document.getElementById('m-tel').textContent=p.telefone;document.getElementById('m-msg').textContent=msgAniv(p);document.getElementById('m-marcar').style.display='none';document.getElementById('m-enviar').className='btn anv';const _mWpp=document.getElementById('m-wpp');_mWpp.dataset.abertoEm=Date.now();_mWpp.classList.add('open');}
 function fchWpp(){document.getElementById('m-wpp').classList.remove('open');}
 function abrWpp(){if(!mWppPac)return;const tel='55'+mWppPac.telefone.replace(/\D/g,'');const msg=mWppTipo==='aniv'?msgAniv(mWppPac):msgRetorno(mWppPac);window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`,'_blank');fchWpp();}
 async function marcarEnviado(){
@@ -2052,13 +2052,18 @@ async function marcarEnviado(){
   await setStatusRetorno(mWppPac.id, mWppTrat, 'aguardando');
   fchWpp();
 }
-document.getElementById('m-wpp').addEventListener('click',e=>{if(e.target===e.currentTarget)fchWpp();});
+document.getElementById('m-wpp').addEventListener('click',e=>{
+  if(e.target!==e.currentTarget) return;
+  const _abEm=parseInt(document.getElementById('m-wpp').dataset.abertoEm||'0');
+  if(Date.now()-_abEm<400) return;
+  fchWpp();
+});
 
 // EDITAR
 function abrEdit(p){
   document.getElementById('e-id').value=p.id;document.getElementById('e-nome').value=p.nome;document.getElementById('e-apelido').value=p.apelido||'';document.getElementById('e-tel').value=p.telefone;document.getElementById('e-nasc').value=p.data_nascimento||'';document.getElementById('e-cpf').value=p.cpf||'';document.getElementById('e-rg').value=p.rg||'';document.getElementById('e-sexo').value=p.sexo||'';document.getElementById('e-cep').value=p.cep||'';document.getElementById('e-rua').value=p.rua||p.endereco||'';document.getElementById('e-numero').value=p.numero||'';document.getElementById('e-bairro').value=p.bairro||'';document.getElementById('e-cidade').value=p.cidade||'';document.getElementById('e-data').value=p.data_atendimento||'';document.getElementById('e-obs').value=p.observacoes||'';document.getElementById('e-drive').value=p.link_drive||'';document.getElementById('e-indic').value=p.indicacao||'';if(document.getElementById('e-instagram'))document.getElementById('e-instagram').value=p.instagram||'';if(document.getElementById('e-facebook'))document.getElementById('e-facebook').value=p.facebook||'';
   document.getElementById('m-edit-titulo').textContent='✏️ Editar dados pessoais';
-  document.getElementById('m-edit').classList.add('open');
+  const _mEdit=document.getElementById('m-edit');_mEdit.dataset.abertoEm=Date.now();_mEdit.classList.add('open');
 }
 function fchEdit(){document.getElementById('m-edit').classList.remove('open');}
 async function salvarEdit(){
@@ -2070,12 +2075,17 @@ async function salvarEdit(){
   if(error){toast('Erro: '+error.message,'vermelho');return;}
   toast(`${nome} atualizado!`,'verde');fchEdit();carregar();
 }
-document.getElementById('m-edit').addEventListener('click',e=>{if(e.target===e.currentTarget)fchEdit();});
+document.getElementById('m-edit').addEventListener('click',e=>{
+  if(e.target!==e.currentTarget) return;
+  const _abEm=parseInt(document.getElementById('m-edit').dataset.abertoEm||'0');
+  if(Date.now()-_abEm<400) return;
+  fchEdit();
+});
 
 function completarCad(p){
   document.getElementById('e-id').value=p.id;document.getElementById('e-nome').value=p.nome;document.getElementById('e-apelido').value='';document.getElementById('e-tel').value=p.telefone;document.getElementById('e-nasc').value='';document.getElementById('e-data').value=HOJE_STR;document.getElementById('e-obs').value='';document.getElementById('e-drive').value='';document.getElementById('e-indic').value='';
   document.getElementById('m-edit-titulo').textContent='✏️ Completar cadastro';
-  document.getElementById('m-edit').classList.add('open');
+  const _mEdit=document.getElementById('m-edit');_mEdit.dataset.abertoEm=Date.now();_mEdit.classList.add('open');
 }
 
 // ATENDIMENTO
@@ -2144,7 +2154,7 @@ function abrAtend(p){
   if(tratsHoje.length>0)tratsHoje.forEach(t=>addTratComDataPreenchido('a-trats',t.nome,t.prazo,t.valor||''));
   else addTratComData('a-trats');
   renderHistorico(p);
-  document.getElementById('m-atend').classList.add('open');
+  const _mAtend=document.getElementById('m-atend');_mAtend.dataset.abertoEm=Date.now();_mAtend.classList.add('open');
 }
 function fchAtend(){document.getElementById('m-atend').classList.remove('open');}
 
@@ -2203,7 +2213,12 @@ async function salvarAtend(){
   const pac=pacs.find(p=>p.id===id);if(pac)renderHistorico(pac);
   document.getElementById('a-trats').innerHTML='';addTratComData('a-trats');document.getElementById('a-data').value=HOJE_STR;document.getElementById('a-ver-dias').value=15;atualizarVerLabel(HOJE_STR);
 }
-document.getElementById('m-atend').addEventListener('click',e=>{if(e.target===e.currentTarget)fchAtend();});
+document.getElementById('m-atend').addEventListener('click',e=>{
+  if(e.target!==e.currentTarget) return;
+  const _abEm=parseInt(document.getElementById('m-atend').dataset.abertoEm||'0');
+  if(Date.now()-_abEm<400) return;
+  fchAtend();
+});
 
 // ── DOCUMENTOS RÁPIDOS ──
 const DOCS_TIPOS=[
@@ -3190,14 +3205,19 @@ async function abrDocs(p){
       <a href="documentos.html?pac=${p.id}" class="btn" aria-label="Ver documento" style="padding:5px 10px;font-size:12px">👁 Ver</a>
     </div>`).join('');
   }
-  document.getElementById('m-docs').classList.add('open');
+  const _mDocs=document.getElementById('m-docs');_mDocs.dataset.abertoEm=Date.now();_mDocs.classList.add('open');
 }
 function fchDocs(){document.getElementById('m-docs').classList.remove('open');}
 function abrirDocRapido(tipo,pacId){fchDocs();window.location.href=`documentos.html?pac=${pacId}&doc=${tipo}`;}
-document.getElementById('m-docs').addEventListener('click',e=>{if(e.target===e.currentTarget)fchDocs();});
+document.getElementById('m-docs').addEventListener('click',e=>{
+  if(e.target!==e.currentTarget) return;
+  const _abEm=parseInt(document.getElementById('m-docs').dataset.abertoEm||'0');
+  if(Date.now()-_abEm<400) return;
+  fchDocs();
+});
 
 // LEMBRETE
-function abrLembr(pid){document.getElementById('l-pid').value=pid;document.getElementById('l-recado').value='';document.getElementById('l-prazo').value='90';document.getElementById('l-data-g').style.display='none';document.getElementById('m-lembr').classList.add('open');}
+function abrLembr(pid){document.getElementById('l-pid').value=pid;document.getElementById('l-recado').value='';document.getElementById('l-prazo').value='90';document.getElementById('l-data-g').style.display='none';const _mLembr=document.getElementById('m-lembr');_mLembr.dataset.abertoEm=Date.now();_mLembr.classList.add('open');}
 function fchLembr(){document.getElementById('m-lembr').classList.remove('open');}
 async function salvarLembr(){
   const pid=document.getElementById('l-pid').value;const recado=document.getElementById('l-recado').value.trim();const prazo=document.getElementById('l-prazo').value;let dt=document.getElementById('l-data').value;
@@ -3213,7 +3233,12 @@ async function delLembr(pid,lid){
   const{error}=await db.from('pacientes').update({lembretes:lems}).eq('id',pid);
   if(error){toast('Erro','vermelho');return;}toast('Lembrete concluído ✓','verde');carregar();
 }
-document.getElementById('m-lembr').addEventListener('click',e=>{if(e.target===e.currentTarget)fchLembr();});
+document.getElementById('m-lembr').addEventListener('click',e=>{
+  if(e.target!==e.currentTarget) return;
+  const _abEm=parseInt(document.getElementById('m-lembr').dataset.abertoEm||'0');
+  if(Date.now()-_abEm<400) return;
+  fchLembr();
+});
 
 // SALVAR PACIENTE
 function limpar(){
@@ -4167,7 +4192,7 @@ function abrirDisparoLembretes(){
   _lembConsultas = consultas.filter(c=>c.data===amanhaStr&&c.status!=='cancelado'&&c.status!=='confirmado'&&c.telefone);
   if(!_lembConsultas.length){ toast('Todas as consultas já estão confirmadas!','verde'); return; }
   _lembIdx = 0;
-  document.getElementById('m-lembretes').classList.add('open');
+  const _elLemb=document.getElementById('m-lembretes');_elLemb.dataset.abertoEm=Date.now();_elLemb.classList.add('open');
   renderLembretesModal();
 }
 
@@ -4331,7 +4356,7 @@ function abrirConfAgOnline(){
   if(mAg) mAg.classList.remove('open');
   const m=document.getElementById('m-ag-online');
   if(!m){console.error('[confAgOnline] não encontrado');return;}
-  m.classList.add('open');
+  m.dataset.abertoEm=Date.now();m.classList.add('open');
   const conf=JSON.parse(localStorage.getItem('conf_ag_online')||'{}');
   if(document.getElementById('cao-ativo')) document.getElementById('cao-ativo').checked = conf.ativo !== false;
   if(document.getElementById('cao-hora-ini')) document.getElementById('cao-hora-ini').value = conf.hora_ini||'09:00';
@@ -4730,7 +4755,7 @@ function salvarTemplates(){
 // ITEM 8 — BUSCA GLOBAL
 // ══════════════════════════════════════════
 function abrirBuscaGlobal(){
-  document.getElementById('m-busca-global').classList.add('open');
+  const _elBG=document.getElementById('m-busca-global');_elBG.dataset.abertoEm=Date.now();_elBG.classList.add('open');
   const inp=document.getElementById('bg-input');
   inp.value='';
   document.getElementById('bg-resultados').innerHTML='<div style="text-align:center;padding:1rem;color:var(--ct);font-size:13px">Digite para buscar...</div>';
@@ -5153,7 +5178,12 @@ document.getElementById('modal-mrec').addEventListener('click',function(e){if(e.
   </div>
 </div>
 <script>
-document.getElementById('m-ag-online').addEventListener('click',e=>{if(e.target===e.currentTarget){e.currentTarget.classList.remove('open');e.currentTarget.style.display='';}});
+document.getElementById('m-ag-online').addEventListener('click',e=>{
+  if(e.target!==e.currentTarget) return;
+  const _abEm=parseInt(e.currentTarget.dataset.abertoEm||'0');
+  if(Date.now()-_abEm<400) return;
+  e.currentTarget.classList.remove('open');e.currentTarget.style.display='';
+});
 // Preencher dias da semana no HTML (innerHTML não funciona em atributos)
 (function(){
   const DIAS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
@@ -5199,7 +5229,12 @@ document.getElementById('m-ag-online').addEventListener('click',e=>{if(e.target=
   </div>
 </div>
 <script>
-document.getElementById('m-lembretes').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.classList.remove('open');});
+document.getElementById('m-lembretes').addEventListener('click',e=>{
+  if(e.target!==e.currentTarget) return;
+  const _abEm=parseInt(e.currentTarget.dataset.abertoEm||'0');
+  if(Date.now()-_abEm<400) return;
+  e.currentTarget.classList.remove('open');
+});
 </script>
 
 <!-- MODAL BUSCA GLOBAL -->
@@ -5218,7 +5253,12 @@ document.getElementById('m-lembretes').addEventListener('click',e=>{if(e.target=
 </div>
 <style>.bg-item:hover{background:var(--verde-c)!important}</style>
 <script>
-document.getElementById('m-busca-global').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.classList.remove('open');});
+document.getElementById('m-busca-global').addEventListener('click',e=>{
+  if(e.target!==e.currentTarget) return;
+  const _abEm=parseInt(e.currentTarget.dataset.abertoEm||'0');
+  if(Date.now()-_abEm<400) return;
+  e.currentTarget.classList.remove('open');
+});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('m-busca-global')?.classList.remove('open');});
 </script>
 
@@ -5244,7 +5284,12 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementB
   </div>
 </div>
 <script>
-document.getElementById('m-templates').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.classList.remove('open');});
+document.getElementById('m-templates').addEventListener('click',e=>{
+  if(e.target!==e.currentTarget) return;
+  const _abEm=parseInt(e.currentTarget.dataset.abertoEm||'0');
+  if(Date.now()-_abEm<400) return;
+  e.currentTarget.classList.remove('open');
+});
 </script>
 
 <!-- MODAL VINCULAR PACIENTE -->
@@ -5273,7 +5318,7 @@ function abrirVincular(c){
   busca.value='';
   busca.oninput=filtrarVincular;
   filtrarVincular();
-  document.getElementById('m-vincular').classList.add('open');
+  const _mVinc=document.getElementById('m-vincular');_mVinc.dataset.abertoEm=Date.now();_mVinc.classList.add('open');
   setTimeout(()=>busca.focus(),150);
 }
 
@@ -5326,7 +5371,12 @@ async function confirmarVinculo(pac){
   await carregarAgenda();
 }
 
-document.getElementById('m-vincular').addEventListener('click',e=>{if(e.target===e.currentTarget)fchVincular();});
+document.getElementById('m-vincular').addEventListener('click',e=>{
+  if(e.target!==e.currentTarget) return;
+  const _abEm=parseInt(document.getElementById('m-vincular').dataset.abertoEm||'0');
+  if(Date.now()-_abEm<400) return;
+  fchVincular();
+});
 </script>
 </body>
 </html>
