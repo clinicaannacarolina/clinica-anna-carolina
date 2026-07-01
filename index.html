@@ -3654,7 +3654,22 @@ async function salvarConsulta(){
     ? payloadBase  // edição: não altera status nem serie_id
     : {...payloadBase,status:'agendado',serie_id:serieId};  // novo: define status e serie_id
   const btn=document.getElementById('ag-salvar-btn');btn.disabled=true;btn.textContent='Salvando...';
-  const{error}=aid?await db.from('agenda').update(payload).eq('id',aid):await db.from('agenda').insert(payload);
+  let error;
+  if(aid){
+    // .select() retorna as linhas afetadas — array vazio = RLS bloqueou silenciosamente
+    const res=await db.from('agenda').update(payload).eq('id',aid).select();
+    error=res.error;
+    if(!error&&(!res.data||res.data.length===0)){
+      btn.disabled=false;btn.innerHTML='✓ Salvar';
+      const a=JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+      console.warn('[agenda.update] 0 linhas afetadas. aid=',aid,'temJWT=',!!a.access_token,'expires=',a.expires,'agora=',Date.now());
+      toast(a.access_token?'Sem permissão para editar. Tente sair e entrar novamente.':'Sessão expirada — faça login novamente.','vermelho');
+      return;
+    }
+  } else {
+    const res=await db.from('agenda').insert(payload);
+    error=res.error;
+  }
   btn.disabled=false;btn.innerHTML='✓ Salvar';
   if(error){toast('Erro: '+error.message,'vermelho');return;}
   if(!aid&&!agPacId&&tel){const telL=tel.replace(/\D/g,'');const jaExiste=pacs.find(p=>p.telefone.replace(/\D/g,'')===telL||p.nome.toLowerCase().trim()===nome.toLowerCase().trim());if(!jaExiste){await db.from('pacientes').insert({nome,telefone:tel,tratamento:document.getElementById('ag-proc').value||null,cadastro_pendente:true});await carregar();}}
@@ -4270,8 +4285,14 @@ async function confirmarConsulta(id){
 }
 
 async function marcarStatus(id, status){
-  const{error}=await db.from('agenda').update({status}).eq('id',id);
-  if(error){toast('Erro ao atualizar','vermelho');return;}
+  const res=await db.from('agenda').update({status}).eq('id',id).select();
+  if(res.error){toast('Erro ao atualizar','vermelho');return;}
+  if(!res.data||res.data.length===0){
+    const a=JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+    console.warn('[agenda.marcarStatus] 0 linhas afetadas. temJWT=',!!a.access_token,'expires=',a.expires,'agora=',Date.now());
+    toast(a.access_token?'Sem permissão para atualizar.':'Sessão expirada — faça login novamente.','vermelho');
+    return;
+  }
   const msgs={realizado:'✅ Marcado como realizado!',faltou:'❌ Marcado como faltou',pendente:'↩ Status revertido'};
   toast(msgs[status]||'Atualizado','verde');
   // Atualiza localmente na memória ANTES de rebuscar, garante que a tela
