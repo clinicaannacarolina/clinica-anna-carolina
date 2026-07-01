@@ -158,6 +158,10 @@ textarea{resize:vertical}
     <h1>📄 Documentos — Dra. Anna Carolina Dias</h1>
   </div>
   <div id="hdr-pac" style="font-size:12px;opacity:.8"></div>
+
+  <div style="display:flex;align-items:center;gap:8px">
+    <div id="inatividade-timer" title="Tempo até logout por inatividade" style="display:flex;align-items:center;gap:4px;padding:4px 9px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;font-size:12px;font-weight:600;color:#fff;min-width:62px;justify-content:center;transition:background .4s,border-color .4s"><span id="inatividade-icon">🟢</span><span id="inatividade-tempo">60:00</span></div>
+  </div>
 </header>
 
 <main class="main">
@@ -881,12 +885,17 @@ textarea{resize:vertical}
     </div>
   </div>
 <script>
-// Wrapper autenticado: usa sbClient() do config.js (JWT do usuário logado)
-// necessário para RLS de escrita (insert/update/delete).
+const {createClient}=supabase;
+const _noOp={getItem:()=>null,setItem:()=>{},removeItem:()=>{}};
 const _ACAO_ERR={insert:'salvar',update:'atualizar',delete:'excluir',upsert:'salvar'};
 const db={
   from:function(tabela){
-    const qb=sbClient().from(tabela);
+    const _auth=JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+    const _token=_auth.access_token||SB_KEY;
+    const qb=createClient(SB_URL,SB_KEY,{
+      auth:{storage:_noOp,persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
+      global:{headers:{'Authorization':`Bearer ${_token}`,'apikey':SB_KEY}}
+    }).from(tabela);
     ['insert','update','delete','upsert'].forEach(function(metodo){
       const orig=qb[metodo];
       if(typeof orig!=='function')return;
@@ -3937,6 +3946,32 @@ window.salvarDoc = async function(tipo) {
 };
 
 
+
+// ── Timer de inatividade ──
+(function(){
+  const TOTAL_MS=60*60*1000,AVISO_MS=2*60*1000,AMARELO_MS=5*60*1000,VERMELHO_MS=2*60*1000;
+  let _restante=TOTAL_MS,_avisado=false;
+  const elTimer=document.getElementById('inatividade-timer');
+  const elIcon=document.getElementById('inatividade-icon');
+  const elTempo=document.getElementById('inatividade-tempo');
+  function _reset(){_restante=TOTAL_MS;_avisado=false;}
+  function _fmt(ms){const t=Math.max(0,Math.ceil(ms/1000));return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');}
+  function _render(){
+    const t=_restante;
+    if(elTempo)elTempo.textContent=_fmt(t);
+    if(elTimer&&elIcon){
+      if(t>AMARELO_MS){elIcon.textContent='🟢';elTimer.style.background='rgba(255,255,255,.15)';elTimer.style.borderColor='rgba(255,255,255,.25)';}
+      else if(t>VERMELHO_MS){elIcon.textContent='🟡';elTimer.style.background='rgba(239,159,39,.35)';elTimer.style.borderColor='rgba(239,159,39,.6)';}
+      else{elIcon.textContent='🔴';elTimer.style.background='rgba(226,75,74,.4)';elTimer.style.borderColor='rgba(226,75,74,.7)';}
+    }
+    if(t<=AVISO_MS&&!_avisado){_avisado=true;if(typeof toast==='function')toast('⚠️ Inatividade: logout automático em 2 minutos!','vermelho');}
+    if(t<=0){localStorage.removeItem('clinica_auth');sessionStorage.removeItem('clinica_auth');window.location.replace('login.html');}
+  }
+  setInterval(()=>{_restante-=1000;_render();},1000);
+  ['mousemove','mousedown','keydown','touchstart','touchmove','scroll','click','wheel']
+    .forEach(ev=>document.addEventListener(ev,_reset,{passive:true}));
+  _render();
+})();
 </script>
 
 </body>
