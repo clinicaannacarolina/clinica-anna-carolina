@@ -3631,7 +3631,7 @@ async function cancSerie(){
   fchAg();carregarAgenda();
 }
 async function salvarConsulta(){
-  const nome=document.getElementById('ag-nome').value.trim();const data=document.getElementById('ag-data').value;const hora=document.getElementById('ag-hora').value;const tel=document.getElementById('ag-tel').value.trim();
+  const nome=document.getElementById('ag-nome').value.trim();const data=document.getElementById('ag-data').value;const hora: document.getElementById('ag-hora').value || '09:00';const tel=document.getElementById('ag-tel').value.trim();
   if(!nome||!data||!hora){toast('Preencha nome, data e horário!','vermelho');return;}
   const aid=document.getElementById('ag-id').value;
   // Verificar conflito de horário
