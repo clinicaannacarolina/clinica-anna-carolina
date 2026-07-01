@@ -54,22 +54,26 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Requisições ao Supabase — sempre direto à rede (dados em tempo real)
-  if (url.hostname.includes('supabase.co') || url.hostname.includes('supabase.io')) {
-    return; // passthrough
+ // 1. REGRA DE OURO: API do Supabase sempre direto para a rede
+  // O Service Worker ignora essas requisições
+  if (url.hostname.includes('supabase.co')) {
+    return; 
   }
 
-  // Requisições externas (fonts, CDN) — passthrough
+  // 2. Requisições externas que não fazem parte do seu domínio (ex: Google Fonts)
   if (url.origin !== self.location.origin) {
     return;
   }
 
-  // Arquivos do app: Cache First com fallback para rede
+  // 3. Arquivos do app: Cache First com fallback para rede
   event.respondWith(
     caches.match(event.request).then((cached) => {
+      // Se encontrou no cache, retorna
       if (cached) return cached;
+      
+      // Se não, busca na rede
       return fetch(event.request).then((response) => {
-        // Cachear resposta válida
+        // Cachear resposta válida apenas se for um asset (tipo 'basic')
         if (response && response.status === 200 && response.type === 'basic') {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
