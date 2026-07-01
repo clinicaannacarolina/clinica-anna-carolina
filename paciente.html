@@ -667,15 +667,19 @@ textarea{resize:vertical;min-height:70px}
 <script>
 const {createClient}=supabase;
 const _noOp={getItem:()=>null,setItem:()=>{},removeItem:()=>{}};
+const _dbClient=createClient(SB_URL,SB_KEY,{
+  auth:{storage:_noOp,persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
+  global:{fetch:(url,opts={})=>{
+    const _a=JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+    const _t=_a.access_token||SB_KEY;
+    opts.headers=Object.assign({},opts.headers||{},{'Authorization':`Bearer ${_t}`,'apikey':SB_KEY});
+    return fetch(url,opts);
+  }}
+});
 const _ACAO_ERR={insert:'salvar',update:'atualizar',delete:'excluir',upsert:'salvar'};
 const db={
   from:function(tabela){
-    const _auth=JSON.parse(localStorage.getItem('clinica_auth')||'{}');
-    const _token=_auth.access_token||SB_KEY;
-    const qb=createClient(SB_URL,SB_KEY,{
-      auth:{storage:_noOp,persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
-      global:{headers:{'Authorization':`Bearer ${_token}`,'apikey':SB_KEY}}
-    }).from(tabela);
+    const qb=_dbClient.from(tabela);
     ['insert','update','delete','upsert'].forEach(function(metodo){
       const orig=qb[metodo];
       if(typeof orig!=='function')return;
