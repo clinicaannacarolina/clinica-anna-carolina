@@ -244,6 +244,9 @@ textarea{resize:vertical;min-height:70px}
     <a href="documentos.html" class="btn-dark" aria-label="Documentos" title="Documentos" style="font-size:15px;text-decoration:none">📄</a>
     <button class="btn-dark" aria-label="Modo escuro" onclick="toggleDark()" id="btn-dark-icon" title="Modo escuro">🌙</button>
     <button id="btn-instalar-pwa" onclick="instalarPWA()" title="Instalar app no celular" aria-label="Instalar app" style="display:none;align-items:center;gap:5px;padding:5px 10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">📲 Instalar</button>
+    <div id="inatividade-timer" title="Tempo até logout automático por inatividade" style="display:flex;align-items:center;gap:4px;padding:4px 9px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;font-size:12px;font-weight:600;color:#fff;cursor:default;min-width:62px;justify-content:center;transition:background .4s,border-color .4s">
+      <span id="inatividade-icon">🟢</span><span id="inatividade-tempo">60:00</span>
+    </div>
     <button class="btn-dark" aria-label="Sair" onclick="fazerLogout()" title="Sair" style="font-size:14px">🔒 Sair</button>
   </div>
 </header>
@@ -899,19 +902,16 @@ textarea{resize:vertical;min-height:70px}
 const {createClient}=supabase;
 // Usa sessionStorage em vez de localStorage para evitar bloqueio
 // do Tracking Prevention do Edge/Safari quando o script vem de CDN
-const _sbStorage={
-  getItem:(k)=>{try{return sessionStorage.getItem(k);}catch(e){return null;}},
-  setItem:(k,v)=>{try{sessionStorage.setItem(k,v);}catch(e){}},
-  removeItem:(k)=>{try{sessionStorage.removeItem(k);}catch(e){}},
-};
-const db=createClient(SB_URL,SB_KEY,{auth:{storage:_sbStorage,persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
-// Aviso automático: qualquer insert/update/delete/upsert que falhar mostra toast de erro,
-// mesmo que o código que chamou não verifique 'error' explicitamente.
-(function(){
-  const _from=db.from.bind(db);
-  const _ACAO={insert:'salvar',update:'atualizar',delete:'excluir',upsert:'salvar'};
-  db.from=function(tabela){
-    const qb=_from(tabela);
+const _noOp={getItem:()=>null,setItem:()=>{},removeItem:()=>{}};
+const _ACAO_ERR={insert:'salvar',update:'atualizar',delete:'excluir',upsert:'salvar'};
+const db={
+  from:function(tabela){
+    const _auth=JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+    const _token=_auth.access_token||SB_KEY;
+    const qb=createClient(SB_URL,SB_KEY,{
+      auth:{storage:_noOp,persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
+      global:{headers:{'Authorization':`Bearer ${_token}`,'apikey':SB_KEY}}
+    }).from(tabela);
     ['insert','update','delete','upsert'].forEach(function(metodo){
       const orig=qb[metodo];
       if(typeof orig!=='function')return;
@@ -922,7 +922,7 @@ const db=createClient(SB_URL,SB_KEY,{auth:{storage:_sbStorage,persistSession:fal
           return origThen(function(r){
             if(r&&r.error){
               console.error('['+tabela+'.'+metodo+']',r.error);
-              if(typeof toast==='function')toast('Erro ao '+_ACAO[metodo]+' ('+tabela+'): '+(r.error.message||'falha desconhecida'),'vermelho');
+              if(typeof toast==='function')toast('Erro ao '+_ACAO_ERR[metodo]+' ('+tabela+'): '+(r.error.message||'falha desconhecida'),'vermelho');
             }
             return onOk?onOk(r):r;
           },onErr);
@@ -931,8 +931,8 @@ const db=createClient(SB_URL,SB_KEY,{auth:{storage:_sbStorage,persistSession:fal
       };
     });
     return qb;
-  };
-})();
+  }
+};
 
 let pacs=[],consultas=[];
 let _pacLimit=30; // paginação da lista de pacientes
@@ -1120,6 +1120,43 @@ function fazerLogout(){
   sessionStorage.removeItem('clinica_auth');
   window.location.replace('login.html');
 }
+
+// ══════════════════════════════════════════════════
+// TIMER DE INATIVIDADE — logout automático em 60 min
+// ══════════════════════════════════════════════════
+(function(){
+  const TOTAL_MS   = 60 * 60 * 1000;
+  const AVISO_MS   =  2 * 60 * 1000;
+  const AMARELO_MS =  5 * 60 * 1000;
+  const VERMELHO_MS=  2 * 60 * 1000;
+  let _restante = TOTAL_MS;
+  let _avisado  = false;
+  let _tick;
+  const elTimer  = document.getElementById('inatividade-timer');
+  const elIcon   = document.getElementById('inatividade-icon');
+  const elTempo  = document.getElementById('inatividade-tempo');
+  function _reset(){ _restante = TOTAL_MS; _avisado = false; }
+  function _fmt(ms){ const t=Math.max(0,Math.ceil(ms/1000)); return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0'); }
+  function _render(){
+    const t = _restante;
+    if(elTempo) elTempo.textContent = _fmt(t);
+    if(elTimer && elIcon){
+      if(t > AMARELO_MS){ elIcon.textContent='🟢'; elTimer.style.background='rgba(255,255,255,.15)'; elTimer.style.borderColor='rgba(255,255,255,.25)'; }
+      else if(t > VERMELHO_MS){ elIcon.textContent='🟡'; elTimer.style.background='rgba(239,159,39,.35)'; elTimer.style.borderColor='rgba(239,159,39,.6)'; }
+      else { elIcon.textContent='🔴'; elTimer.style.background='rgba(226,75,74,.4)'; elTimer.style.borderColor='rgba(226,75,74,.7)'; }
+    }
+    if(t <= AVISO_MS && !_avisado){ _avisado=true; toast('⚠️ Inatividade: logout automático em 2 minutos!','vermelho'); }
+    if(t <= 0){
+      clearInterval(_tick);
+      toast('🔒 Sessão encerrada por inatividade.','vermelho');
+      setTimeout(()=>{ localStorage.removeItem('clinica_auth'); sessionStorage.removeItem('clinica_auth'); window.location.replace('login.html'); }, 1800);
+    }
+  }
+  _tick = setInterval(()=>{ _restante -= 1000; _render(); }, 1000);
+  ['mousemove','mousedown','keydown','touchstart','touchmove','scroll','click','wheel']
+    .forEach(ev => document.addEventListener(ev, _reset, { passive: true }));
+  _render();
+})();
 function toggleDark(){
   const html=document.documentElement;
   const isDark=html.getAttribute('data-theme')==='dark';
