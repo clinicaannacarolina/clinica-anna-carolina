@@ -4281,7 +4281,7 @@ async function marcarStatus(id, status){
   renderHoje();
   const cLog=consultas.find(c=>c.id===id);
   await logAuditoria('Status de consulta alterado',`${cLog?.nome||id} → ${status} · ${cLog?.data||''} ${(cLog?.hora||'').slice(0,5)}`,cLog?.paciente_id||null);
-  await carregarAgenda();
+  // await carregarAgenda();
 }
 
 async function fecharDia(){
