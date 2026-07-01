@@ -672,8 +672,11 @@ const _dbClient=createClient(SB_URL,SB_KEY,{
   global:{fetch:(url,opts={})=>{
     const _a=JSON.parse(localStorage.getItem('clinica_auth')||'{}');
     const _t=_a.access_token||SB_KEY;
-    opts.headers=Object.assign({},opts.headers||{},{'Authorization':`Bearer ${_t}`,'apikey':SB_KEY});
-    return fetch(url,opts);
+    // new Headers() preserva Headers objects e plain objects — evita perder Content-Type
+    const _h=new Headers(opts.headers||{});
+    _h.set('Authorization',`Bearer ${_t}`);
+    _h.set('apikey',SB_KEY);
+    return fetch(url,{...opts,headers:_h});
   }}
 });
 const _ACAO_ERR={insert:'salvar',update:'atualizar',delete:'excluir',upsert:'salvar'};
