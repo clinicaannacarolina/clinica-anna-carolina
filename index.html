@@ -3417,10 +3417,10 @@ function verificarDupTel(val){
   if(tel.length<10){aviso.style.display='none';return;}
   const dup=pacs.find(p=>p.telefone&&p.telefone.replace(/\D/g,'')===tel);
   if(dup){
-    window._dupResponsavel = dup;
     aviso.innerHTML=`⚠️ Número já usado por: <strong>${escapeHtml(dup.nome)}</strong> — <a href="paciente.html?id=${dup.id}" target="_blank" style="color:#7a5800;font-weight:700">Ver ficha →</a><br>
-      <button onclick="usarComoResponsavel(window._dupResponsavel)" style="margin-top:6px;padding:5px 12px;background:var(--amarelo);border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;color:#fff">👤 Usar como responsável e copiar endereço</button>`;
+      <button id="btn-usar-resp" style="margin-top:6px;padding:5px 12px;background:var(--amarelo);border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;color:#fff">👤 Usar como responsável e copiar endereço</button>`;
     aviso.style.display='block';
+    document.getElementById('btn-usar-resp').addEventListener('click',function(){usarComoResponsavel(dup);});
   } else {
     aviso.style.display='none';
   }
@@ -3866,7 +3866,9 @@ function selResp(p){
   if(p.rua&&!document.getElementById('f-rua').value){
     const aviso=document.getElementById('dup-tel-aviso');
     window._dupResponsavel = p;
-    aviso.innerHTML=`<button onclick="usarComoResponsavel(window._dupResponsavel)" style="padding:5px 12px;background:var(--amarelo);border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;color:#fff">📍 Copiar endereço de ${escapeHtml(p.nome)}?</button>`;
+    aviso.innerHTML=`<button id="btn-usar-resp" style="padding:5px 12px;background:var(--amarelo);border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;color:#fff">📍 Copiar endereço de ${escapeHtml(p.nome)}?</button>`;
+    aviso.style.display='block';
+    document.getElementById('btn-usar-resp').addEventListener('click',function(){usarComoResponsavel(p);});
     aviso.style.display='block';
   }
 }
