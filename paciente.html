@@ -476,7 +476,12 @@ textarea{resize:vertical;min-height:70px}
       <div class="fgr full"><label>Nome completo *</label><input type="text" id="e-nome"/></div>
       <div class="fgr full"><label>Apelido / Como chamar</label><input type="text" id="e-apelido"/></div>
       <div class="fgr"><label>Telefone *</label><input type="text" id="e-tel"/></div>
-      <div class="fgr full"><label>👤 Responsável / Contato</label><input type="text" id="e-resp" placeholder="Ex: mãe da paciente, responsável pelo menor"/></div>
+      <div class="fgr full"><label>👤 Responsável / Contato</label>
+          <div style="position:relative">
+            <input type="text" id="e-resp" placeholder="Digite o nome para buscar paciente cadastrado..." oninput="sugRespEdit()" autocomplete="off"/>
+            <input type="hidden" id="e-resp-id"/>
+            <div id="e-resp-sug" style="position:absolute;top:100%;left:0;right:0;z-index:100"></div>
+          </div></div>
       <div class="fgr"><label>Data de nascimento</label><input type="date" id="e-nasc"/></div>
       <div class="fgr"><label>CPF</label><input type="text" id="e-cpf"/></div>
       <div class="fgr"><label>RG</label><input type="text" id="e-rg"/></div>
@@ -719,6 +724,24 @@ function fDt(s){if(!s)return'—';const[y,m,d]=s.split('-');return`${d}/${m}/${y
 function fmtBRL(v){return v?'R$ '+parseFloat(v).toLocaleString('pt-BR',{minimumFractionDigits:2}):'—';}
 function ini(n){return n.split(' ').filter(Boolean).slice(0,2).map(p=>p[0].toUpperCase()).join('');}
 // Escapa caracteres HTML perigosos antes de inserir dados do paciente via innerHTML (previne XSS armazenado)
+
+// ── Autocomplete Responsável (edição) ──
+function sugRespEdit(){
+  const val=document.getElementById('e-resp').value.trim();
+  const box=document.getElementById('e-resp-sug');
+  document.getElementById('e-resp-id').value='';
+  if(val.length<2){box.innerHTML='';return;}
+  const vl=val.toLowerCase();
+  const r=(window._pacs||[]).filter(p=>p.nome.toLowerCase().includes(vl)||(p.apelido&&p.apelido.toLowerCase().includes(vl))).slice(0,6);
+  if(!r.length){box.innerHTML='';return;}
+  box.innerHTML=`<div class="sug">${r.map(p=>`<div class="sug-item" onclick='selRespEdit(${JSON.stringify(p)})'><strong>${escapeHtml(p.nome)}</strong>${p.apelido?` (${escapeHtml(p.apelido)})`:''}<br><span style="font-size:12px;color:var(--ct)">${p.telefone||''}</span></div>`).join('')}</div>`;
+}
+function selRespEdit(p){
+  document.getElementById('e-resp').value=p.nome+(p.apelido?` (${escapeHtml(p.apelido)})`:'');
+  document.getElementById('e-resp-id').value=p.id;
+  document.getElementById('e-resp-sug').innerHTML='';
+}
+
 function escapeHtml(s){if(s===null||s===undefined)return'';return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function chamada(p){return p.apelido||p.nome.split(' ')[0];}
 function dias(dr){if(!dr)return null;const h=new Date();h.setHours(0,0,0,0);const r=new Date(dr+'T12:00:00');return Math.ceil((r-h)/86400000);}
@@ -940,7 +963,7 @@ function renderResumo(){
   const endereco=[p.rua,p.numero,p.bairro,p.cidade].filter(Boolean).join(', ')||p.endereco||'—';
   document.getElementById('res-dados').innerHTML=`
     <div class="dado-item"><div class="dado-label">Telefone</div><div class="dado-val">${p.telefone||'—'}</div></div>
-    ${p.responsavel?`<div class="dado-item"><div class="dado-label">👤 Responsável</div><div class="dado-val">${escapeHtml(p.responsavel)}</div></div>`:''}
+    ${p.responsavel?`<div class="dado-item"><div class="dado-label">👤 Responsável</div><div class="dado-val">${p.responsavel_id?`<a href="paciente.html?id=${p.responsavel_id}" style="color:var(--verde);font-weight:600;text-decoration:none">${escapeHtml(p.responsavel)} →</a>`:`${escapeHtml(p.responsavel)}`}</div></div>`:''}
     <div class="dado-item"><div class="dado-label">CPF</div><div class="dado-val">${escapeHtml(p.cpf)||'—'}</div></div>
     <div class="dado-item"><div class="dado-label">RG</div><div class="dado-val">${escapeHtml(p.rg)||'—'}</div></div>
     <div class="dado-item"><div class="dado-label">Sexo</div><div class="dado-val">${p.sexo||'—'}</div></div>
@@ -1687,6 +1710,8 @@ function abrirEditarDados(){
   document.getElementById('e-apelido').value=p.apelido||'';
   document.getElementById('e-tel').value=p.telefone||'';
   document.getElementById('e-resp').value=p.responsavel||'';
+  renderDependentes(p.id);
+  document.getElementById('e-resp-id').value=p.responsavel_id||'';
   document.getElementById('e-nasc').value=p.data_nascimento||'';
   document.getElementById('e-cpf').value=p.cpf||'';
   document.getElementById('e-rg').value=p.rg||'';
@@ -1730,6 +1755,7 @@ async function salvarEdit(){
     facebook:document.getElementById('e-facebook').value.trim()||null,
     observacoes:document.getElementById('e-obs').value||null,
     responsavel:document.getElementById('e-resp').value.trim()||null,
+    responsavel_id:document.getElementById('e-resp-id').value||null,
   };
   const{error}=await db.from('pacientes').update(updates).eq('id',pac.id);
   if(error){toast('Erro ao salvar','vermelho');return;}
@@ -2434,6 +2460,11 @@ async function carregarHistoricoPaciente(){
     </div>`;
   }).join('');
 }
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#e-resp')&&!e.target.closest('#e-resp-sug')){
+    const s=document.getElementById('e-resp-sug');if(s)s.innerHTML='';
+  }
+});
 </script>
 </body>
 </html>

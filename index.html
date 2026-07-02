@@ -601,7 +601,12 @@ textarea{resize:vertical;min-height:70px}
         <div class="fgr"><label>Telefone *</label><input type="text" id="f-tel" placeholder="(17) 99999-9999" oninput="mascaraTel(this);verificarDupTel(this.value)" maxlength="15"/>
           <div id="dup-tel-aviso" style="display:none;margin-top:6px;background:var(--amarelo-c);border:1.5px solid var(--amarelo);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;color:#7a5800"></div>
         </div>
-        <div class="fgr full"><label>👤 Responsável / Contato</label><input type="text" id="f-resp" placeholder="Ex: mãe da paciente, responsável pelo menor"/></div>
+        <div class="fgr full"><label>👤 Responsável / Contato</label>
+          <div style="position:relative">
+            <input type="text" id="f-resp" placeholder="Digite o nome para buscar paciente cadastrado..." oninput="sugResp()" autocomplete="off"/>
+            <input type="hidden" id="f-resp-id"/>
+            <div id="f-resp-sug" style="position:absolute;top:100%;left:0;right:0;z-index:100"></div>
+          </div></div>
         <div class="fgr"><label>Data de nascimento</label><input type="date" id="f-nasc"/></div>
         <div class="fgr"><label>CPF</label><input type="text" id="f-cpf" placeholder="000.000.000-00" oninput="mascaraCPF(this)" maxlength="14"/></div>
         <div class="fgr"><label>RG</label><input type="text" id="f-rg" placeholder="00.000.000-0" oninput="mascaraRG(this)" maxlength="12"/></div>
@@ -3298,6 +3303,7 @@ document.getElementById('m-lembr').addEventListener('click',e=>{
 // SALVAR PACIENTE
 function limpar(){
   ['f-nome','f-apelido','f-tel','f-resp','f-nasc','f-cpf','f-rg','f-rua','f-numero','f-bairro','f-cidade','f-cep','f-obs','f-drive','f-indic','f-instagram','f-facebook'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('f-resp-id').value='';document.getElementById('f-resp-sug').innerHTML='';
   document.getElementById('f-sexo').value='';
   document.getElementById('f-data').value=HOJE_STR;document.getElementById('f-trats').innerHTML='';addTrat('f-trats');
 }
@@ -3418,7 +3424,7 @@ async function salvar(){
   if(dupTel) toast('⚠️ Telefone já usado por: '+dupTel.nome+' — prosseguindo','amarelo');
   const dataAtend=document.getElementById('f-data').value;const tc=tratsComDatas(trats,dataAtend);
   const btn=document.getElementById('btn-salvar');btn.disabled=true;btn.textContent='Salvando...';
-  const{error}=await db.from('pacientes').insert({nome,telefone:tel,apelido:document.getElementById('f-apelido').value.trim()||null,data_nascimento:document.getElementById('f-nasc').value||null,cpf:document.getElementById('f-cpf').value.trim()||null,rg:document.getElementById('f-rg').value.trim()||null,sexo:document.getElementById('f-sexo').value||null,endereco:[document.getElementById('f-rua').value.trim()+(document.getElementById('f-numero').value.trim()?' '+document.getElementById('f-numero').value.trim():''),document.getElementById('f-bairro').value.trim(),document.getElementById('f-cidade').value.trim()].filter(Boolean).join(', ')||null,rua:(document.getElementById('f-rua').value.trim()+(document.getElementById('f-numero').value.trim()?' '+document.getElementById('f-numero').value.trim():'')).trim()||null,bairro:document.getElementById('f-bairro').value.trim()||null,cidade:document.getElementById('f-cidade').value.trim()||null,cep:document.getElementById('f-cep').value.trim()||null,data_atendimento:dataAtend||null,observacoes:document.getElementById('f-obs').value.trim()||null,link_drive:document.getElementById('f-drive').value.trim()||null,indicacao:document.getElementById('f-indic').value.trim()||null,como_conheceu:document.getElementById('f-conheceu').value||null,instagram:document.getElementById('f-instagram').value.trim()||null,facebook:document.getElementById('f-facebook').value.trim()||null,tratamentos_adicionais:tc,tratamento:tc[0]?.nome||null,responsavel:document.getElementById('f-resp').value.trim()||null});
+  const{error}=await db.from('pacientes').insert({nome,telefone:tel,apelido:document.getElementById('f-apelido').value.trim()||null,data_nascimento:document.getElementById('f-nasc').value||null,cpf:document.getElementById('f-cpf').value.trim()||null,rg:document.getElementById('f-rg').value.trim()||null,sexo:document.getElementById('f-sexo').value||null,endereco:[document.getElementById('f-rua').value.trim()+(document.getElementById('f-numero').value.trim()?' '+document.getElementById('f-numero').value.trim():''),document.getElementById('f-bairro').value.trim(),document.getElementById('f-cidade').value.trim()].filter(Boolean).join(', ')||null,rua:(document.getElementById('f-rua').value.trim()+(document.getElementById('f-numero').value.trim()?' '+document.getElementById('f-numero').value.trim():'')).trim()||null,bairro:document.getElementById('f-bairro').value.trim()||null,cidade:document.getElementById('f-cidade').value.trim()||null,cep:document.getElementById('f-cep').value.trim()||null,data_atendimento:dataAtend||null,observacoes:document.getElementById('f-obs').value.trim()||null,link_drive:document.getElementById('f-drive').value.trim()||null,indicacao:document.getElementById('f-indic').value.trim()||null,como_conheceu:document.getElementById('f-conheceu').value||null,instagram:document.getElementById('f-instagram').value.trim()||null,facebook:document.getElementById('f-facebook').value.trim()||null,tratamentos_adicionais:tc,tratamento:tc[0]?.nome||null,responsavel:document.getElementById('f-resp').value.trim()||null,responsavel_id:document.getElementById('f-resp-id').value||null});
   btn.disabled=false;btn.innerHTML='✓ Salvar paciente';
   if(error){toast('Erro: '+error.message,'vermelho');return;}
   toast(`${nome} cadastrado!`,'verde');limpar();await carregar();aba('hoje',document.querySelector('.tb'));
@@ -3813,6 +3819,25 @@ function sugPacAg(){
 
 // Mantém compatibilidade com chamadas antigas
 function sugPac(){ sugPacAg(); }
+// ── Autocomplete Responsável (cadastro) ──
+let _respIdSel=null;
+function sugResp(){
+  const val=document.getElementById('f-resp').value.trim();
+  const box=document.getElementById('f-resp-sug');
+  document.getElementById('f-resp-id').value=''; _respIdSel=null;
+  if(val.length<2){box.innerHTML='';return;}
+  const vl=val.toLowerCase();
+  const r=pacs.filter(p=>p.nome.toLowerCase().includes(vl)||(p.apelido&&p.apelido.toLowerCase().includes(vl))).slice(0,6);
+  if(!r.length){box.innerHTML='';return;}
+  box.innerHTML=`<div class="sug">${r.map(p=>`<div class="sug-item" onclick='selResp(${J(p)})'><strong>${escapeHtml(p.nome)}</strong>${p.apelido?` (${escapeHtml(p.apelido)})`:''}<br><span style="font-size:12px;color:var(--ct)">${p.telefone||''}</span></div>`).join('')}</div>`;
+}
+function selResp(p){
+  document.getElementById('f-resp').value=p.nome+(p.apelido?` (${escapeHtml(p.apelido)})`:'');
+  document.getElementById('f-resp-id').value=p.id;
+  document.getElementById('f-resp-sug').innerHTML='';
+  _respIdSel=p.id;
+}
+
 
 function buscarPacPorTel(){
   const tel=document.getElementById('ag-tel').value.replace(/\D/g,'');
@@ -3840,6 +3865,7 @@ document.getElementById('m-ag').addEventListener('click',e=>{
 });
 document.addEventListener('click',e=>{
   if(!e.target.closest('#ag-nome')&&!e.target.closest('#ag-sug')) document.getElementById('ag-sug').innerHTML='';
+  if(!e.target.closest('#f-resp')&&!e.target.closest('#f-resp-sug')) document.getElementById('f-resp-sug').innerHTML='';
   if(!e.target.closest('#ag-tel')&&!e.target.closest('#ag-tel-sug')) document.getElementById('ag-tel-sug').innerHTML='';
 });
 
