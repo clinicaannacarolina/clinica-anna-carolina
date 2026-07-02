@@ -599,7 +599,8 @@ textarea{resize:vertical;min-height:70px}
         </div>
         <div class="fgr full"><label>Apelido / Como chamar</label><input type="text" id="f-apelido" placeholder="Ex: Ana Piffer"/></div>
         <div class="fgr"><label>Telefone *</label><input type="text" id="f-tel" placeholder="(17) 99999-9999" oninput="mascaraTel(this);verificarDupTel(this.value)" maxlength="15"/>
-          <div id="dup-tel-aviso" style="display:none;margin-top:6px;background:var(--vermelho-c);border:1.5px solid var(--vermelho);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;color:#791F1F"></div>
+          <div id="dup-tel-aviso" style="display:none;margin-top:6px;background:var(--amarelo-c);border:1.5px solid var(--amarelo);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;color:#7a5800"></div>
+        <div class="fgr"><label>👤 Responsável / Contato</label><input type="text" id="f-resp" placeholder="Ex: mãe da paciente, responsável pelo menor"/></div>
         </div>
         <div class="fgr"><label>Data de nascimento</label><input type="date" id="f-nasc"/></div>
         <div class="fgr"><label>CPF</label><input type="text" id="f-cpf" placeholder="000.000.000-00" oninput="mascaraCPF(this)" maxlength="14"/></div>
@@ -3296,7 +3297,7 @@ document.getElementById('m-lembr').addEventListener('click',e=>{
 
 // SALVAR PACIENTE
 function limpar(){
-  ['f-nome','f-apelido','f-tel','f-nasc','f-cpf','f-rg','f-rua','f-numero','f-bairro','f-cidade','f-cep','f-obs','f-drive','f-indic','f-instagram','f-facebook'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['f-nome','f-apelido','f-tel','f-resp','f-nasc','f-cpf','f-rg','f-rua','f-numero','f-bairro','f-cidade','f-cep','f-obs','f-drive','f-indic','f-instagram','f-facebook'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('f-sexo').value='';
   document.getElementById('f-data').value=HOJE_STR;document.getElementById('f-trats').innerHTML='';addTrat('f-trats');
 }
@@ -3401,7 +3402,7 @@ function verificarDupTel(val){
   if(tel.length<10){aviso.style.display='none';return;}
   const dup=pacs.find(p=>p.telefone&&p.telefone.replace(/\D/g,'')===tel);
   if(dup){
-    aviso.innerHTML='🚫 Telefone já cadastrado: <strong>'+dup.nome+'</strong> — <a href="paciente.html?id='+dup.id+'" target="_blank" style="color:var(--vermelho);font-weight:700">Ver ficha →</a>';
+    aviso.innerHTML='⚠️ Número já usado por: <strong>'+dup.nome+'</strong> — <a href="paciente.html?id='+dup.id+'" target="_blank" style="color:#7a5800;font-weight:700">Ver ficha →</a><br><span style="font-size:11px;color:#7a5800">Pode ser responsável ou familiar — cadastro permitido.</span>';
     aviso.style.display='block';
   } else {
     aviso.style.display='none';
@@ -3411,17 +3412,13 @@ function verificarDupTel(val){
 async function salvar(){
   const nome=document.getElementById('f-nome').value.trim();const tel=document.getElementById('f-tel').value.trim();const trats=getTrats('f-trats');
   if(!nome||!tel||!trats.length){toast('Preencha nome, telefone e ao menos um tratamento!','vermelho');return;}
-  // Bloquear telefone duplicado
+  // Aviso telefone duplicado (não bloqueia — pode ser responsável/familiar com mesmo número)
   const telNum=tel.replace(/\D/g,'');
   const dupTel=pacs.find(p=>p.telefone&&p.telefone.replace(/\D/g,'')===telNum);
-  if(dupTel){
-    toast('❌ Telefone já cadastrado para: '+dupTel.nome,'vermelho');
-    document.getElementById('f-tel').focus();
-    return;
-  }
+  if(dupTel) toast('⚠️ Telefone já usado por: '+dupTel.nome+' — prosseguindo com cadastro','amarelo');
   const dataAtend=document.getElementById('f-data').value;const tc=tratsComDatas(trats,dataAtend);
   const btn=document.getElementById('btn-salvar');btn.disabled=true;btn.textContent='Salvando...';
-  const{error}=await db.from('pacientes').insert({nome,telefone:tel,apelido:document.getElementById('f-apelido').value.trim()||null,data_nascimento:document.getElementById('f-nasc').value||null,cpf:document.getElementById('f-cpf').value.trim()||null,rg:document.getElementById('f-rg').value.trim()||null,sexo:document.getElementById('f-sexo').value||null,endereco:[document.getElementById('f-rua').value.trim()+(document.getElementById('f-numero').value.trim()?' '+document.getElementById('f-numero').value.trim():''),document.getElementById('f-bairro').value.trim(),document.getElementById('f-cidade').value.trim()].filter(Boolean).join(', ')||null,rua:(document.getElementById('f-rua').value.trim()+(document.getElementById('f-numero').value.trim()?' '+document.getElementById('f-numero').value.trim():'')).trim()||null,bairro:document.getElementById('f-bairro').value.trim()||null,cidade:document.getElementById('f-cidade').value.trim()||null,cep:document.getElementById('f-cep').value.trim()||null,data_atendimento:dataAtend||null,observacoes:document.getElementById('f-obs').value.trim()||null,link_drive:document.getElementById('f-drive').value.trim()||null,indicacao:document.getElementById('f-indic').value.trim()||null,como_conheceu:document.getElementById('f-conheceu').value||null,instagram:document.getElementById('f-instagram').value.trim()||null,facebook:document.getElementById('f-facebook').value.trim()||null,tratamentos_adicionais:tc,tratamento:tc[0]?.nome||null});
+  const{error}=await db.from('pacientes').insert({nome,telefone:tel,apelido:document.getElementById('f-apelido').value.trim()||null,data_nascimento:document.getElementById('f-nasc').value||null,cpf:document.getElementById('f-cpf').value.trim()||null,rg:document.getElementById('f-rg').value.trim()||null,sexo:document.getElementById('f-sexo').value||null,endereco:[document.getElementById('f-rua').value.trim()+(document.getElementById('f-numero').value.trim()?' '+document.getElementById('f-numero').value.trim():''),document.getElementById('f-bairro').value.trim(),document.getElementById('f-cidade').value.trim()].filter(Boolean).join(', ')||null,rua:(document.getElementById('f-rua').value.trim()+(document.getElementById('f-numero').value.trim()?' '+document.getElementById('f-numero').value.trim():'')).trim()||null,bairro:document.getElementById('f-bairro').value.trim()||null,cidade:document.getElementById('f-cidade').value.trim()||null,cep:document.getElementById('f-cep').value.trim()||null,data_atendimento:dataAtend||null,observacoes:document.getElementById('f-obs').value.trim()||null,link_drive:document.getElementById('f-drive').value.trim()||null,indicacao:document.getElementById('f-indic').value.trim()||null,como_conheceu:document.getElementById('f-conheceu').value||null,instagram:document.getElementById('f-instagram').value.trim()||null,facebook:document.getElementById('f-facebook').value.trim()||null,tratamentos_adicionais:tc,tratamento:tc[0]?.nome||null,responsavel:document.getElementById('f-resp').value.trim()||null});
   btn.disabled=false;btn.innerHTML='✓ Salvar paciente';
   if(error){toast('Erro: '+error.message,'vermelho');return;}
   toast(`${nome} cadastrado!`,'verde');limpar();await carregar();aba('hoje',document.querySelector('.tb'));

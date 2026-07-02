@@ -476,6 +476,7 @@ textarea{resize:vertical;min-height:70px}
       <div class="fgr full"><label>Nome completo *</label><input type="text" id="e-nome"/></div>
       <div class="fgr full"><label>Apelido / Como chamar</label><input type="text" id="e-apelido"/></div>
       <div class="fgr"><label>Telefone *</label><input type="text" id="e-tel"/></div>
+      <div class="fgr full"><label>👤 Responsável / Contato</label><input type="text" id="e-resp" placeholder="Ex: mãe da paciente, responsável pelo menor"/></div>
       <div class="fgr"><label>Data de nascimento</label><input type="date" id="e-nasc"/></div>
       <div class="fgr"><label>CPF</label><input type="text" id="e-cpf"/></div>
       <div class="fgr"><label>RG</label><input type="text" id="e-rg"/></div>
@@ -939,6 +940,7 @@ function renderResumo(){
   const endereco=[p.rua,p.numero,p.bairro,p.cidade].filter(Boolean).join(', ')||p.endereco||'—';
   document.getElementById('res-dados').innerHTML=`
     <div class="dado-item"><div class="dado-label">Telefone</div><div class="dado-val">${p.telefone||'—'}</div></div>
+    ${p.responsavel?`<div class="dado-item"><div class="dado-label">👤 Responsável</div><div class="dado-val">${escapeHtml(p.responsavel)}</div></div>`:''}
     <div class="dado-item"><div class="dado-label">CPF</div><div class="dado-val">${escapeHtml(p.cpf)||'—'}</div></div>
     <div class="dado-item"><div class="dado-label">RG</div><div class="dado-val">${escapeHtml(p.rg)||'—'}</div></div>
     <div class="dado-item"><div class="dado-label">Sexo</div><div class="dado-val">${p.sexo||'—'}</div></div>
@@ -1684,6 +1686,7 @@ function abrirEditarDados(){
   document.getElementById('e-nome').value=p.nome||'';
   document.getElementById('e-apelido').value=p.apelido||'';
   document.getElementById('e-tel').value=p.telefone||'';
+  document.getElementById('e-resp').value=p.responsavel||'';
   document.getElementById('e-nasc').value=p.data_nascimento||'';
   document.getElementById('e-cpf').value=p.cpf||'';
   document.getElementById('e-rg').value=p.rg||'';
@@ -1726,6 +1729,7 @@ async function salvarEdit(){
     instagram:document.getElementById('e-instagram').value.trim()||null,
     facebook:document.getElementById('e-facebook').value.trim()||null,
     observacoes:document.getElementById('e-obs').value||null,
+    responsavel:document.getElementById('e-resp').value.trim()||null,
   };
   const{error}=await db.from('pacientes').update(updates).eq('id',pac.id);
   if(error){toast('Erro ao salvar','vermelho');return;}
