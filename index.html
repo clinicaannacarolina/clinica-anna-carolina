@@ -3417,11 +3417,27 @@ function verificarDupTel(val){
   if(tel.length<10){aviso.style.display='none';return;}
   const dup=pacs.find(p=>p.telefone&&p.telefone.replace(/\D/g,'')===tel);
   if(dup){
-    aviso.innerHTML='⚠️ Número já usado por: <strong>'+dup.nome+'</strong> — <a href="paciente.html?id='+dup.id+'" target="_blank" style="color:#7a5800;font-weight:700">Ver ficha →</a><br><span style="font-size:11px;color:#7a5800">Pode ser responsável ou familiar — cadastro permitido.</span>';
+    aviso.innerHTML=`⚠️ Número já usado por: <strong>${dup.nome}</strong> — <a href="paciente.html?id=${dup.id}" target="_blank" style="color:#7a5800;font-weight:700">Ver ficha →</a><br>
+      <button onclick="usarComoResponsavel(${J(dup)})" style="margin-top:6px;padding:5px 12px;background:var(--amarelo);border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;color:#fff">👤 Usar como responsável e copiar endereço</button>`;
     aviso.style.display='block';
   } else {
     aviso.style.display='none';
   }
+}
+function usarComoResponsavel(p){
+  // Preenche responsável
+  document.getElementById('f-resp').value=p.nome+(p.apelido?` (${p.apelido})`:'');
+  document.getElementById('f-resp-id').value=p.id;
+  // Copia endereço
+  if(p.rua) document.getElementById('f-rua').value=p.rua||'';
+  if(p.numero) document.getElementById('f-numero').value=p.numero||'';
+  if(p.bairro) document.getElementById('f-bairro').value=p.bairro||'';
+  if(p.cidade) document.getElementById('f-cidade').value=p.cidade||'';
+  if(p.cep) document.getElementById('f-cep').value=p.cep||'';
+  toast('✅ Responsável e endereço preenchidos — altere se necessário','verde');
+  // Atualiza o aviso para confirmar
+  const aviso=document.getElementById('dup-tel-aviso');
+  aviso.innerHTML=`✅ Responsável: <strong>${p.nome}</strong> — endereço copiado. <a href="paciente.html?id=${p.id}" target="_blank" style="color:#7a5800;font-weight:700">Ver ficha →</a>`;
 }
 
 async function salvar(){
@@ -3845,6 +3861,12 @@ function selResp(p){
   document.getElementById('f-resp-id').value=p.id;
   document.getElementById('f-resp-sug').innerHTML='';
   _respIdSel=p.id;
+  // Oferecer cópia de endereço via botão se o responsável tiver endereço
+  if(p.rua&&!document.getElementById('f-rua').value){
+    const aviso=document.getElementById('dup-tel-aviso');
+    aviso.innerHTML=`<button onclick="usarComoResponsavel(${J(p)})" style="padding:5px 12px;background:var(--amarelo);border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;color:#fff">📍 Copiar endereço de ${escapeHtml(p.nome)}?</button>`;
+    aviso.style.display='block';
+  }
 }
 
 
