@@ -682,7 +682,15 @@ const _dbClient=createClient(SB_URL,SB_KEY,{
     const _h=new Headers(opts.headers||{});
     _h.set('Authorization',`Bearer ${_t}`);
     _h.set('apikey',SB_KEY);
-    return fetch(url,{...opts,headers:_h});
+    return fetch(url,{...opts,headers:_h}).then(res=>{
+      if(res.status===401){
+        localStorage.removeItem('clinica_auth');
+        sessionStorage.removeItem('clinica_auth');
+        if(typeof toast==='function') toast('Sessão expirada. Redirecionando para login...','vermelho');
+        setTimeout(()=>window.location.replace('login.html'),1500);
+      }
+      return res;
+    });
   }}
 });
 const _ACAO_ERR={insert:'salvar',update:'atualizar',delete:'excluir',upsert:'salvar'};
