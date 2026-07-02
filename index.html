@@ -3412,10 +3412,10 @@ function verificarDupTel(val){
 async function salvar(){
   const nome=document.getElementById('f-nome').value.trim();const tel=document.getElementById('f-tel').value.trim();const trats=getTrats('f-trats');
   if(!nome||!tel||!trats.length){toast('Preencha nome, telefone e ao menos um tratamento!','vermelho');return;}
-  // Aviso telefone duplicado (não bloqueia — pode ser responsável/familiar com mesmo número)
+  // Aviso telefone duplicado (não bloqueia)
   const telNum=tel.replace(/\D/g,'');
   const dupTel=pacs.find(p=>p.telefone&&p.telefone.replace(/\D/g,'')===telNum);
-  if(dupTel) toast('⚠️ Telefone já usado por: '+dupTel.nome+' — prosseguindo com cadastro','amarelo');
+  if(dupTel) toast('⚠️ Telefone já usado por: '+dupTel.nome+' — prosseguindo','amarelo');
   const dataAtend=document.getElementById('f-data').value;const tc=tratsComDatas(trats,dataAtend);
   const btn=document.getElementById('btn-salvar');btn.disabled=true;btn.textContent='Salvando...';
   const{error}=await db.from('pacientes').insert({nome,telefone:tel,apelido:document.getElementById('f-apelido').value.trim()||null,data_nascimento:document.getElementById('f-nasc').value||null,cpf:document.getElementById('f-cpf').value.trim()||null,rg:document.getElementById('f-rg').value.trim()||null,sexo:document.getElementById('f-sexo').value||null,endereco:[document.getElementById('f-rua').value.trim()+(document.getElementById('f-numero').value.trim()?' '+document.getElementById('f-numero').value.trim():''),document.getElementById('f-bairro').value.trim(),document.getElementById('f-cidade').value.trim()].filter(Boolean).join(', ')||null,rua:(document.getElementById('f-rua').value.trim()+(document.getElementById('f-numero').value.trim()?' '+document.getElementById('f-numero').value.trim():'')).trim()||null,bairro:document.getElementById('f-bairro').value.trim()||null,cidade:document.getElementById('f-cidade').value.trim()||null,cep:document.getElementById('f-cep').value.trim()||null,data_atendimento:dataAtend||null,observacoes:document.getElementById('f-obs').value.trim()||null,link_drive:document.getElementById('f-drive').value.trim()||null,indicacao:document.getElementById('f-indic').value.trim()||null,como_conheceu:document.getElementById('f-conheceu').value||null,instagram:document.getElementById('f-instagram').value.trim()||null,facebook:document.getElementById('f-facebook').value.trim()||null,tratamentos_adicionais:tc,tratamento:tc[0]?.nome||null,responsavel:document.getElementById('f-resp').value.trim()||null});
