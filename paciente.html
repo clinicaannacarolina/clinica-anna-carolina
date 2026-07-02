@@ -1718,7 +1718,7 @@ function abrirEditarDados(){
   document.getElementById('e-apelido').value=p.apelido||'';
   document.getElementById('e-tel').value=p.telefone||'';
   document.getElementById('e-resp').value=p.responsavel||'';
-  renderDependentes(p.id);
+  if(typeof renderDependentes==='function') renderDependentes(p.id);
   document.getElementById('e-resp-id').value=p.responsavel_id||'';
   document.getElementById('e-nasc').value=p.data_nascimento||'';
   document.getElementById('e-cpf').value=p.cpf||'';

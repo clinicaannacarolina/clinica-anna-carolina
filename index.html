@@ -3429,16 +3429,25 @@ function usarComoResponsavel(p){
   // Preenche responsável
   document.getElementById('f-resp').value=p.nome+(p.apelido?` (${p.apelido})`:'');
   document.getElementById('f-resp-id').value=p.id;
-  // Copia endereço
-  if(p.rua) document.getElementById('f-rua').value=p.rua||'';
-  if(p.numero) document.getElementById('f-numero').value=p.numero||'';
-  if(p.bairro) document.getElementById('f-bairro').value=p.bairro||'';
-  if(p.cidade) document.getElementById('f-cidade').value=p.cidade||'';
-  if(p.cep) document.getElementById('f-cep').value=p.cep||'';
-  toast('✅ Responsável e endereço preenchidos — altere se necessário','verde');
-  // Atualiza o aviso para confirmar
+  // Copia endereço — tenta campos separados primeiro, depois campo concatenado
+  const temSeparado=p.rua||p.bairro||p.cidade;
+  if(temSeparado){
+    if(p.rua) document.getElementById('f-rua').value=p.rua;
+    if(p.numero) document.getElementById('f-numero').value=p.numero;
+    if(p.bairro) document.getElementById('f-bairro').value=p.bairro;
+    if(p.cidade) document.getElementById('f-cidade').value=p.cidade;
+    if(p.cep) document.getElementById('f-cep').value=p.cep;
+    toast('✅ Responsável e endereço preenchidos — altere se necessário','verde');
+  } else if(p.endereco){
+    // Endereço cadastrado no formato antigo (campo único) — coloca na rua
+    document.getElementById('f-rua').value=p.endereco;
+    toast('✅ Responsável preenchido. Endereço copiado no campo Rua — confira os campos separados.','verde');
+  } else {
+    toast('✅ Responsável preenchido. Sem endereço cadastrado para copiar.','verde');
+  }
+  // Atualiza aviso
   const aviso=document.getElementById('dup-tel-aviso');
-  aviso.innerHTML=`✅ Responsável: <strong>${p.nome}</strong> — endereço copiado. <a href="paciente.html?id=${p.id}" target="_blank" style="color:#7a5800;font-weight:700">Ver ficha →</a>`;
+  aviso.innerHTML=`✅ Responsável: <strong>${escapeHtml(p.nome)}</strong>. <a href="paciente.html?id=${p.id}" target="_blank" style="color:#7a5800;font-weight:700">Ver ficha →</a>`;
 }
 
 async function salvar(){
