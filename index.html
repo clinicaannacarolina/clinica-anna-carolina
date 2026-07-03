@@ -4477,6 +4477,95 @@ async function renderPedidosOnline(){
 }
 
 
+
+// ── Perguntas da anamnese (espelho do anamnese-link.html) ──
+const AN_PERGUNTAS=[
+  {id:'trat-estetico',label:'Já fez algum tipo de tratamento estético?'},
+  {id:'medicamento',label:'Faz uso de algum medicamento?'},
+  {id:'alergia',label:'Tem alguma alergia (medicamentos, anestesia, etc)?'},
+  {id:'acidos',label:'Usa ou já usou ácidos na pele?'},
+  {id:'cuidado-diario',label:'Faz algum tipo de cuidado diário estético facial ou corporal?'},
+  {id:'trat-medico',label:'Está sob algum tipo de tratamento médico?'},
+  {id:'cirurgia',label:'Já fez alguma cirurgia ou procedimento de harmonização?'},
+  {id:'patologia-derm',label:'Alguma patologia dermatológica?'},
+  {id:'alteracao-vasc',label:'Tem alguma alteração vascular? (petéquias, cianose, eritema, etc)'},
+];
+const AN_CHECKS=[
+  'É lactante?','Possui alergia a ovo?','Possui alergia a picada de abelha?',
+  'Já teve ou tem herpes?','É ou já foi fumante?','Possui muita exposição ao sol?',
+  'É gestante?','Pratica algum exercício físico?','Tem uma alimentação balanceada?',
+  'Método anticoncepcional?','Ciclo menstrual regular?','Reposição Hormonal?',
+  'Tem alguma prótese?','Hereditariedade de acne?','Tem hematomas com facilidade?',
+  'Tem varizes e/ou varicose?','Possui manchas na pele?','Tem alguma formação sólida na pele?',
+  'Tem alguma doença infectocontagiosa?','Tem alguma doença nos órgãos essenciais?',
+  'Já sofreu algum desmaio ou convulsão?','Já sofreu algum trauma na face?',
+  'Tem alguma doença cardiovascular?','Tem ou já teve algum distúrbio respiratório?',
+  'Faz uso de bebida alcoólica com frequência?','Perdeu ou ganhou peso ultimamente?',
+  'Tem diabetes?','Faz uso de roacutan?','Possui predisposição para queloides?',
+];
+
+// ── Visualizar anamnese preenchida ──
+let _anamLinkId=null;
+async function verAnamnese(linkId, nomePac){
+  _anamLinkId=linkId;
+  const modal=document.getElementById('m-ver-anamnese');
+  document.getElementById('m-ver-anamnese-nome').textContent=nomePac||'Paciente';
+  document.getElementById('m-ver-anamnese-body').innerHTML='<div style="text-align:center;padding:2rem;color:var(--ct)">Carregando...</div>';
+  modal.dataset.abertoEm=Date.now();
+  modal.classList.add('open');
+  const{data,error}=await db.from('anamnese_links').select('dados,preenchido_em,paciente_id').eq('id',linkId).single();
+  if(error||!data){document.getElementById('m-ver-anamnese-body').innerHTML='<div style="color:var(--vermelho);padding:1rem">Erro ao carregar anamnese.</div>';return;}
+  const d=data.dados||{};
+  const dt=data.preenchido_em?new Date(data.preenchido_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+  let html=`<div style="font-size:11px;color:var(--ct);margin-bottom:1rem">Preenchida em ${dt}</div>`;
+  // Dados pessoais
+  if(d.nasc||d.sexo||d.cpf||d.rg||d.endereco){
+    html+='<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--verde-e)">📋 Dados Pessoais</div>';
+    html+='<div style="background:var(--bg);border-radius:8px;padding:10px;margin-bottom:12px;font-size:12px;line-height:1.8">';
+    if(d.nasc) html+=`<div><strong>Nasc.:</strong> ${d.nasc.split('-').reverse().join('/')}</div>`;
+    if(d.sexo) html+=`<div><strong>Sexo:</strong> ${d.sexo}</div>`;
+    if(d.cpf) html+=`<div><strong>CPF:</strong> ${d.cpf}</div>`;
+    if(d.rg) html+=`<div><strong>RG:</strong> ${d.rg}</div>`;
+    if(d.endereco) html+=`<div><strong>Endereço:</strong> ${escapeHtml(d.endereco)}</div>`;
+    html+='</div>';
+  }
+  // Perguntas
+  html+='<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--verde-e)">❓ Saúde & Histórico</div>';
+  html+='<div style="margin-bottom:12px">';
+  (AN_PERGUNTAS||[]).forEach(q=>{
+    const r=(d.respostas||{})[q.id]||{v:'nao',qual:''};
+    const sim=r.v==='sim';
+    html+=`<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--borda);font-size:12px">
+      <span style="min-width:36px;font-weight:700;color:${sim?'var(--verde-e)':'var(--ct)'}">${sim?'✅ Sim':'❌ Não'}</span>
+      <div><div>${escapeHtml(q.label)}</div>${sim&&r.qual?`<div style="color:var(--ct);font-size:11px;margin-top:2px">→ ${escapeHtml(r.qual)}</div>`:''}</div>
+    </div>`;
+  });
+  html+='</div>';
+  // Checks marcados
+  const checksSim=(AN_CHECKS||[]).filter((_,i)=>(d.checks||{})[i]);
+  if(checksSim.length){
+    html+='<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--verde-e)">✅ Condições marcadas</div>';
+    html+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">';
+    checksSim.forEach(lbl=>{html+=`<span style="background:var(--amarelo-c);color:#7a5800;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600">${escapeHtml(lbl)}</span>`;});
+    html+='</div>';
+  }
+  // Observações
+  if(d.obs){
+    html+='<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--verde-e)">📝 Observações</div>';
+    html+=`<div style="background:var(--bg);border-radius:8px;padding:10px;font-size:12px;white-space:pre-wrap">${escapeHtml(d.obs)}</div>`;
+  }
+  document.getElementById('m-ver-anamnese-body').innerHTML=html;
+}
+
+async function marcarAnamnesesRevisada(){
+  if(!_anamLinkId) return;
+  await db.from('anamnese_links').update({status:'revisado'}).eq('id',_anamLinkId);
+  document.getElementById('m-ver-anamnese').classList.remove('open');
+  _anamLinkId=null;
+  renderAnamnesesOnline();
+  toast('✅ Anamnese marcada como revisada','verde');
+}
+
 // ── Alertas de anamnese preenchida ──
 async function renderAnamnesesOnline(){
   const el=document.getElementById('sec-anamneses-online');
@@ -4501,7 +4590,7 @@ async function renderAnamnesesOnline(){
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0">
             ${l.paciente_id?`<a href="paciente.html?id=${l.paciente_id}" class="btn" style="padding:5px 12px;font-size:12px;background:var(--verde);color:white;border-color:var(--verde)">📋 Abrir ficha</a>`:''}
-            <button class="btn" style="padding:5px 12px;font-size:12px" onclick="dispensarAnamnese('${l.id}')">✓ Visto</button>
+
           </div>
         </div>`;
       }).join('')}
@@ -5562,6 +5651,12 @@ async function confirmarVinculo(pac){
   await carregarAgenda();
 }
 
+document.getElementById('m-ver-anamnese').addEventListener('click',e=>{
+  if(e.target!==e.currentTarget) return;
+  const _abEm=parseInt(e.currentTarget.dataset.abertoEm||'0');
+  if(Date.now()-_abEm<400) return;
+  e.currentTarget.classList.remove('open');
+});
 document.getElementById('m-vincular').addEventListener('click',e=>{
   if(e.target!==e.currentTarget) return;
   const _abEm=parseInt(document.getElementById('m-vincular').dataset.abertoEm||'0');
@@ -5569,5 +5664,24 @@ document.getElementById('m-vincular').addEventListener('click',e=>{
   fchVincular();
 });
 </script>
+
+<!-- MODAL VER ANAMNESE -->
+<div class="mb" id="m-ver-anamnese" style="z-index:2500">
+  <div class="mx" style="max-width:600px;display:flex;flex-direction:column;max-height:90vh">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-shrink:0">
+      <div>
+        <h3 style="margin:0">📋 Anamnese</h3>
+        <div id="m-ver-anamnese-nome" style="font-size:13px;color:var(--ct);margin-top:2px"></div>
+      </div>
+      <button onclick="document.getElementById('m-ver-anamnese').classList.remove('open')" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--ct)">✕</button>
+    </div>
+    <div id="m-ver-anamnese-body" style="overflow-y:auto;flex:1;padding-right:4px"></div>
+    <div style="display:flex;gap:8px;margin-top:1rem;flex-shrink:0;border-top:1px solid var(--borda);padding-top:1rem">
+      <button class="btn" onclick="document.getElementById('m-ver-anamnese').classList.remove('open')" style="flex:1">Fechar</button>
+      <button class="btn pri" onclick="marcarAnamnesesRevisada()" style="flex:1;background:var(--verde);color:white;border-color:var(--verde)">✅ Marcar como revisada</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
