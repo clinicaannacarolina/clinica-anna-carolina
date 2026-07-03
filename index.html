@@ -321,6 +321,7 @@ textarea{resize:vertical;min-height:70px}
       <button class="btn pri" style="padding:8px 14px;font-size:13px" onclick="aba('agenda',document.getElementById('tb-agenda'));setTimeout(()=>abrAg(),400)">📅 Agendar consulta</button>
       <button class="btn" style="padding:8px 14px;font-size:13px" onclick="aba('cadastro',document.getElementById('tb-cadastro'))">➕ Novo paciente</button>
     </div>
+    <div id="sec-anamneses-online" style="display:none;margin-bottom:.75rem"></div>
     <div id="sec-pedidos-online" style="display:none;margin-bottom:.75rem"></div>
     <div class="sl2">📅 Consultas de hoje</div><div id="l-cons-hoje"></div>
     <div class="sl2">⏰ Consultas amanhã — confirmar presença</div><div id="l-cons-amanha"></div>
@@ -4475,6 +4476,43 @@ async function renderPedidosOnline(){
   }
 }
 
+
+// ── Alertas de anamnese preenchida ──
+async function renderAnamnesesOnline(){
+  const el=document.getElementById('sec-anamneses-online');
+  if(!el) return;
+  const{data}=await db.from('anamnese_links')
+    .select('id,paciente_id,preenchido_em,pacientes(nome,telefone)')
+    .eq('status','preenchido')
+    .order('preenchido_em',{ascending:false});
+  const pend=data||[];
+  if(!pend.length){el.style.display='none';return;}
+  el.style.display='block';
+  el.innerHTML=`
+    <div style="background:#f0fdf4;border:1.5px solid var(--verde);border-radius:12px;padding:12px 14px">
+      <div style="font-size:13px;font-weight:700;color:var(--verde-e);margin-bottom:10px">📋 ${pend.length} anamnese${pend.length!==1?'s':''} preenchida${pend.length!==1?'s':''} — aguardando revisão</div>
+      ${pend.map(l=>{
+        const pac=l.pacientes||{};
+        const dt=l.preenchido_em?new Date(l.preenchido_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+        return `<div style="background:white;border-radius:8px;padding:10px;margin-bottom:6px;border:1px solid #bbf7d0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="flex:1;min-width:150px">
+            <div style="font-size:13px;font-weight:600">${escapeHtml(pac.nome||'Paciente')}</div>
+            <div style="font-size:11px;color:var(--ct)">Preenchida em ${dt}${pac.telefone?' · '+escapeHtml(pac.telefone):''}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            ${l.paciente_id?`<a href="paciente.html?id=${l.paciente_id}" class="btn" style="padding:5px 12px;font-size:12px;background:var(--verde);color:white;border-color:var(--verde)">📋 Abrir ficha</a>`:''}
+            <button class="btn" style="padding:5px 12px;font-size:12px" onclick="dispensarAnamnese('${l.id}')">✓ Visto</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+async function dispensarAnamnese(id){
+  await db.from('anamnese_links').update({status:'revisado'}).eq('id',id);
+  renderAnamnesesOnline();
+}
+
 async function aprovarPedido(id){
   const{error:eAprova}=await db.from('agenda').update({status:'agendado'}).eq('id',id);
   if(eAprova){toast('Erro ao aprovar pedido','vermelho');return;}
@@ -4551,6 +4589,8 @@ function compartilharWppAgOnline(){
 }
 
 // Chamar no carregar inicial
+setTimeout(renderAnamnesesOnline, 2000);
+setInterval(renderAnamnesesOnline, 2 * 60 * 1000);
 setTimeout(renderPedidosOnline, 1500);
 // Atualiza pedidos online a cada 2 minutos (detecta novos sem precisar recarregar)
 setInterval(renderPedidosOnline, 2 * 60 * 1000);
