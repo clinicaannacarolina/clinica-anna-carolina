@@ -1026,14 +1026,14 @@ async function carregarStatusAnamnese(){
       </div>`;
     return;
   }
-  if(link.status==='preenchido'){
+  if(link.status==='preenchido'||link.status==='revisado'){
     const dt=link.preenchido_em?fDt(link.preenchido_em.split('T')[0]):'';
     el.innerHTML=`
       <div style="background:var(--verde-c);border:1.5px solid var(--verde);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px">
         <span style="font-size:20px">✅</span>
         <div>
           <div style="font-size:12px;font-weight:700;color:var(--verde-e)">Anamnese preenchida pela paciente</div>
-          <div style="font-size:11px;color:var(--verde-e)">${dt?'Preenchida em '+dt:''}</div>
+          <div style="font-size:11px;color:var(--verde-e)">${dt?'Preenchida em '+dt:''}${link.status==='revisado'?' · Revisada ✓':''}</div>
         </div>
       </div>`;
   } else {
