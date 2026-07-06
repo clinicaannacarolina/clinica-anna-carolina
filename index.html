@@ -4589,8 +4589,8 @@ async function renderAnamnesesOnline(){
             <div style="font-size:11px;color:var(--ct)">Preenchida em ${dt}${pac.telefone?' · '+escapeHtml(pac.telefone):''}</div>
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0">
-            ${l.paciente_id?`<a href="paciente.html?id=${l.paciente_id}" class="btn" style="padding:5px 12px;font-size:12px;background:var(--verde);color:white;border-color:var(--verde)">📋 Abrir ficha</a>`:''}
-
+            <button class="btn" onclick="verAnamnese('${l.id}','${escapeHtml(pac.nome||'Paciente')}')" style="padding:5px 12px;font-size:12px;background:var(--verde);color:white;border-color:var(--verde)">📋 Ver anamnese</button>
+            ${l.paciente_id?`<a href="paciente.html?id=${l.paciente_id}" class="btn" style="padding:5px 12px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde)">👤 Abrir ficha</a>`:''}
           </div>
         </div>`;
       }).join('')}
