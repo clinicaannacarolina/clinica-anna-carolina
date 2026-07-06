@@ -234,7 +234,7 @@ async function init(){
   const hoje=new Date().toISOString().split('T')[0];
   const fim=new Date();fim.setDate(fim.getDate()+CONF.max_dias);
   const fimStr=fim.toISOString().split('T')[0];
-  const{data}=await db.from('agenda').select('data,hora,status').gte('data',hoje).lte('data',fimStr).neq('status','cancelado');
+  const{data}=await db.from('agenda_horarios_publicos').select('data,hora,status').gte('data',hoje).lte('data',fimStr);
   consultasExist=data||[];
   setState('st-form');
   renderCal();

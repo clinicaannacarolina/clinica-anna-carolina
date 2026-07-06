@@ -238,7 +238,7 @@ async function init(){
   if(!token){ setState('st-erro'); return; }
 
   // Buscar link
-  const {data:link, error} = await db.from('anamnese_links').select('*').eq('token',token).single();
+  const {data:link, error} = await db.from('anamnese_links_publico').select('*').eq('token',token).single();
   if(error || !link){ setState('st-erro'); return; }
   if(link.status === 'preenchido'){ setState('st-preenchido'); return; }
 
