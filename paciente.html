@@ -1128,6 +1128,14 @@ function renderHistorico(){
 }
 
 // ─── FOTOS ───
+async function getFotosSignedUrls(paths){
+  if(!paths.length) return {};
+  const {data,error}=await db.storage.from('fotos-pacientes').createSignedUrls(paths,3600);
+  if(error||!data) return {};
+  const map={};
+  data.forEach(d=>{ if(d.signedUrl) map[d.path]=d.signedUrl; });
+  return map;
+}
 async function carregarFotos(){
   const {data}=await db.storage.from('fotos-pacientes').list(`${pac.id}/`,{sortBy:{column:'created_at',order:'desc'}});
   todasFotos=data||[];
@@ -1135,13 +1143,13 @@ async function carregarFotos(){
 
 async function renderFotos(){
   await carregarFotos();
-  aplicarFiltroFotos();
+  await aplicarFiltroFotos();
 
   // Mostrar filtros se tiver fotos
   if(todasFotos.length>0) document.getElementById('foto-filtros').style.display='flex';
 }
 
-function aplicarFiltroFotos(){
+async function aplicarFiltroFotos(){
   const el=document.getElementById('fotos-grid');
   const fotos=fotoFiltroAtivo==='todas'?todasFotos:todasFotos.filter(f=>{
     const meta=parseFotoMeta(f.name);
@@ -1153,8 +1161,11 @@ function aplicarFiltroFotos(){
     return;
   }
 
+  const paths=fotos.map(f=>`${pac.id}/${f.name}`);
+  const urlMap=await getFotosSignedUrls(paths);
+
   el.innerHTML=fotos.map(f=>{
-    const url=db.storage.from('fotos-pacientes').getPublicUrl(`${pac.id}/${f.name}`).data.publicUrl;
+    const url=urlMap[`${pac.id}/${f.name}`]||'';
     const meta=parseFotoMeta(f.name);
     const data=f.created_at?f.created_at.split('T')[0]:'';
     return `<div class="foto-item" onclick="openLightbox('${url}')">
@@ -1347,17 +1358,19 @@ async function uploadFichasAntigas(files){
 
 async function carregarFichasAntigas(){
   const{data}=await db.storage.from('fotos-pacientes').list(`${pac.id}/fichas/`,{sortBy:{column:'created_at',order:'desc'}});
-  renderFichasAntigas(data||[]);
+  await renderFichasAntigas(data||[]);
 }
 
-function renderFichasAntigas(arquivos){
+async function renderFichasAntigas(arquivos){
   const cont=document.getElementById('fichas-lista');
   if(!arquivos.length){
     cont.innerHTML='<p style="font-size:12px;color:var(--ct);grid-column:1/-1">Nenhuma ficha digitalizada ainda.</p>';
     return;
   }
+  const paths=arquivos.map(f=>`${pac.id}/fichas/${f.name}`);
+  const urlMap=await getFotosSignedUrls(paths);
   cont.innerHTML=arquivos.map(f=>{
-    const url=db.storage.from('fotos-pacientes').getPublicUrl(`${pac.id}/fichas/${f.name}`).data.publicUrl;
+    const url=urlMap[`${pac.id}/fichas/${f.name}`]||'';
     const data=f.created_at?new Date(f.created_at).toLocaleDateString('pt-BR'):'';
     return`<div style="position:relative">
       <img src="${url}" onclick="openLightbox('${url}')" style="width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:8px;cursor:pointer;border:1px solid var(--borda)"/>
@@ -1385,13 +1398,15 @@ function fotoTab(tab,btn){
   document.getElementById('ft-comparar').style.display=tab==='comparar'?'block':'none';
 }
 
-function selecionarParaComparar(slot){
+async function selecionarParaComparar(slot){
   comparacaoSlot=slot;
   // Montar grid de seleção
   const grid=document.getElementById('m-sel-grid');
   if(!todasFotos.length){grid.innerHTML='<div class="empty"><p>Nenhuma foto disponível.</p></div>';document.getElementById('m-sel-foto').classList.add('open');return;}
+  const paths=todasFotos.map(f=>`${pac.id}/${f.name}`);
+  const urlMap=await getFotosSignedUrls(paths);
   grid.innerHTML=todasFotos.map(f=>{
-    const url=db.storage.from('fotos-pacientes').getPublicUrl(`${pac.id}/${f.name}`).data.publicUrl;
+    const url=urlMap[`${pac.id}/${f.name}`]||'';
     return `<div class="foto-item" style="cursor:pointer" onclick="confirmarComparacao('${url}')"><img src="${url}" loading="lazy"/></div>`;
   }).join('');
   document.getElementById('m-sel-foto').classList.add('open');
