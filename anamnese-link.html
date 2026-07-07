@@ -337,28 +337,6 @@ async function enviarAnamnese(){
     dados.checks[i] = document.getElementById('ck-'+i)?.checked || false;
   });
 
-  // ── Salvar no Supabase ──
-  const {error: e1} = await db.from('anamnese_links').update({
-    status: 'preenchido',
-    dados: dados,
-    preenchido_em: new Date().toISOString()
-  }).eq('id', linkData.id);
-
-  if(e1){
-    btn.disabled=false;
-    btn.textContent='✅ Enviar Anamnese';
-    clearTimeout(_timeout);
-    alert('Erro ao enviar: '+e1.message+'\nTente novamente.');
-    return;
-  }
-
-  // Salvar como documento na ficha do paciente
-  await db.from('documentos').insert({
-    paciente_id: linkData.paciente_id,
-    tipo: 'anamnese',
-    dados: dados
-  });
-
   // Atualizar cadastro com dados pessoais preenchidos
   const upd = {};
   if(dados.endereco) upd.endereco        = dados.endereco;
@@ -366,8 +344,20 @@ async function enviarAnamnese(){
   if(dados.cpf)      upd.cpf             = dados.cpf;
   if(dados.sexo)     upd.sexo            = dados.sexo;
   if(dados.nasc)     upd.data_nascimento = dados.nasc;
-  if(Object.keys(upd).length > 0){
-    await db.from('pacientes').update(upd).eq('id', linkData.paciente_id);
+
+  // ── Salvar via função segura (processa anamnese + documento + cadastro numa só chamada) ──
+  const {data: resultado, error: e1} = await db.rpc('submeter_anamnese', {
+    p_token: linkData.token,
+    p_dados: dados,
+    p_paciente_updates: upd
+  });
+
+  if(e1 || !resultado || !resultado.ok){
+    btn.disabled=false;
+    btn.textContent='✅ Enviar Anamnese';
+    clearTimeout(_timeout);
+    alert('Erro ao enviar: '+((resultado&&resultado.error)||(e1&&e1.message)||'Tente novamente.'));
+    return;
   }
 
   clearTimeout(_timeout);
