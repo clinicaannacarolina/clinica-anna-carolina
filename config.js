@@ -57,7 +57,8 @@ async function carregarConfigClinica() {
   try {
     const auth = JSON.parse(localStorage.getItem('clinica_auth') || '{}');
     const token = auth.access_token || SB_KEY;
-    const res = await fetch(`${SB_URL}/rest/v1/config_clinica?select=*&limit=1`, {
+    // Lê da view pública (sem PIN/dados sensíveis) — usada em todas as páginas, inclusive as públicas
+    const res = await fetch(`${SB_URL}/rest/v1/config_clinica_publica?select=*&limit=1`, {
       headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${token}` }
     });
     const data = await res.json();
