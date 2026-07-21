@@ -619,8 +619,8 @@ async function init(){
     document.getElementById('cfg-cidade').value = c.cidade || '';
     document.getElementById('cfg-uf').value     = c.uf     || '';
 
-    // PIN atual — mostra pontos
-    pinTamanhoAtual = (c.pin_atual||'2411').length;
+    // PIN atual — mostra pontos (apenas o tamanho é armazenado, nunca o valor)
+    pinTamanhoAtual = c.pin_len || 4;
     renderPinAtual(pinTamanhoAtual);
 
     // Cor
@@ -724,9 +724,9 @@ async function confirmarPin(){
       btnConf.textContent='OK'; btnConf.disabled=false;
       return;
     }
-    // Salva novo pin_atual na config_clinica (para referência de tamanho)
+    // Salva apenas o TAMANHO do novo PIN na config_clinica (nunca o valor em si)
     if(configId){
-      await sb.from('config_clinica').update({pin_atual: pinNovo}).eq('id', configId);
+      await sb.from('config_clinica').update({pin_len: pinNovo.length}).eq('id', configId);
     }
     pinTamanhoAtual = pinNovo.length;
     renderPinAtual(pinTamanhoAtual);
