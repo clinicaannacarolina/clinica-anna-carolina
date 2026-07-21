@@ -1,0 +1,35 @@
+name: Backup diário da clínica
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 03:00 (horário de Brasília) todos os dias
+  workflow_dispatch: {}    # permite rodar manualmente pelo botão "Run workflow"
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do repositório (para pegar o script)
+        uses: actions/checkout@v4
+
+      - name: Baixar dados do Supabase
+        env:
+          SUPABASE_URL: https://nathaeuqbeqlvkftbmes.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/backup.js
+
+      - name: Clonar repositório privado de backups
+        run: |
+          git clone https://x-access-token:${{ secrets.BACKUP_REPO_TOKEN }}@github.com/clinicaannacarolina/clinica-backups.git backup-repo
+
+      - name: Copiar backup de hoje
+        run: cp -r backups/* backup-repo/
+
+      - name: Commitar e enviar
+        run: |
+          cd backup-repo
+          git config user.name "backup-bot"
+          git config user.email "backup-bot@users.noreply.github.com"
+          git add .
+          git commit -m "Backup automático $(date -u +'%Y-%m-%d')" || echo "Nada novo para commitar"
+          git push
