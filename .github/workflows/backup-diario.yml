@@ -16,7 +16,7 @@ jobs:
         env:
           SUPABASE_URL: https://nathaeuqbeqlvkftbmes.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node scripts/backup.js
+        run: node backup.js
 
       - name: Clonar repositório privado de backups
         run: |
