@@ -60,6 +60,15 @@
     .key.enter{background:var(--verde);color:white;border-color:var(--verde);font-size:14px}
     .key.enter:hover{background:var(--verde-e)}
     .key:disabled{opacity:.4;cursor:not-allowed;pointer-events:none}
+    /* Seleção de usuário */
+    .user-btn{
+      display:block;width:100%;padding:12px 16px;border-radius:12px;
+      border:1.5px solid var(--borda);background:var(--bg);
+      font-family:inherit;font-size:14px;font-weight:600;color:var(--txt);
+      cursor:pointer;text-align:left;transition:.15s;margin-bottom:.6rem;
+    }
+    .user-btn:hover{background:var(--verde-c);border-color:var(--verde);color:var(--verde-e)}
+    .user-btn .cargo{display:block;font-size:11px;font-weight:400;color:var(--ct);margin-top:2px}
     /* Spinner */
     .spinner{
       display:inline-block;width:16px;height:16px;
@@ -90,31 +99,39 @@
 
   <div class="divider"></div>
 
-  <div class="lock">🔐</div>
-  <span class="label">Digite o PIN de acesso</span>
-
-  <div class="pin-dots" id="pin-dots"></div>
-
-  <div class="msg" id="msg"></div>
-
-  <input type="password" id="pin-input" inputmode="numeric" maxlength="10" autocomplete="off"/>
-
-  <div class="keypad" id="keypad">
-    <button class="key" onclick="pressKey('1')">1</button>
-    <button class="key" onclick="pressKey('2')">2</button>
-    <button class="key" onclick="pressKey('3')">3</button>
-    <button class="key" onclick="pressKey('4')">4</button>
-    <button class="key" onclick="pressKey('5')">5</button>
-    <button class="key" onclick="pressKey('6')">6</button>
-    <button class="key" onclick="pressKey('7')">7</button>
-    <button class="key" onclick="pressKey('8')">8</button>
-    <button class="key" onclick="pressKey('9')">9</button>
-    <button class="key del" onclick="pressKey('del')">⌫</button>
-    <button class="key" onclick="pressKey('0')">0</button>
-    <button class="key enter" id="btn-enter" onclick="pressKey('enter')">Entrar</button>
+  <div id="tela-selecao">
+    <span class="label">Quem é você?</span>
+    <div id="lista-usuarios"></div>
   </div>
 
-  <div class="versao">Sistema de Gestão Clínica · v2.1</div>
+  <div id="tela-pin" style="display:none">
+    <div class="lock">🔐</div>
+    <div id="usuario-atual" style="font-size:13px;color:var(--ct);margin-bottom:1rem"></div>
+    <span class="label">Digite o PIN de acesso</span>
+
+    <div class="pin-dots" id="pin-dots"></div>
+
+    <div class="msg" id="msg"></div>
+
+    <input type="password" id="pin-input" inputmode="numeric" maxlength="10" autocomplete="off"/>
+
+    <div class="keypad" id="keypad">
+      <button class="key" onclick="pressKey('1')">1</button>
+      <button class="key" onclick="pressKey('2')">2</button>
+      <button class="key" onclick="pressKey('3')">3</button>
+      <button class="key" onclick="pressKey('4')">4</button>
+      <button class="key" onclick="pressKey('5')">5</button>
+      <button class="key" onclick="pressKey('6')">6</button>
+      <button class="key" onclick="pressKey('7')">7</button>
+      <button class="key" onclick="pressKey('8')">8</button>
+      <button class="key" onclick="pressKey('9')">9</button>
+      <button class="key del" onclick="pressKey('del')">⌫</button>
+      <button class="key" onclick="pressKey('0')">0</button>
+      <button class="key enter" id="btn-enter" onclick="pressKey('enter')">Entrar</button>
+    </div>
+  </div>
+
+  <div class="versao">Sistema de Gestão Clínica · v2.2</div>
 </div>
 
 <script>
@@ -140,6 +157,67 @@ const BLOQUEIO_MS = 15 * 60 * 1000;
 const STORAGE_KEY = 'clinica_pin_falhas';
 let pin = '';
 let processando = false;
+let usuarioSelecionado = null;   // {id, nome, cargo, email}
+let usuariosDisponiveis = [];
+
+// ── Seleção de usuário (multiusuário) ──
+async function carregarUsuarios() {
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/usuarios_publico?select=*`, {
+      headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }
+    });
+    const usuarios = await res.json();
+
+    if (!Array.isArray(usuarios) || usuarios.length === 0) {
+      // View ainda não existe ou não retornou ninguém — usa o login antigo (1 e-mail fixo)
+      usuarioSelecionado = { email: CLINICA_CONFIG.loginEmail, nome: '' };
+      mostrarTelaPin();
+      return;
+    }
+
+    if (usuarios.length === 1) {
+      // Só uma pessoa usa o sistema — pula direto pro PIN, sem tela extra
+      usuarioSelecionado = usuarios[0];
+      mostrarTelaPin();
+      return;
+    }
+
+    usuariosDisponiveis = usuarios;
+    const cont = document.getElementById('lista-usuarios');
+    cont.innerHTML = usuarios.map((u, i) => `
+      <button type="button" class="user-btn" onclick="selecionarUsuario(${i})">
+        ${u.nome}${u.cargo ? `<span class="cargo">${u.cargo}</span>` : ''}
+      </button>
+    `).join('');
+  } catch(e) {
+    usuarioSelecionado = { email: CLINICA_CONFIG.loginEmail, nome: '' };
+    mostrarTelaPin();
+  }
+}
+
+function selecionarUsuario(indice) {
+  usuarioSelecionado = usuariosDisponiveis[indice];
+  mostrarTelaPin();
+}
+
+function trocarUsuario() {
+  usuarioSelecionado = null;
+  pin = '';
+  document.getElementById('tela-pin').style.display = 'none';
+  document.getElementById('tela-selecao').style.display = 'block';
+}
+
+function mostrarTelaPin() {
+  document.getElementById('tela-selecao').style.display = 'none';
+  document.getElementById('tela-pin').style.display = 'block';
+  const label = document.getElementById('usuario-atual');
+  label.innerHTML = usuarioSelecionado && usuarioSelecionado.nome
+    ? `${usuarioSelecionado.nome} · <a href="#" onclick="trocarUsuario();return false" style="color:var(--verde-e)">trocar</a>`
+    : '';
+  renderDots();
+}
+
+carregarUsuarios();
 
 // ── Controle de tentativas ──
 function getFalhas() {
@@ -235,7 +313,7 @@ async function pressKey(k) {
     msg.className = 'msg';
     msg.textContent = '';
 
-    const resultado = await authLogin(pin);
+    const resultado = await authLogin(pin, usuarioSelecionado ? usuarioSelecionado.email : null);
 
     if (resultado.ok) {
       resetFalhas();

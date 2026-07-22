@@ -90,12 +90,13 @@ function sbClient() {
 }
 
 // ── Login via Supabase Auth (PIN como senha) ──
-async function authLogin(pin) {
+async function authLogin(pin, email) {
   try {
+    const loginEmail = email || CLINICA_CONFIG.loginEmail;
     const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY },
-      body: JSON.stringify({ email: CLINICA_CONFIG.loginEmail, password: pin })
+      body: JSON.stringify({ email: loginEmail, password: pin })
     });
     const data = await res.json();
     if (!res.ok || data.error) {
