@@ -338,6 +338,46 @@
     </div>
   </div>
 
+  <!-- Equipe -->
+  <div class="secao">
+    <div class="sec-hdr">
+      <span class="sec-icon">👥</span>
+      <span class="sec-title">Equipe</span>
+      <span class="sec-sub">Quem acessa o sistema</span>
+    </div>
+    <div class="sec-body">
+      <div id="lista-equipe" style="margin-bottom:1rem;font-size:13px">Carregando...</div>
+
+      <button class="pkey conf" style="width:auto;padding:.6rem 1.2rem;margin-right:.5rem" onclick="abrirFormFuncionario()">+ Adicionar funcionário</button>
+
+      <div id="form-funcionario" style="display:none;margin-top:1rem">
+        <div class="divider"></div>
+        <div class="label-sec">Novo funcionário</div>
+        <div class="fg">
+          <div class="fi">
+            <label>Nome completo</label>
+            <input type="text" id="func-nome" placeholder="Ex: Maria da Recepção"/>
+          </div>
+          <div class="fi">
+            <label>Cargo (opcional)</label>
+            <input type="text" id="func-cargo" placeholder="Ex: Recepção, Dentista"/>
+          </div>
+          <div class="fi">
+            <label>E-mail de acesso</label>
+            <input type="email" id="func-email" placeholder="email@exemplo.com"/>
+          </div>
+          <div class="fi">
+            <label>Senha inicial (mín. 4 dígitos)</label>
+            <input type="password" id="func-senha" placeholder="••••"/>
+          </div>
+        </div>
+        <div id="func-msg" style="font-size:12px;margin:.5rem 0"></div>
+        <button class="pkey conf" style="width:auto;padding:.6rem 1.2rem;margin-right:.5rem" id="btn-salvar-func" onclick="salvarFuncionario()">Salvar</button>
+        <button class="pkey" style="width:auto;padding:.6rem 1.2rem" onclick="fecharFormFuncionario()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Integrações WhatsApp -->
   <div class="secao">
     <div class="sec-hdr">
@@ -630,6 +670,83 @@ async function init(){
   }
   renderPdots();
   wzCarregar();
+  carregarEquipe();
+}
+
+// ── Equipe ──
+async function carregarEquipe(){
+  const div = document.getElementById('lista-equipe');
+  const {data, error} = await sb.from('usuarios').select('*').order('criado_em');
+  if(error){ div.textContent = 'Erro ao carregar equipe.'; return; }
+  if(!data || !data.length){ div.textContent = 'Nenhum funcionário cadastrado ainda.'; return; }
+  div.innerHTML = data.map(u => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--borda)">
+      <div>
+        <strong>${u.nome}</strong>${u.cargo ? ' · '+u.cargo : ''}
+        <div style="font-size:11px;color:var(--ct)">${u.email}${u.ativo ? '' : ' · INATIVO'}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function abrirFormFuncionario(){
+  document.getElementById('form-funcionario').style.display = 'block';
+}
+function fecharFormFuncionario(){
+  document.getElementById('form-funcionario').style.display = 'none';
+  document.getElementById('func-nome').value = '';
+  document.getElementById('func-cargo').value = '';
+  document.getElementById('func-email').value = '';
+  document.getElementById('func-senha').value = '';
+  document.getElementById('func-msg').textContent = '';
+}
+
+async function salvarFuncionario(){
+  const nome  = document.getElementById('func-nome').value.trim();
+  const cargo = document.getElementById('func-cargo').value.trim();
+  const email = document.getElementById('func-email').value.trim();
+  const senha = document.getElementById('func-senha').value;
+  const msg = document.getElementById('func-msg');
+  const btn = document.getElementById('btn-salvar-func');
+
+  if(!nome || !email || !senha){
+    msg.textContent = 'Preencha nome, e-mail e senha.';
+    msg.style.color = '#c0392b';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+  msg.textContent = '';
+
+  try{
+    const auth = JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+    const token = auth.access_token;
+    const res = await fetch(`${SB_URL}/functions/v1/criar-funcionario`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': SB_KEY
+      },
+      body: JSON.stringify({ nome, cargo, email, senha })
+    });
+    const d = await res.json();
+    if(!res.ok){
+      msg.textContent = d.error || 'Erro ao criar funcionário.';
+      msg.style.color = '#c0392b';
+      return;
+    }
+    toast('Funcionário criado com sucesso!','ok');
+    fecharFormFuncionario();
+    carregarEquipe();
+  }catch(e){
+    msg.textContent = 'Erro de conexão: '+e.message;
+    msg.style.color = '#c0392b';
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Salvar';
+  }
 }
 
 // ── Preview ao vivo ──
