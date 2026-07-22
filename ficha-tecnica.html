@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Ficha Técnica — Clínica Dra. Anna Carolina</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script>
+try{
+  const auth=JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+  if(!auth.ok||auth.expires<Date.now()) window.location.replace('login.html');
+  else sessionStorage.setItem('clinica_auth','1');
+}catch(e){ window.location.replace('login.html'); }
+</script>
+<style>
+:root{
+  --verde:#1D9E75;--verde-e:#0F6E56;--verde-c:#E1F5EE;
+  --amarelo:#EF9F27;--amarelo-c:#FAEEDA;
+  --vermelho:#E24B4A;--vermelho-c:#FCEBEB;
+  --azul:#185FA5;--azul-c:#E6F1FB;
+  --roxo:#7C3AED;--roxo-c:#EDE9FE;
+  --bg:#F7F6F3;--card:#FFFFFF;--borda:#E8E6E1;--ct:#6B6860;--txt:#1A1916;
+  --s:0 1px 3px rgba(0,0,0,.06);--sm:0 4px 16px rgba(0,0,0,.10);
+}
+[data-theme="dark"]{
+  --bg:#1A1916;--card:#242220;--borda:#3A3835;--ct:#9A9690;--txt:#F0EDE8;
+  --verde-c:#0F3D2E;--amarelo-c:#3D2E0A;--vermelho-c:#3D1515;--azul-c:#0F2540;--roxo-c:#2D1A5E;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:15px}
+.hdr{background:var(--verde-e);color:white;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:50;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr h1{font-family:'DM Serif Display',serif;font-size:18px;font-weight:400}
+.btn-back{background:none;border:none;cursor:pointer;color:white;opacity:.8;font-size:22px;padding:4px;line-height:1}
+.btn-back:hover{opacity:1}
+.main{max-width:1000px;margin:0 auto;padding:1.5rem}
+.toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem}
+.btn{padding:10px 16px;border-radius:10px;border:1.5px solid var(--borda);background:var(--card);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;color:var(--txt)}
+.btn.pri{background:var(--verde);color:white;border-color:var(--verde)}
+.btn.pri:hover{background:var(--verde-e)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem}
+.proc-card{background:var(--card);border:1.5px solid var(--borda);border-radius:14px;padding:1.1rem;box-shadow:var(--s);cursor:pointer;transition:.15s}
+.proc-card:hover{border-color:var(--verde);box-shadow:var(--sm)}
+.proc-nome{font-weight:700;font-size:15px;margin-bottom:2px}
+.proc-cat{font-size:11px;color:var(--ct);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.75rem}
+.proc-linha{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-top:1px solid var(--borda)}
+.proc-linha:first-of-type{border-top:none}
+.proc-linha .lbl{color:var(--ct)}
+.proc-linha .val{font-weight:600}
+.margem-pos{color:var(--verde-e)}
+.margem-neg{color:var(--vermelho)}
+.vazio{text-align:center;padding:3rem 1rem;color:var(--ct)}
+/* Modal */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center;padding:1rem}
+.modal-bg.open{display:flex}
+.modal{background:var(--card);border-radius:16px;padding:1.5rem;max-width:520px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:var(--sm)}
+.modal h2{font-size:17px;margin-bottom:1rem}
+.fgr{margin-bottom:.85rem}
+.fgr label{display:block;font-size:12px;font-weight:600;color:var(--ct);margin-bottom:4px}
+.fgr input,.fgr select{width:100%;padding:9px 11px;border:1.5px solid var(--borda);border-radius:8px;font-size:14px;font-family:inherit;color:var(--txt);background:var(--card)}
+.fgr input:focus,.fgr select:focus{outline:none;border-color:var(--verde)}
+.modal-actions{display:flex;gap:8px;margin-top:1.25rem}
+.modal-actions .btn{flex:1}
+.ingrediente-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--borda);font-size:13px}
+.ingrediente-row .nome{flex:1}
+.ingrediente-row .sub{color:var(--ct);font-size:12px}
+.ingrediente-row .del{background:none;border:none;color:var(--vermelho);cursor:pointer;font-size:16px;padding:2px 6px}
+.add-ingrediente{display:flex;gap:6px;margin-top:.75rem}
+.add-ingrediente select{flex:2}
+.add-ingrediente input{flex:1;width:auto}
+.total-box{background:var(--verde-c);border-radius:10px;padding:.85rem 1rem;margin-top:1rem;font-size:14px}
+.total-box .linha{display:flex;justify-content:space-between;padding:2px 0}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--txt);color:white;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:999;transition:.3s;opacity:0}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.verde{background:var(--verde-e)}
+.toast.vermelho{background:var(--vermelho)}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-left">
+    <button class="btn-back" onclick="window.location.href='gestao.html'">←</button>
+    <h1>🧾 Ficha Técnica de Procedimentos</h1>
+  </div>
+</div>
+
+<div class="main">
+  <div class="toolbar">
+    <span style="font-size:13px;color:var(--ct)">Defina quanto de cada produto um procedimento consome, e veja o custo real calculado automaticamente.</span>
+    <button class="btn pri" onclick="abrirModalProcedimento()">+ Novo procedimento</button>
+  </div>
+
+  <div class="grid" id="lista-procedimentos"></div>
+  <div class="vazio" id="vazio" style="display:none">Nenhum procedimento cadastrado ainda. Clique em "+ Novo procedimento" para começar.</div>
+</div>
+
+<!-- Modal: criar/editar procedimento -->
+<div class="modal-bg" id="modal-procedimento">
+  <div class="modal">
+    <h2 id="modal-proc-titulo">Novo procedimento</h2>
+    <input type="hidden" id="proc-id"/>
+    <div class="fgr"><label>Nome do procedimento</label><input type="text" id="proc-nome" placeholder="Ex: Botox (toxina botulínica)"/></div>
+    <div class="fgr"><label>Categoria (opcional)</label><input type="text" id="proc-cat" placeholder="Ex: Toxina, Preenchimento, Skinbooster"/></div>
+    <div class="fgr"><label>Valor cobrado do paciente (R$, opcional)</label><input type="number" id="proc-valor" min="0" step="0.01" placeholder="Ex: 800,00"/></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharModal('modal-procedimento')">Cancelar</button>
+      <button class="btn pri" onclick="salvarProcedimento()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: receita (ficha técnica) do procedimento -->
+<div class="modal-bg" id="modal-receita">
+  <div class="modal">
+    <h2 id="receita-titulo">Receita do procedimento</h2>
+    <div id="lista-ingredientes"></div>
+    <div class="add-ingrediente">
+      <select id="ing-produto"></select>
+      <input type="number" id="ing-qtd" min="0" step="0.01" placeholder="Qtd."/>
+      <button class="btn pri" onclick="adicionarIngrediente()">+</button>
+    </div>
+    <div class="total-box">
+      <div class="linha"><span>Custo total do procedimento</span><strong id="receita-custo">R$ 0,00</strong></div>
+      <div class="linha" id="linha-valor" style="display:none"><span>Valor cobrado</span><strong id="receita-valor">—</strong></div>
+      <div class="linha" id="linha-margem" style="display:none"><span>Margem</span><strong id="receita-margem">—</strong></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharModal('modal-receita')">Fechar</button>
+      <button class="btn" style="border-color:var(--vermelho);color:var(--vermelho)" onclick="excluirProcedimento()">🗑️ Excluir procedimento</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const {createClient}=supabase;
+const _noOp={getItem:()=>null,setItem:()=>{},removeItem:()=>{}};
+const _dbClient=createClient(SB_URL,SB_KEY,{
+  auth:{storage:_noOp,persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
+  global:{fetch:(url,opts={})=>{
+    const _a=JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+    const _t=_a.access_token||SB_KEY;
+    const _h=new Headers(opts.headers||{});
+    _h.set('Authorization',`Bearer ${_t}`);
+    _h.set('apikey',SB_KEY);
+    return fetch(url,{...opts,headers:_h}).then(res=>{
+      if(res.status===401){
+        localStorage.removeItem('clinica_auth');
+        sessionStorage.removeItem('clinica_auth');
+        if(typeof toast==='function') toast('Sessão expirada. Redirecionando para login...','vermelho');
+        setTimeout(()=>window.location.replace('login.html'),1500);
+      }
+      return res;
+    });
+  }}
+});
+const _ACAO_ERR={insert:'salvar',update:'atualizar',delete:'excluir',upsert:'salvar'};
+const db={
+  from:function(tabela){
+    const qb=_dbClient.from(tabela);
+    ['insert','update','delete','upsert'].forEach(function(metodo){
+      const orig=qb[metodo];
+      if(typeof orig!=='function')return;
+      qb[metodo]=function(...args){
+        const res=orig.apply(qb,args);
+        const origThen=res.then.bind(res);
+        res.then=function(onOk,onErr){
+          return origThen(function(r){
+            if(r&&r.error){
+              console.error('['+tabela+'.'+metodo+']',r.error);
+              toast('Erro ao '+_ACAO_ERR[metodo]+' ('+tabela+'): '+(r.error.message||'falha desconhecida'),'vermelho');
+            }
+            return onOk?onOk(r):r;
+          },onErr);
+        };
+        return res;
+      };
+    });
+    return qb;
+  }
+};
+
+function toast(m,t=''){const el=document.getElementById('toast');el.textContent=m;el.className='toast show '+t;setTimeout(()=>el.className='toast',3000);}
+function escapeHtml(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+function abrirModal(id){document.getElementById(id).classList.add('open');}
+function fecharModal(id){document.getElementById(id).classList.remove('open');}
+function fmtBRL(v){return 'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+let _procedimentos=[];
+let _produtos=[];
+let _fichaAtual=[]; // ficha_tecnica do procedimento aberto no momento
+let _procAtualId=null;
+
+async function carregarTudo(){
+  const [{data:procs},{data:prods}]=await Promise.all([
+    db.from('tipos_procedimento').select('*').eq('ativo',true).order('nome'),
+    db.from('produtos').select('id,nome,unidade,custo_unitario').order('nome')
+  ]);
+  _procedimentos=procs||[];
+  _produtos=prods||[];
+  await renderProcedimentos();
+}
+
+async function renderProcedimentos(){
+  const cont=document.getElementById('lista-procedimentos');
+  const vazio=document.getElementById('vazio');
+  if(!_procedimentos.length){ cont.innerHTML=''; vazio.style.display='block'; return; }
+  vazio.style.display='none';
+
+  // Busca todas as fichas técnicas de uma vez, agrupando por procedimento
+  const {data:fichas}=await db.from('ficha_tecnica').select('procedimento_id,quantidade,produtos(custo_unitario)');
+  const custoPorProc={};
+  (fichas||[]).forEach(f=>{
+    const custoUnit=f.produtos?.custo_unitario||0;
+    custoPorProc[f.procedimento_id]=(custoPorProc[f.procedimento_id]||0)+(f.quantidade*custoUnit);
+  });
+
+  cont.innerHTML=_procedimentos.map(p=>{
+    const custo=custoPorProc[p.id]||0;
+    const temValor=p.valor_sugerido!=null;
+    const margem=temValor?p.valor_sugerido-custo:null;
+    return `<div class="proc-card" onclick="abrirReceita('${p.id}')">
+      <div class="proc-nome">${escapeHtml(p.nome)}</div>
+      <div class="proc-cat">${escapeHtml(p.categoria||'sem categoria')}</div>
+      <div class="proc-linha"><span class="lbl">Custo do procedimento</span><span class="val">${fmtBRL(custo)}</span></div>
+      ${temValor?`<div class="proc-linha"><span class="lbl">Valor cobrado</span><span class="val">${fmtBRL(p.valor_sugerido)}</span></div>
+      <div class="proc-linha"><span class="lbl">Margem</span><span class="val ${margem>=0?'margem-pos':'margem-neg'}">${fmtBRL(margem)}</span></div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function abrirModalProcedimento(){
+  document.getElementById('modal-proc-titulo').textContent='Novo procedimento';
+  document.getElementById('proc-id').value='';
+  document.getElementById('proc-nome').value='';
+  document.getElementById('proc-cat').value='';
+  document.getElementById('proc-valor').value='';
+  abrirModal('modal-procedimento');
+}
+
+async function salvarProcedimento(){
+  const nome=document.getElementById('proc-nome').value.trim();
+  if(!nome){toast('Informe o nome do procedimento','vermelho');return;}
+  const obj={
+    nome,
+    categoria:document.getElementById('proc-cat').value.trim()||null,
+    valor_sugerido:parseFloat(document.getElementById('proc-valor').value)||null
+  };
+  const{error}=await db.from('tipos_procedimento').insert(obj);
+  if(error)return;
+  toast('Procedimento criado!','verde');
+  fecharModal('modal-procedimento');
+  await carregarTudo();
+}
+
+async function abrirReceita(procId){
+  _procAtualId=procId;
+  const proc=_procedimentos.find(p=>p.id===procId);
+  document.getElementById('receita-titulo').textContent='Receita — '+proc.nome;
+
+  // Popula select de produtos
+  const sel=document.getElementById('ing-produto');
+  sel.innerHTML=_produtos.map(p=>`<option value="${p.id}">${escapeHtml(p.nome)} (${p.unidade||'unidade'})</option>`).join('');
+
+  const{data}=await db.from('ficha_tecnica').select('*,produtos(nome,unidade,custo_unitario)').eq('procedimento_id',procId);
+  _fichaAtual=data||[];
+  renderReceita(proc);
+  abrirModal('modal-receita');
+}
+
+function renderReceita(proc){
+  const cont=document.getElementById('lista-ingredientes');
+  if(!_fichaAtual.length){
+    cont.innerHTML='<div style="color:var(--ct);font-size:13px;padding:8px 0">Nenhum ingrediente ainda — adicione abaixo.</div>';
+  } else {
+    cont.innerHTML=_fichaAtual.map(f=>{
+      const custoUnit=f.produtos?.custo_unitario||0;
+      const subtotal=f.quantidade*custoUnit;
+      return `<div class="ingrediente-row">
+        <div class="nome">${escapeHtml(f.produtos?.nome||'—')}<div class="sub">${f.quantidade} ${f.produtos?.unidade||''} × ${fmtBRL(custoUnit)}</div></div>
+        <div>${fmtBRL(subtotal)}</div>
+        <button class="del" onclick="removerIngrediente('${f.id}')">✕</button>
+      </div>`;
+    }).join('');
+  }
+  const custoTotal=_fichaAtual.reduce((s,f)=>s+(f.quantidade*(f.produtos?.custo_unitario||0)),0);
+  document.getElementById('receita-custo').textContent=fmtBRL(custoTotal);
+  if(proc.valor_sugerido!=null){
+    document.getElementById('linha-valor').style.display='flex';
+    document.getElementById('linha-margem').style.display='flex';
+    document.getElementById('receita-valor').textContent=fmtBRL(proc.valor_sugerido);
+    const margem=proc.valor_sugerido-custoTotal;
+    const elMargem=document.getElementById('receita-margem');
+    elMargem.textContent=fmtBRL(margem);
+    elMargem.className=margem>=0?'margem-pos':'margem-neg';
+  } else {
+    document.getElementById('linha-valor').style.display='none';
+    document.getElementById('linha-margem').style.display='none';
+  }
+}
+
+async function adicionarIngrediente(){
+  const produtoId=document.getElementById('ing-produto').value;
+  const qtd=parseFloat(document.getElementById('ing-qtd').value);
+  if(!produtoId||!qtd||qtd<=0){toast('Escolha o produto e a quantidade','vermelho');return;}
+  const{error}=await db.from('ficha_tecnica').insert({procedimento_id:_procAtualId,produto_id:produtoId,quantidade:qtd});
+  if(error)return;
+  document.getElementById('ing-qtd').value='';
+  await abrirReceita(_procAtualId); // recarrega
+  await renderProcedimentos(); // atualiza custo no card
+}
+
+async function removerIngrediente(fichaId){
+  const{error}=await db.from('ficha_tecnica').delete().eq('id',fichaId);
+  if(error)return;
+  await abrirReceita(_procAtualId);
+  await renderProcedimentos();
+}
+
+async function excluirProcedimento(){
+  if(!confirm('Excluir este procedimento e toda a sua receita? Essa ação não pode ser desfeita.'))return;
+  const{error}=await db.from('tipos_procedimento').delete().eq('id',_procAtualId);
+  if(error)return;
+  toast('Procedimento excluído','verde');
+  fecharModal('modal-receita');
+  await carregarTudo();
+}
+
+carregarTudo();
+</script>
+</body>
+</html>

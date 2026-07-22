@@ -266,6 +266,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-
         </div>
         <div class="fgr"><label>Quantidade atual</label><input type="number" id="prod-qtd" min="0" step="0.01" placeholder="0"/></div>
         <div class="fgr"><label>Estoque mínimo (alerta)</label><input type="number" id="prod-min" min="0" step="0.01" placeholder="0"/></div>
+        <div class="fgr"><label>Custo por unidade (R$)</label><input type="number" id="prod-custo" min="0" step="0.01" placeholder="Ex: 45,00"/></div>
         <div class="fgr full"><label>Fornecedor</label>
           <select id="prod-forn">
             <option value="">Sem fornecedor</option>
@@ -673,6 +674,7 @@ function abrirModalProduto(id){
   document.getElementById('prod-unidade').value='unidade';
   document.getElementById('prod-qtd').value='';
   document.getElementById('prod-min').value='';
+  document.getElementById('prod-custo').value='';
   document.getElementById('prod-codigo').value='';
   document.getElementById('prod-anvisa').value='';
   document.getElementById('prod-fabricante').value='';
@@ -695,6 +697,7 @@ function editarProduto(id){
   document.getElementById('prod-unidade').value=p.unidade||'unidade';
   document.getElementById('prod-qtd').value=p.quantidade||0;
   document.getElementById('prod-min').value=p.estoque_minimo||0;
+  document.getElementById('prod-custo').value=p.custo_unitario||'';
   document.getElementById('prod-codigo').value=p.codigo||'';
   document.getElementById('prod-anvisa').value=p.anvisa||'';
   document.getElementById('prod-fabricante').value=p.fabricante||'';
@@ -721,6 +724,7 @@ async function salvarProduto(){
     unidade:document.getElementById('prod-unidade').value,
     quantidade:qtdNova,
     estoque_minimo:parseFloat(document.getElementById('prod-min').value)||0,
+    custo_unitario:parseFloat(document.getElementById('prod-custo').value)||null,
     fornecedor_id:document.getElementById('prod-forn').value||null,
     codigo:document.getElementById('prod-codigo').value.trim()||null,
     anvisa:document.getElementById('prod-anvisa').value.trim()||null,
