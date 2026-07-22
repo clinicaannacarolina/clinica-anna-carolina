@@ -5651,12 +5651,6 @@ async function confirmarVinculo(pac){
   await carregarAgenda();
 }
 
-document.getElementById('m-ver-anamnese').addEventListener('click',e=>{
-  if(e.target!==e.currentTarget) return;
-  const _abEm=parseInt(e.currentTarget.dataset.abertoEm||'0');
-  if(Date.now()-_abEm<400) return;
-  e.currentTarget.classList.remove('open');
-});
 document.getElementById('m-vincular').addEventListener('click',e=>{
   if(e.target!==e.currentTarget) return;
   const _abEm=parseInt(document.getElementById('m-vincular').dataset.abertoEm||'0');
@@ -5682,6 +5676,17 @@ document.getElementById('m-vincular').addEventListener('click',e=>{
     </div>
   </div>
 </div>
+
+<script>
+// Fica aqui, depois do modal #m-ver-anamnese existir no DOM — antes disso,
+// getElementById retornava null e quebrava com "Cannot read properties of null".
+document.getElementById('m-ver-anamnese').addEventListener('click',e=>{
+  if(e.target!==e.currentTarget) return;
+  const _abEm=parseInt(e.currentTarget.dataset.abertoEm||'0');
+  if(Date.now()-_abEm<400) return;
+  e.currentTarget.classList.remove('open');
+});
+</script>
 
 </body>
 </html>
