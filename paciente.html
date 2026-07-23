@@ -472,6 +472,10 @@ textarea{resize:vertical;min-height:70px}
 <div class="mb" id="m-edit">
   <div class="mx" style="max-width:520px">
     <h3>✏️ Editar dados pessoais</h3>
+    <div id="e-rascunho-aviso" style="display:none;background:var(--amarelo-c);color:#7a5a10;padding:8px 12px;border-radius:8px;font-size:12px;margin-bottom:.75rem">
+      📝 Recuperamos automaticamente o que você tinha digitado às <strong id="e-rascunho-hora"></strong>, que não tinha sido salvo.
+      <a href="#" onclick="descartarRascunhoEdit();return false" style="font-weight:700;text-decoration:underline;color:inherit">Descartar e usar os dados originais</a>
+    </div>
     <div class="fg">
       <div class="fgr full"><label>Nome completo *</label><input type="text" id="e-nome"/></div>
       <div class="fgr full"><label>Apelido / Como chamar</label><input type="text" id="e-apelido"/></div>
@@ -1728,6 +1732,8 @@ function delLembrAtual(){
 }
 
 // ─── EDITAR DADOS ───
+const _CAMPOS_EDIT_PACIENTE=['e-nome','e-apelido','e-tel','e-resp','e-nasc','e-cpf','e-rg','e-sexo','e-cep','e-rua','e-numero','e-bairro','e-cidade','e-drive','e-indic','e-instagram','e-facebook','e-conheceu','e-obs'];
+
 function abrirEditarDados(){
   const p=pac;
   document.getElementById('e-nome').value=p.nome||'';
@@ -1751,10 +1757,31 @@ function abrirEditarDados(){
   document.getElementById('e-facebook').value=p.facebook||'';
   document.getElementById('e-conheceu').value=p.como_conheceu||'';
   document.getElementById('e-obs').value=p.observacoes||'';
+
+  // Rascunho automático: se havia algo não salvo (sessão caiu, aba fechou, etc.), recupera
+  const aviso=document.getElementById('e-rascunho-aviso');
+  const quando=rascunhoChecar('paciente_edit_'+p.id,_CAMPOS_EDIT_PACIENTE);
+  if(quando){
+    document.getElementById('e-rascunho-hora').textContent=rascunhoFormatarHora(quando);
+    aviso.style.display='block';
+  } else {
+    aviso.style.display='none';
+  }
+  rascunhoAtivar('paciente_edit_'+p.id,_CAMPOS_EDIT_PACIENTE);
+
   document.getElementById('m-edit').classList.add('open');
 }
 
-function fchEdit(){document.getElementById('m-edit').classList.remove('open');}
+function descartarRascunhoEdit(){
+  rascunhoLimpar('paciente_edit_'+pac.id);
+  document.getElementById('e-rascunho-aviso').style.display='none';
+  abrirEditarDados(); // recarrega os campos com os dados originais do paciente
+}
+
+function fchEdit(){
+  document.getElementById('m-edit').classList.remove('open');
+  if(pac?.id) rascunhoLimpar('paciente_edit_'+pac.id);
+}
 
 async function salvarEdit(){
   const nome=document.getElementById('e-nome').value.trim();
@@ -1783,6 +1810,7 @@ async function salvarEdit(){
   };
   const{error}=await db.from('pacientes').update(updates).eq('id',pac.id);
   if(error){toast('Erro ao salvar','vermelho');return;}
+  rascunhoLimpar('paciente_edit_'+pac.id);
   Object.assign(pac,updates);
   await registrarHistorico('Cadastro atualizado','Dados pessoais foram editados');
   toast('Dados atualizados ✅','verde');

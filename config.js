@@ -73,6 +73,56 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') renovarTokenSeNecessario();
 });
 
+// ── Rascunho automático de formulários ──
+// Protege contra perda de digitação (sessão caiu, internet oscilou, aba fechou
+// sem querer): salva os campos no navegador enquanto a pessoa digita, e
+// recupera automaticamente se o formulário for reaberto antes de salvar de verdade.
+const _RASCUNHO_TIMER = {};
+
+function rascunhoAtivar(chave, camposIds) {
+  const KEY = 'rascunho_' + chave;
+  function salvarAgora() {
+    const dados = {};
+    camposIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) dados[id] = el.value;
+    });
+    const temConteudo = Object.values(dados).some(v => v && String(v).trim() !== '');
+    if (temConteudo) localStorage.setItem(KEY, JSON.stringify({ dados, quando: Date.now() }));
+    else localStorage.removeItem(KEY);
+  }
+  camposIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el || el.dataset.rascunhoAtivo) return;
+    el.dataset.rascunhoAtivo = '1';
+    el.addEventListener('input', () => {
+      clearTimeout(_RASCUNHO_TIMER[chave]);
+      _RASCUNHO_TIMER[chave] = setTimeout(salvarAgora, 1200);
+    });
+  });
+}
+
+function rascunhoChecar(chave, camposIds) {
+  const KEY = 'rascunho_' + chave;
+  try {
+    const salvo = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (!salvo || !salvo.dados) return null;
+    camposIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && salvo.dados[id] != null) el.value = salvo.dados[id];
+    });
+    return salvo.quando;
+  } catch (e) { return null; }
+}
+
+function rascunhoLimpar(chave) {
+  localStorage.removeItem('rascunho_' + chave);
+}
+
+function rascunhoFormatarHora(timestamp) {
+  return new Date(timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
 // ── Carrega config da clínica do Supabase ──
 async function carregarConfigClinica() {
   try {
