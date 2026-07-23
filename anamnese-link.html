@@ -244,8 +244,9 @@ async function init(){
 
   linkData = link;
 
-  // Buscar paciente
-  const {data:pac} = await db.from('pacientes').select('nome,apelido,telefone,data_nascimento,cpf,rg,sexo,endereco').eq('id',link.paciente_id).single();
+  // Buscar paciente (via função segura — não lê a tabela pacientes diretamente)
+  const {data:pacRows} = await db.rpc('dados_paciente_anamnese', {p_token: token});
+  const pac = pacRows?.[0];
   if(!pac){ setState('st-erro'); return; }
   pacData = pac;
 
