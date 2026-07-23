@@ -77,6 +77,7 @@ textarea{resize:vertical}
 .toast{position:fixed;bottom:1.5rem;right:1.5rem;z-index:300;background:var(--txt);color:var(--bg);padding:11px 18px;border-radius:10px;font-size:14px;font-weight:500;box-shadow:var(--sm);transform:translateY(100px);opacity:0;transition:all .3s}
 .toast.show{transform:translateY(0);opacity:1}
 .toast.verde{background:var(--verde);color:white}
+.toast.amarelo{background:var(--amarelo);color:white}
 .toast.vermelho{background:var(--vermelho);color:white}
 .pac-info{background:var(--verde-c);border-radius:10px;padding:12px 16px;margin-bottom:1rem;display:flex;align-items:center;gap:12px}
 .pac-info-nome{font-weight:600;font-size:15px;color:var(--verde-e)}
@@ -3561,6 +3562,44 @@ window.abrirModalRealizado = async function() {
   document.getElementById('modal-realizado').style.display = 'flex';
 };
 
+// Baixa automática de estoque (Ficha Técnica) ao confirmar um item do plano como
+// realizado/pago. Evita baixar duas vezes usando a flag baixa_estoque_feita no item.
+async function baixarEstoquePorItemPlano(itemId, procedimentoNome) {
+  if (!procedimentoNome) return;
+  try {
+    const { data: itemAtual } = await db.from('plano_itens').select('baixa_estoque_feita').eq('id', itemId).single();
+    if (itemAtual?.baixa_estoque_feita) return; // já baixou antes, não repete
+
+    const nomeBusca = procedimentoNome.trim().toLowerCase();
+    const { data: tiposTodos } = await db.from('tipos_procedimento').select('id,nome');
+    const tipo = (tiposTodos || []).find(t => (t.nome || '').trim().toLowerCase() === nomeBusca);
+    if (!tipo) {
+      toast(`⚠️ Sem Ficha Técnica para "${procedimentoNome}" — estoque não foi baixado`, 'amarelo');
+      return;
+    }
+    const { data: itens } = await db.from('ficha_tecnica').select('produto_id,quantidade,produtos(nome,quantidade)').eq('procedimento_id', tipo.id);
+    if (!itens || !itens.length) {
+      toast(`Ficha Técnica de "${procedimentoNome}" está vazia — nada para baixar`, 'amarelo');
+      return;
+    }
+    let algumNegativo = false;
+    for (const item of itens) {
+      const qtdAtual = item.produtos?.quantidade || 0;
+      const novaQtd = qtdAtual - item.quantidade;
+      if (novaQtd < 0) algumNegativo = true;
+      await db.from('produtos').update({ quantidade: novaQtd }).eq('id', item.produto_id);
+      await db.from('estoque_movimentos').insert({
+        produto_id: item.produto_id, plano_item_id: itemId, tipo: 'saida', quantidade: item.quantidade,
+        obs: `Baixa automática — ${procedimentoNome} (orçamento, ${pacSelecionada?.nome || 'paciente'})`
+      });
+    }
+    await db.from('plano_itens').update({ baixa_estoque_feita: true }).eq('id', itemId);
+    toast(`📦 Estoque baixado automaticamente (${itens.length} item${itens.length !== 1 ? 's' : ''})${algumNegativo ? ' — atenção: algum produto ficou negativo' : ''}`, algumNegativo ? 'amarelo' : 'verde');
+  } catch (e) {
+    console.warn('[baixarEstoquePorItemPlano]', e);
+  }
+}
+
 // ── SOBRESCREVER confirmarRealizado ──
 window.confirmarRealizado = async function() {
   const dataAtend = document.getElementById('modal-data')?.value;
@@ -3675,6 +3714,9 @@ window.confirmarRealizado = async function() {
             itemLocal.data_realizacao = dataAtend;
           }
         }
+
+        // Baixa automática de estoque via Ficha Técnica (só quando o item ainda não baixou)
+        if (!eItem) await baixarEstoquePorItemPlano(r.itemId, r.trat);
       }
     }
 

@@ -83,7 +83,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-
   </div>
 
   <div class="info-box">
-    ℹ️ O <strong>Custo dos Serviços Prestados</strong> é calculado com base na Ficha Técnica de cada procedimento <em>realizado</em> no período — não a partir das compras de estoque, para não contar o mesmo custo duas vezes. As compras de insumos aparecem à parte, só como comparação.
+    ℹ️ O <strong>Custo dos Serviços Prestados</strong> é calculado com base na Ficha Técnica de cada item do <em>Orçamento confirmado como realizado/pago</em> (botão "Confirmar e registrar") no período — não a partir das compras de estoque, para não contar o mesmo custo duas vezes. As compras de insumos aparecem à parte, só como comparação.
   </div>
 
   <div id="alerta-sem-ficha"></div>
@@ -191,9 +191,10 @@ async function carregarDRE(){
   const porCategoria={};
   despesasOperacionais.forEach(d=>{porCategoria[d.categoria]=(porCategoria[d.categoria]||0)+parseFloat(d.valor||0);});
 
-  // 3. Custo dos Serviços Prestados — via Ficha Técnica dos atendimentos REALIZADOS no período
+  // 3. Custo dos Serviços Prestados — via Ficha Técnica dos itens do Orçamento
+  // CONFIRMADOS como realizado/pago no período (fluxo real: "Confirmar e registrar")
   const [{data:realizados},{data:tiposProc},{data:fichas}]=await Promise.all([
-    db.from('agenda').select('procedimento').eq('status','realizado').gte('data',ini).lte('data',fim),
+    db.from('plano_itens').select('procedimento').in('status',['realizado','pago']).gte('data_realizacao',ini).lte('data_realizacao',fim),
     db.from('tipos_procedimento').select('id,nome'),
     db.from('ficha_tecnica').select('procedimento_id,quantidade,produtos(custo_unitario)')
   ]);
@@ -224,7 +225,7 @@ async function carregarDRE(){
   const semFichaKeys=Object.keys(semFicha);
   if(semFichaKeys.length){
     alertaEl.innerHTML=`<div class="alerta-box">
-      ⚠️ <strong>${semFichaKeys.reduce((s,k)=>s+semFicha[k],0)} atendimento(s) realizado(s) neste período não entraram no cálculo</strong>, porque o procedimento não tem Ficha Técnica cadastrada (ou o nome não bate exatamente):
+      ⚠️ <strong>${semFichaKeys.reduce((s,k)=>s+semFicha[k],0)} item(ns) do orçamento confirmado(s) neste período não entraram no cálculo</strong>, porque o procedimento não tem Ficha Técnica cadastrada (ou o nome não bate exatamente):
       <ul>${semFichaKeys.map(k=>`<li>${k} — ${semFicha[k]}x</li>`).join('')}</ul>
     </div>`;
   } else {

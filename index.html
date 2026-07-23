@@ -187,7 +187,8 @@ textarea{resize:vertical;min-height:70px}
 .ci.real{border-color:var(--verde);background:var(--verde-c)}
 .ci.online{border-color:#7c3aed;background:#f5f3ff}
 .badge-online{font-size:10px;font-weight:700;color:#7c3aed;background:#ede9fe;padding:2px 7px;border-radius:20px;margin-left:6px}
-.ci.faltou{opacity:.5;border-color:var(--ct);filter:grayscale(.5)}
+.ci.faltou{border-color:var(--ct);background:#f7f6f4}
+.ci.faltou .ch,.ci.faltou .cn,.ci.faltou .cd{opacity:.55;filter:grayscale(.5)}
 .ch{font-size:15px;font-weight:700;color:var(--verde-e);min-width:40px}
 .pen .ch{color:#633806}
 .cn{font-weight:600;font-size:14px;color:var(--txt)}
@@ -1511,7 +1512,7 @@ function renderHoje(){
           ${c.paciente_id?`<a href="paciente.html?id=${c.paciente_id}" class="btn" aria-label="Abrir ficha do paciente" style="padding:5px 8px;font-size:12px;background:var(--verde-c);color:var(--verde-e);border-color:var(--verde)" title="Abrir ficha do paciente">👤</a>`:''}
           ${!isReal&&!isFalt
             ?`<button class="btn" aria-label="Marcar como realizado" style="padding:5px 9px;font-size:12px;background:var(--verde);color:white;border-color:var(--verde)" onclick="marcarStatus('${c.id}','realizado')" title="Marcar como realizado">✅</button><button class="btn" aria-label="Paciente faltou" style="padding:5px 9px;font-size:12px" onclick="marcarStatus('${c.id}','faltou')" title="Paciente faltou">❌</button>`
-            :`<button class="btn" aria-label="Desfazer" style="padding:5px 9px;font-size:11px;color:var(--ct)" onclick="marcarStatus('${c.id}','pendente')" title="Desfazer">↩</button>`}
+            :`<button class="btn btn-desfazer" aria-label="Desfazer status — voltar para pendente" style="padding:5px 10px;font-size:12px;font-weight:600;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick="marcarStatus('${c.id}','pendente')" title="Marcou errado? Clique para voltar a pendente">↩ Desfazer</button>`}
           <button class="btn btn-vincular" aria-label="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}" style="padding:5px 8px;font-size:12px;background:var(--amarelo-c);color:#7a5800;border-color:var(--amarelo)" onclick='abrirVincular(${J(c)})' title="${c.paciente_id?'Substituir vínculo':'Vincular ao cadastro'}">🔗</button>
         </div>
       </div>`;
@@ -4514,12 +4515,9 @@ async function marcarStatus(id, status){
   renderHoje();
   const cLog=consultas.find(c=>c.id===id);
   await logAuditoria('Status de consulta alterado',`${cLog?.nome||id} → ${status} · ${cLog?.data||''} ${(cLog?.hora||'').slice(0,5)}`,cLog?.paciente_id||null);
-  // Baixa/reversão automática de estoque via Ficha Técnica
-  if(status==='realizado' && !consultaAtualizada.baixa_estoque_feita){
-    await baixarEstoquePorProcedimento(consultaAtualizada);
-  } else if(status!=='realizado' && consultaAtualizada.baixa_estoque_feita){
-    await reverterBaixaEstoque(consultaAtualizada);
-  }
+  // Baixa de estoque NÃO acontece mais por aqui — passou a ser feita pelo
+  // Orçamento (botão "Confirmar e registrar"), que é o fluxo que a clínica
+  // realmente usa para fechar atendimentos com valor e ficha técnica.
   await carregarAgenda(); // SW corrigido — já não retorna cache do Supabase
 }
 
