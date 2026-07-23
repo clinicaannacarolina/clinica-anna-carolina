@@ -233,7 +233,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-
   <div class="mb-box">
     <div class="mb-head">
       <h3 id="modal-produto-titulo">📦 Novo produto</h3>
-      <button class="btn dan" aria-label="Fechar" onclick="fecharModal('modal-produto')" title="Fechar">✕</button>
+      <button class="btn dan" aria-label="Fechar" onclick="fecharModalProduto()" title="Fechar">✕</button>
     </div>
     <div class="mb-body">
       <input type="hidden" id="prod-id"/>
@@ -284,7 +284,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-
       </div>
     </div>
     <div class="mb-foot">
-      <button class="btn" onclick="fecharModal('modal-produto')">Cancelar</button>
+      <button class="btn" onclick="fecharModalProduto()">Cancelar</button>
       <button class="btn pri" onclick="salvarProduto()">✓ Salvar</button>
     </div>
   </div>
@@ -666,6 +666,8 @@ function renderTblProdutos(lista){
   }).join('');
 }
 
+const _CAMPOS_PRODUTO=['prod-nome','prod-cat','prod-unidade','prod-qtd','prod-min','prod-custo','prod-codigo','prod-anvisa','prod-fabricante','prod-lote-atual','prod-fabricacao-atual','prod-validade-atual','prod-obs'];
+
 function abrirModalProduto(id){
   document.getElementById('modal-produto-titulo').textContent=id?'✏️ Editar produto':'📦 Novo produto';
   document.getElementById('prod-id').value='';
@@ -686,6 +688,9 @@ function abrirModalProduto(id){
   const sel=document.getElementById('prod-forn');
   sel.innerHTML='<option value="">Sem fornecedor</option>'+_fornecedores.map(f=>`<option value="${f.id}">${escapeHtml(f.nome)}</option>`).join('');
   abrirModal('modal-produto');
+  const quandoProd=rascunhoChecar('produto_novo',_CAMPOS_PRODUTO);
+  if(quandoProd) toast('📝 Recuperamos o que você tinha digitado às '+rascunhoFormatarHora(quandoProd),'amarelo');
+  rascunhoAtivar('produto_novo',_CAMPOS_PRODUTO);
 }
 
 function editarProduto(id){
@@ -708,6 +713,15 @@ function editarProduto(id){
   const sel=document.getElementById('prod-forn');
   sel.innerHTML='<option value="">Sem fornecedor</option>'+_fornecedores.map(f=>`<option value="${f.id}"${f.id===p.fornecedor_id?' selected':''}>${escapeHtml(f.nome)}</option>`).join('');
   abrirModal('modal-produto');
+  const quandoEdProd=rascunhoChecar('produto_edit_'+p.id,_CAMPOS_PRODUTO);
+  if(quandoEdProd) toast('📝 Recuperamos o que você tinha digitado às '+rascunhoFormatarHora(quandoEdProd),'amarelo');
+  rascunhoAtivar('produto_edit_'+p.id,_CAMPOS_PRODUTO);
+}
+
+function fecharModalProduto(){
+  const pid=document.getElementById('prod-id').value;
+  rascunhoLimpar(pid?'produto_edit_'+pid:'produto_novo');
+  fecharModal('modal-produto');
 }
 
 async function salvarProduto(){
@@ -768,6 +782,7 @@ async function salvarProduto(){
   }
   toast(id?'Produto atualizado ✓':'Produto cadastrado ✓','verde');
   await logAuditoria(id?'Produto atualizado':'Produto cadastrado', `${nome}`);
+  rascunhoLimpar(id?'produto_edit_'+id:'produto_novo');
   fecharModal('modal-produto');
   await carregar();
   if(_tabAtual==='produtos')renderProdutos();

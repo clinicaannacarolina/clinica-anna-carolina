@@ -240,6 +240,9 @@ function abrirModalProcedimento(){
   document.getElementById('proc-cat').value='';
   document.getElementById('proc-valor').value='';
   abrirModal('modal-procedimento');
+  const quandoProc=rascunhoChecar('procedimento_novo',['proc-nome','proc-cat','proc-valor']);
+  if(quandoProc) toast('📝 Recuperamos o que você tinha digitado às '+rascunhoFormatarHora(quandoProc),'amarelo');
+  rascunhoAtivar('procedimento_novo',['proc-nome','proc-cat','proc-valor']);
 }
 
 async function salvarProcedimento(){
@@ -252,6 +255,7 @@ async function salvarProcedimento(){
   };
   const{error}=await db.from('tipos_procedimento').insert(obj);
   if(error)return;
+  rascunhoLimpar('procedimento_novo');
   toast('Procedimento criado!','verde');
   fecharModal('modal-procedimento');
   await carregarTudo();

@@ -1666,6 +1666,8 @@ function renderLembretes(){
   }).join('');
 }
 
+const _CAMPOS_LEMBRETE=['l-recado','l-prazo','l-data'];
+
 function abrirNovoLembrete(){
   lembrEditandoId=null;
   document.getElementById('l-id').value='';
@@ -1675,6 +1677,9 @@ function abrirNovoLembrete(){
   document.getElementById('l-data-g').style.display='none';
   document.getElementById('l-del-btn').style.display='none';
   document.getElementById('m-lembr').classList.add('open');
+  const quandoL=rascunhoChecar('lembrete_novo_'+pac.id,_CAMPOS_LEMBRETE);
+  if(quandoL) toast('📝 Recuperamos o que você tinha digitado às '+rascunhoFormatarHora(quandoL),'amarelo');
+  rascunhoAtivar('lembrete_novo_'+pac.id,_CAMPOS_LEMBRETE);
 }
 
 function editarLembrete(l){
@@ -1686,9 +1691,15 @@ function editarLembrete(l){
   document.getElementById('l-data-g').style.display='flex';
   document.getElementById('l-del-btn').style.display='inline-flex';
   document.getElementById('m-lembr').classList.add('open');
+  const quandoLe=rascunhoChecar('lembrete_edit_'+l.id,_CAMPOS_LEMBRETE);
+  if(quandoLe) toast('📝 Recuperamos o que você tinha digitado às '+rascunhoFormatarHora(quandoLe),'amarelo');
+  rascunhoAtivar('lembrete_edit_'+l.id,_CAMPOS_LEMBRETE);
 }
 
-function fchLembr(){document.getElementById('m-lembr').classList.remove('open');}
+function fchLembr(){
+  document.getElementById('m-lembr').classList.remove('open');
+  rascunhoLimpar(lembrEditandoId?'lembrete_edit_'+lembrEditandoId:'lembrete_novo_'+pac.id);
+}
 
 async function salvarLembr(){
   const recado=document.getElementById('l-recado').value.trim();

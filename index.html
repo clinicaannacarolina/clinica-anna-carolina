@@ -133,6 +133,7 @@ textarea{resize:vertical;min-height:70px}
 .toast.show{transform:translateY(0);opacity:1}
 .toast.verde{background:var(--verde);color:white}
 .toast.vermelho{background:var(--vermelho);color:white}
+.toast.amarelo{background:var(--amarelo);color:white}
 /* AGENDA */
 .ag-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
 .ag-mes{font-size:16px;font-weight:600;color:var(--txt)}
@@ -3112,6 +3113,8 @@ function renderTopProcedimentos(){
 }
 
 // ── Modal lançamento ──
+const _CAMPOS_FIN=['fin-data','fin-desc','fin-valor','fin-cat','fin-pgto','fin-status','fin-obs'];
+
 function abrirLancamento(tipo, dados=null){
   document.getElementById('fin-edit-id').value = dados?.id||'';
   document.getElementById('fin-tipo').value = tipo;
@@ -3134,10 +3137,18 @@ function abrirLancamento(tipo, dados=null){
   atualizarInfoParcelas();
   
   document.getElementById('modal-fin').style.display='flex';
+
+  const _finChave = dados?.id ? 'financeiro_edit_'+dados.id : 'financeiro_novo_'+tipo;
+  const quandoFin=rascunhoChecar(_finChave,_CAMPOS_FIN);
+  if(quandoFin) toast('📝 Recuperamos o que você tinha digitado às '+rascunhoFormatarHora(quandoFin),'amarelo');
+  rascunhoAtivar(_finChave,_CAMPOS_FIN);
 }
 
 function fecharModalFin(){
   document.getElementById('modal-fin').style.display='none';
+  const idFin=document.getElementById('fin-edit-id').value;
+  const tipoFin=document.getElementById('fin-tipo').value;
+  rascunhoLimpar(idFin?'financeiro_edit_'+idFin:'financeiro_novo_'+tipoFin);
 }
 
 function atualizarInfoParcelas(){
@@ -3311,11 +3322,14 @@ document.getElementById('m-lembr').addEventListener('click',e=>{
 });
 
 // SALVAR PACIENTE
+const _CAMPOS_NOVO_PACIENTE=['f-nome','f-apelido','f-tel','f-resp','f-nasc','f-cpf','f-rg','f-sexo','f-rua','f-numero','f-bairro','f-cidade','f-cep','f-obs','f-drive','f-indic','f-conheceu','f-instagram','f-facebook'];
+
 function limpar(){
   ['f-nome','f-apelido','f-tel','f-resp','f-nasc','f-cpf','f-rg','f-rua','f-numero','f-bairro','f-cidade','f-cep','f-obs','f-drive','f-indic','f-instagram','f-facebook'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('f-resp-id').value='';document.getElementById('f-resp-sug').innerHTML='';
   document.getElementById('f-sexo').value='';
   document.getElementById('f-data').value=HOJE_STR;document.getElementById('f-trats').innerHTML='';addTrat('f-trats');
+  rascunhoLimpar('novo_paciente');
 }
 
 // ── BUSCA CEP ──
@@ -3676,6 +3690,8 @@ function toggleRecQtd(){
   const freq=document.getElementById('ag-rec-freq').value;
   document.getElementById('ag-rec-qtd-bloco').style.display=freq?'flex':'none';
 }
+const _CAMPOS_AGENDA=['ag-nome','ag-tel','ag-proc','ag-data','ag-hora','ag-obs'];
+
 function abrAg(data){
   // Trava de segurança: garante que o modal de config. online não fica preso por trás
   const mOnline=document.getElementById('m-ag-online');
@@ -3688,8 +3704,14 @@ function abrAg(data){
   const mAg=document.getElementById('m-ag');
   mAg.dataset.abertoEm=Date.now();
   mAg.classList.add('open');
+  const quandoAg=rascunhoChecar('agenda_novo',_CAMPOS_AGENDA);
+  if(quandoAg) toast('📝 Recuperamos o que você tinha digitado às '+rascunhoFormatarHora(quandoAg),'amarelo');
+  rascunhoAtivar('agenda_novo',_CAMPOS_AGENDA);
 }
-function fchAg(){document.getElementById('m-ag').classList.remove('open');document.getElementById('ag-sug').innerHTML='';}
+function fchAg(){
+  document.getElementById('m-ag').classList.remove('open');document.getElementById('ag-sug').innerHTML='';
+  rascunhoLimpar(agEditando?'agenda_edit_'+agEditando.id:'agenda_novo');
+}
 function editCons(c){
   // Trava de segurança: garante que o modal de config. online não fica preso por trás
   const mOnline2=document.getElementById('m-ag-online');
@@ -3702,6 +3724,9 @@ function editCons(c){
   const mAgE=document.getElementById('m-ag');
   mAgE.dataset.abertoEm=Date.now();
   mAgE.classList.add('open');
+  const quandoEd=rascunhoChecar('agenda_edit_'+c.id,_CAMPOS_AGENDA);
+  if(quandoEd) toast('📝 Recuperamos o que você tinha digitado às '+rascunhoFormatarHora(quandoEd),'amarelo');
+  rascunhoAtivar('agenda_edit_'+c.id,_CAMPOS_AGENDA);
   if(c.paciente_id){const p=pacs.find(x=>x.id===c.paciente_id);if(p){agPacId=p.id;mostrarVinculado(p);}}
 }
 async function cancConsulta(){if(!agEditando||!confirm('Cancelar esta consulta?'))return;const{error}=await db.from('agenda').update({status:'cancelado'}).eq('id',agEditando.id);if(error){toast('Erro','vermelho');return;}toast('Consulta cancelada');await logAuditoria('Consulta cancelada',`${agEditando.nome} · ${agEditando.data} ${agEditando.hora.slice(0,5)}`,agEditando.paciente_id||null);fchAg();carregarAgenda();}
@@ -3759,6 +3784,7 @@ async function salvarConsulta(){
   }
   btn.disabled=false;btn.innerHTML='✓ Salvar';
   if(error){toast('Erro: '+error.message,'vermelho');return;}
+  rascunhoLimpar(aid?'agenda_edit_'+aid:'agenda_novo');
   if(!aid&&!agPacId&&tel){const telL=tel.replace(/\D/g,'');const jaExiste=pacs.find(p=>p.telefone.replace(/\D/g,'')===telL||p.nome.toLowerCase().trim()===nome.toLowerCase().trim());if(!jaExiste){await db.from('pacientes').insert({nome,telefone:tel,tratamento:document.getElementById('ag-proc').value||null,cadastro_pendente:true});await carregar();}}
   // Recorrência: criar consultas repetidas
   if(ehRecorrente){
@@ -3927,6 +3953,11 @@ function aba(id,btn){
   if(id==='pacientes')renderPac();
   if(id==='relatorio')renderRel();
   if(id==='auditoria')renderAuditoria();
+  if(id==='cadastro'){
+    const quandoCad=rascunhoChecar('novo_paciente',_CAMPOS_NOVO_PACIENTE);
+    if(quandoCad) toast('📝 Recuperamos o que você tinha digitado às '+rascunhoFormatarHora(quandoCad),'amarelo');
+    rascunhoAtivar('novo_paciente',_CAMPOS_NOVO_PACIENTE);
+  }
 }
 
 // ── CARTEIRA A RECEBER ──
@@ -4409,6 +4440,7 @@ async function marcarStatus(id, status){
     toast(a.access_token?'Sem permissão para atualizar.':'Sessão expirada — faça login novamente.','vermelho');
     return;
   }
+  const consultaAtualizada=res.data[0];
   const msgs={realizado:'✅ Marcado como realizado!',faltou:'❌ Marcado como faltou',pendente:'↩ Status revertido'};
   toast(msgs[status]||'Atualizado','verde');
   // Atualiza localmente na memória ANTES de rebuscar, garante que a tela
@@ -4418,7 +4450,61 @@ async function marcarStatus(id, status){
   renderHoje();
   const cLog=consultas.find(c=>c.id===id);
   await logAuditoria('Status de consulta alterado',`${cLog?.nome||id} → ${status} · ${cLog?.data||''} ${(cLog?.hora||'').slice(0,5)}`,cLog?.paciente_id||null);
+  // Baixa/reversão automática de estoque via Ficha Técnica
+  if(status==='realizado' && !consultaAtualizada.baixa_estoque_feita){
+    await baixarEstoquePorProcedimento(consultaAtualizada);
+  } else if(status!=='realizado' && consultaAtualizada.baixa_estoque_feita){
+    await reverterBaixaEstoque(consultaAtualizada);
+  }
   await carregarAgenda(); // SW corrigido — já não retorna cache do Supabase
+}
+
+async function baixarEstoquePorProcedimento(consulta){
+  if(!consulta.procedimento) return;
+  const nomeBusca=consulta.procedimento.trim().toLowerCase();
+  const {data:tiposTodos}=await db.from('tipos_procedimento').select('id,nome');
+  const tipo=(tiposTodos||[]).find(t=>(t.nome||'').trim().toLowerCase()===nomeBusca);
+  if(!tipo){
+    toast(`⚠️ Sem Ficha Técnica para "${consulta.procedimento}" — estoque não foi baixado`,'amarelo');
+    return;
+  }
+  const {data:itens}=await db.from('ficha_tecnica').select('produto_id,quantidade,produtos(nome,quantidade)').eq('procedimento_id',tipo.id);
+  if(!itens||!itens.length){
+    toast(`Ficha Técnica de "${consulta.procedimento}" está vazia — nada para baixar`,'amarelo');
+    return;
+  }
+  let algumNegativo=false;
+  for(const item of itens){
+    const qtdAtual=item.produtos?.quantidade||0;
+    const novaQtd=qtdAtual-item.quantidade;
+    if(novaQtd<0) algumNegativo=true;
+    await db.from('produtos').update({quantidade:novaQtd}).eq('id',item.produto_id);
+    await db.from('estoque_movimentos').insert({
+      produto_id:item.produto_id,agenda_id:consulta.id,tipo:'saida',quantidade:item.quantidade,
+      obs:`Baixa automática — ${consulta.procedimento} (${consulta.nome||'paciente'}, ${consulta.data})`
+    });
+  }
+  await db.from('agenda').update({baixa_estoque_feita:true}).eq('id',consulta.id);
+  toast(`📦 Estoque baixado automaticamente (${itens.length} item${itens.length!==1?'s':''})${algumNegativo?' — atenção: algum produto ficou negativo':''}`, algumNegativo?'amarelo':'verde');
+}
+
+async function reverterBaixaEstoque(consulta){
+  const {data:movs}=await db.from('estoque_movimentos').select('produto_id,quantidade,produtos(quantidade)').eq('agenda_id',consulta.id).eq('tipo','saida');
+  if(!movs||!movs.length){
+    await db.from('agenda').update({baixa_estoque_feita:false}).eq('id',consulta.id);
+    return;
+  }
+  for(const mov of movs){
+    const qtdAtual=mov.produtos?.quantidade||0;
+    const novaQtd=qtdAtual+mov.quantidade;
+    await db.from('produtos').update({quantidade:novaQtd}).eq('id',mov.produto_id);
+    await db.from('estoque_movimentos').insert({
+      produto_id:mov.produto_id,agenda_id:consulta.id,tipo:'entrada',quantidade:mov.quantidade,
+      obs:`Estorno — status da consulta revertido (${consulta.procedimento||''}, ${consulta.data})`
+    });
+  }
+  await db.from('agenda').update({baixa_estoque_feita:false}).eq('id',consulta.id);
+  toast('↩ Baixa de estoque revertida','amarelo');
 }
 
 async function fecharDia(){
