@@ -78,6 +78,7 @@ document.addEventListener('visibilitychange', () => {
 // sem querer): salva os campos no navegador enquanto a pessoa digita, e
 // recupera automaticamente se o formulário for reaberto antes de salvar de verdade.
 const _RASCUNHO_TIMER = {};
+const _RASCUNHO_UNLOAD_WIRED = new Set();
 
 function rascunhoAtivar(chave, camposIds) {
   const KEY = 'rascunho_' + chave;
@@ -93,13 +94,28 @@ function rascunhoAtivar(chave, camposIds) {
   }
   camposIds.forEach(id => {
     const el = document.getElementById(id);
-    if (!el || el.dataset.rascunhoAtivo) return;
-    el.dataset.rascunhoAtivo = '1';
+    // Compara pela chave específica (não só "já tem algum"), para permitir
+    // reativar corretamente quando o mesmo campo é reusado em outro contexto
+    // (ex: o mesmo campo de recado, para "novo lembrete" e "editar lembrete").
+    if (!el || el.dataset.rascunhoChave === chave) return;
+    el.dataset.rascunhoChave = chave;
     el.addEventListener('input', () => {
       clearTimeout(_RASCUNHO_TIMER[chave]);
-      _RASCUNHO_TIMER[chave] = setTimeout(salvarAgora, 1200);
+      _RASCUNHO_TIMER[chave] = setTimeout(salvarAgora, 800);
     });
   });
+  // Salva na hora se a aba for fechada, recarregada, ou perder o foco —
+  // não depende de esperar a pausa de digitação. Cobre quedas inesperadas
+  // e também recargas rápidas (ex: F5 logo depois de digitar).
+  if (!_RASCUNHO_UNLOAD_WIRED.has(chave)) {
+    _RASCUNHO_UNLOAD_WIRED.add(chave);
+    const salvarImediato = () => { clearTimeout(_RASCUNHO_TIMER[chave]); salvarAgora(); };
+    window.addEventListener('beforeunload', salvarImediato);
+    window.addEventListener('pagehide', salvarImediato);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') salvarImediato();
+    });
+  }
 }
 
 function rascunhoChecar(chave, camposIds) {
