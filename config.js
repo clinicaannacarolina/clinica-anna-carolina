@@ -139,6 +139,29 @@ function rascunhoFormatarHora(timestamp) {
   return new Date(timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
+// Variante para formulários com listas dinâmicas (itens que se adicionam/removem,
+// como orçamentos e atendimentos com múltiplos tratamentos). Em vez de uma lista
+// fixa de IDs de campo, recebe uma função "coletar" que devolve os dados atuais
+// já estruturados (o formulário decide como ler seu próprio estado).
+function rascunhoDinamicoSalvar(chave, coletar) {
+  try {
+    const dados = coletar();
+    const KEY = 'rascunho_' + chave;
+    const vazio = !dados || (Array.isArray(dados) ? dados.length === 0 :
+      Object.values(dados).every(v => !v || (Array.isArray(v) && v.length === 0) || (typeof v === 'string' && v.trim() === '')));
+    if (!vazio) localStorage.setItem(KEY, JSON.stringify({ dados, quando: Date.now() }));
+    else localStorage.removeItem(KEY);
+  } catch (e) {}
+}
+
+function rascunhoDinamicoChecar(chave) {
+  try {
+    const salvo = JSON.parse(localStorage.getItem('rascunho_' + chave) || 'null');
+    if (!salvo || !salvo.dados) return null;
+    return salvo; // { dados, quando }
+  } catch (e) { return null; }
+}
+
 // ── Carrega config da clínica do Supabase ──
 async function carregarConfigClinica() {
   try {

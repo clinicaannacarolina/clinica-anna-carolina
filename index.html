@@ -2226,8 +2226,61 @@ function abrAtend(p){
   else addTratComData('a-trats');
   renderHistorico(p);
   const _mAtend=document.getElementById('m-atend');_mAtend.dataset.abertoEm=Date.now();_mAtend.classList.add('open');
+
+  // Rascunho automático (protege contra perda de digitação em atendimentos longos)
+  window._atendRascunhoChave='atendimento_'+p.id;
+  const rascAt=rascunhoDinamicoChecar(window._atendRascunhoChave);
+  if(rascAt && tratsHoje.length===0){ // só sobrepõe se não havia atendimento de hoje já salvo
+    aplicarRascunhoAtend(rascAt.dados);
+    toast('📝 Recuperamos o que você tinha digitado às '+rascunhoFormatarHora(rascAt.quando),'amarelo');
+  }
+  rascunhoAtendAtivar();
 }
-function fchAtend(){document.getElementById('m-atend').classList.remove('open');}
+function fchAtend(){
+  document.getElementById('m-atend').classList.remove('open');
+  if(window._atendRascunhoChave) rascunhoLimpar(window._atendRascunhoChave);
+}
+
+function coletarRascunhoAtend(){
+  const items=Array.from(document.querySelectorAll('#a-trats .ti'));
+  const trats=items.map(item=>{const ss=item.querySelectorAll('select');const valInput=item.querySelector('input[type="number"]');return{nome:ss[0]?.value||'',prazo:parseInt(ss[1]?.value)||0,valor:valInput?.value||''};}).filter(t=>t.nome);
+  return{
+    trats,
+    data:document.getElementById('a-data')?.value||'',
+    verDias:document.getElementById('a-ver-dias')?.value||''
+  };
+}
+
+function aplicarRascunhoAtend(dados){
+  document.getElementById('a-trats').innerHTML='';
+  if(dados.trats&&dados.trats.length) dados.trats.forEach(t=>addTratComData('a-trats',t.nome,t.prazo,t.valor));
+  else addTratComData('a-trats');
+  if(dados.data) document.getElementById('a-data').value=dados.data;
+  if(dados.verDias!=='') document.getElementById('a-ver-dias').value=dados.verDias;
+  calcVerData();
+}
+
+let _atendRascunhoWired=false;
+function rascunhoAtendAtivar(){
+  function salvarAtAgora(){
+    if(!window._atendRascunhoChave) return;
+    rascunhoDinamicoSalvar(window._atendRascunhoChave, coletarRascunhoAtend);
+  }
+  if(_atendRascunhoWired) return;
+  _atendRascunhoWired=true;
+  ['a-trats','a-data','a-ver-dias'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.addEventListener('input',()=>{
+      clearTimeout(_RASCUNHO_TIMER['atendimento']);
+      _RASCUNHO_TIMER['atendimento']=setTimeout(salvarAtAgora,800);
+    });
+  });
+  const salvarImediatoAt=()=>{clearTimeout(_RASCUNHO_TIMER['atendimento']);salvarAtAgora();};
+  window.addEventListener('beforeunload',salvarImediatoAt);
+  window.addEventListener('pagehide',salvarImediatoAt);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')salvarImediatoAt();});
+}
 
 async function salvarAtend(){
   const id=document.getElementById('a-id').value;const dataAtend=document.getElementById('a-data').value;
@@ -2250,6 +2303,7 @@ async function salvarAtend(){
   const{error}=await db.from('pacientes').update({tratamentos_adicionais:tratsFinais,tratamento:tratsFinais[tratsFinais.length-1]?.nome||null,data_atendimento:dataAtend,atendimentos:atends}).eq('id',id);
   btn.disabled=false;btn.innerHTML='✓ Salvar atendimento';
   if(error){toast('Erro: '+error.message,'vermelho');return;}
+  if(window._atendRascunhoChave) rascunhoLimpar(window._atendRascunhoChave);
   // 2. Criar plano_tratamento
   if(valorTotal){
     const descProcedimentos=tc.map(t=>t.nome).join(' + ');

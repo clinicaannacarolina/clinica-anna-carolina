@@ -1423,6 +1423,73 @@ async function abrirOrcamento(){
     ultimoOrc.produtos.forEach(prod=>adicionarProdutoOrc(prod));
   }
   calcTotal();
+
+  // Rascunho automático (protege contra perda de digitação em orçamentos longos)
+  window._orcRascunhoChave='orcamento_'+p.id;
+  const rascOrc=rascunhoDinamicoChecar(window._orcRascunhoChave);
+  if(rascOrc){
+    aplicarRascunhoOrcamento(rascOrc.dados);
+    toast('📝 Recuperamos o que você tinha digitado às '+rascunhoFormatarHora(rascOrc.quando),'amarelo');
+  }
+  rascunhoOrcamentoAtivar();
+}
+
+function coletarRascunhoOrcamento(){
+  return {
+    itens:getOrcItens(),
+    pagamento:document.getElementById('orc-pagamento')?.value||'',
+    obs:document.getElementById('orc-obs')?.value||'',
+    validadeDias:document.getElementById('orc-validade-dias')?.value||'',
+    validade:document.getElementById('orc-validade')?.value||'',
+    categoriaPadrao:document.querySelector('input[name="orc-categoria"]:checked')?.value||''
+  };
+}
+
+function aplicarRascunhoOrcamento(dados){
+  if(dados.itens&&dados.itens.length){
+    document.getElementById('orc-itens').innerHTML='';
+    dados.itens.forEach(item=>{
+      addItemOrc();
+      const linhas=document.querySelectorAll('#orc-itens .orc-linha');
+      const linha=linhas[linhas.length-1];
+      const selCat=linha.querySelector('.orc-linha-cat');
+      if(selCat){selCat.value=item.categoria||'Harmonização Orofacial';aplicarCategoriaLinha(selCat);}
+      const den=linha.querySelector('.orc-dente');if(den)den.value=item.dente||'';
+      const trat=linha.querySelector('.orc-trat');if(trat)trat.value=item.trat||'';
+      const val=linha.querySelector('.orc-val');if(val)val.value=item.val||'';
+    });
+  }
+  if(dados.pagamento!=null) document.getElementById('orc-pagamento').value=dados.pagamento;
+  if(dados.obs!=null) document.getElementById('orc-obs').value=dados.obs;
+  if(dados.validadeDias) document.getElementById('orc-validade-dias').value=dados.validadeDias;
+  if(dados.validade) document.getElementById('orc-validade').value=dados.validade;
+  if(dados.categoriaPadrao){
+    const r=document.querySelector(`input[name="orc-categoria"][value="${dados.categoriaPadrao}"]`);
+    if(r) r.checked=true;
+  }
+  calcTotal();
+}
+
+let _orcRascunhoWired=false;
+function rascunhoOrcamentoAtivar(){
+  function salvarOrcAgora(){
+    if(!window._orcRascunhoChave) return;
+    rascunhoDinamicoSalvar(window._orcRascunhoChave, coletarRascunhoOrcamento);
+  }
+  if(_orcRascunhoWired) return;
+  _orcRascunhoWired=true;
+  ['orc-itens','orc-pagamento','orc-obs','orc-validade-dias','orc-validade','orc-categoria-sel'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.addEventListener('input',()=>{
+      clearTimeout(_RASCUNHO_TIMER['orcamento']);
+      _RASCUNHO_TIMER['orcamento']=setTimeout(salvarOrcAgora,800);
+    });
+  });
+  const salvarImediatoOrc=()=>{clearTimeout(_RASCUNHO_TIMER['orcamento']);salvarOrcAgora();};
+  window.addEventListener('beforeunload',salvarImediatoOrc);
+  window.addEventListener('pagehide',salvarImediatoOrc);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')salvarImediatoOrc();});
 }
 
 function addItemOrc(){
@@ -1829,6 +1896,7 @@ async function salvarDoc(tipo){
     return;
   }
   toast('Documento salvo com sucesso! ✓','verde');
+  if(tipo==='orcamento' && window._orcRascunhoChave) rascunhoLimpar(window._orcRascunhoChave);
   carregarDocsSalvos();
   voltarDocs();
 }
