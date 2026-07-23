@@ -185,9 +185,13 @@ const db=createClient(SB_URL,SB_KEY,{
   }}
 });
 
-// Identifica a clínica pelo slug. Por enquanto fixo (só existe uma clínica);
-// quando houver mais de uma, isso passa a vir de um parâmetro na URL.
-const CLINICA_SLUG='anna-carolina';
+// Identifica a clínica pelo slug, lido da URL (?c=slug). Enquanto só existir
+// uma clínica, cai no padrão "anna-carolina".
+function obterSlugClinicaDaUrl(){
+  const params=new URLSearchParams(window.location.search);
+  return params.get('c')||'anna-carolina';
+}
+const CLINICA_SLUG=obterSlugClinicaDaUrl();
 let CLINICA_ID_ATUAL=null;
 async function resolverClinicaAtual(){
   const{data}=await db.from('clinicas_publica').select('id').eq('slug',CLINICA_SLUG).single();

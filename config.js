@@ -163,17 +163,40 @@ function rascunhoDinamicoChecar(chave) {
 }
 
 // ── Carrega config da clínica do Supabase ──
+// Descobre o "slug" da clínica atual a partir da URL (?c=slug).
+// Usado só nas páginas públicas, antes de qualquer login existir.
+// Enquanto só existe uma clínica no sistema, cai no padrão "anna-carolina".
+function obterSlugClinicaDaUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('c') || 'anna-carolina';
+}
+
 async function carregarConfigClinica() {
   try {
     const auth = JSON.parse(localStorage.getItem('clinica_auth') || '{}');
-    const token = auth.access_token || SB_KEY;
-    // Lê da view pública (sem PIN/dados sensíveis) — usada em todas as páginas, inclusive as públicas
-    const res = await fetch(`${SB_URL}/rest/v1/config_clinica_publica?select=*&limit=1`, {
-      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-    if (data && data.length > 0) {
-      const c = data[0];
+    let c = null;
+
+    if (auth.ok && auth.access_token) {
+      // Usuário logado: busca a config da PRÓPRIA clínica automaticamente —
+      // a segurança do banco (RLS) já filtra sozinha, sem precisar saber o slug.
+      const resAuth = await fetch(`${SB_URL}/rest/v1/config_clinica?select=*&limit=1`, {
+        headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${auth.access_token}` }
+      });
+      const dataAuth = await resAuth.json();
+      c = Array.isArray(dataAuth) ? dataAuth[0] : null;
+    }
+
+    if (!c) {
+      // Página pública ou sem sessão válida: identifica a clínica pela URL
+      const slug = obterSlugClinicaDaUrl();
+      const resPub = await fetch(`${SB_URL}/rest/v1/config_clinica_publica?select=*&slug=eq.${encodeURIComponent(slug)}&limit=1`, {
+        headers: { 'apikey': SB_KEY }
+      });
+      const dataPub = await resPub.json();
+      c = Array.isArray(dataPub) ? dataPub[0] : null;
+    }
+
+    if (c) {
       CLINICA_CONFIG.nome          = c.nome          || CLINICA_CONFIG.nome;
       CLINICA_CONFIG.especialidade = c.especialidade || CLINICA_CONFIG.especialidade;
       CLINICA_CONFIG.logo          = c.logo_url      || CLINICA_CONFIG.logo;

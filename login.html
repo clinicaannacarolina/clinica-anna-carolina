@@ -163,7 +163,8 @@ let usuariosDisponiveis = [];
 // ── Seleção de usuário (multiusuário) ──
 async function carregarUsuarios() {
   try {
-    const res = await fetch(`${SB_URL}/rest/v1/usuarios_publico?select=*`, {
+    const slugAtual = obterSlugClinicaDaUrl();
+    const res = await fetch(`${SB_URL}/rest/v1/usuarios_publico?select=*&slug=eq.${encodeURIComponent(slugAtual)}`, {
       headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }
     });
     const usuarios = await res.json();
