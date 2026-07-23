@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DRE — Clínica Dra. Anna Carolina</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script>
+try{
+  const auth=JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+  if(!auth.ok||auth.expires<Date.now()) window.location.replace('login.html');
+  else sessionStorage.setItem('clinica_auth','1');
+}catch(e){ window.location.replace('login.html'); }
+</script>
+<style>
+:root{
+  --verde:#1D9E75;--verde-e:#0F6E56;--verde-c:#E1F5EE;
+  --amarelo:#EF9F27;--amarelo-c:#FAEEDA;
+  --vermelho:#E24B4A;--vermelho-c:#FCEBEB;
+  --azul:#185FA5;--azul-c:#E6F1FB;
+  --bg:#F7F6F3;--card:#FFFFFF;--borda:#E8E6E1;--ct:#6B6860;--txt:#1A1916;
+  --s:0 1px 3px rgba(0,0,0,.06);--sm:0 4px 16px rgba(0,0,0,.10);
+}
+[data-theme="dark"]{
+  --bg:#1A1916;--card:#242220;--borda:#3A3835;--ct:#9A9690;--txt:#F0EDE8;
+  --verde-c:#0F3D2E;--amarelo-c:#3D2E0A;--vermelho-c:#3D1515;--azul-c:#0F2540;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:15px}
+.hdr{background:var(--verde-e);color:white;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:50;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr h1{font-family:'DM Serif Display',serif;font-size:18px;font-weight:400}
+.btn-back{background:none;border:none;cursor:pointer;color:white;opacity:.8;font-size:22px;padding:4px;line-height:1}
+.btn-back:hover{opacity:1}
+.main{max-width:820px;margin:0 auto;padding:1.5rem}
+.filtro{display:flex;gap:8px;align-items:center;margin-bottom:1.5rem;background:var(--card);padding:.85rem 1rem;border-radius:12px;border:1px solid var(--borda);box-shadow:var(--s)}
+.filtro select{padding:8px 10px;border:1.5px solid var(--borda);border-radius:8px;font-family:inherit;font-size:14px;color:var(--txt);background:var(--card)}
+.dre-card{background:var(--card);border:1px solid var(--borda);border-radius:16px;padding:1.5rem;box-shadow:var(--s);margin-bottom:1.25rem}
+.linha-dre{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-bottom:1px solid var(--borda)}
+.linha-dre:last-child{border-bottom:none}
+.linha-dre .rotulo{font-size:14px}
+.linha-dre .valor{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.linha-dre.sub .rotulo{color:var(--ct);font-size:13px;padding-left:1rem}
+.linha-dre.total .rotulo{font-weight:700;font-size:15px}
+.linha-dre.total .valor{font-weight:800;font-size:17px}
+.linha-dre.final{background:var(--verde-c);margin:0 -1.5rem -1.5rem;padding:1.1rem 1.5rem;border-radius:0 0 16px 16px}
+.linha-dre.final .rotulo{font-weight:700;font-size:16px}
+.linha-dre.final .valor{font-weight:800;font-size:20px;color:var(--verde-e)}
+.linha-dre.final .valor.neg{color:var(--vermelho)}
+.pos{color:var(--verde-e)}
+.neg{color:var(--vermelho)}
+.info-box{background:var(--azul-c);border-radius:12px;padding:1rem 1.1rem;font-size:13px;margin-bottom:1.25rem;line-height:1.55}
+.alerta-box{background:var(--amarelo-c);border-radius:12px;padding:1rem 1.1rem;font-size:13px;margin-bottom:1.25rem;line-height:1.55}
+.alerta-box ul{margin:.5rem 0 0 1.1rem}
+.mini-titulo{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ct);font-weight:700;margin-bottom:.6rem}
+.compara-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.compara-card{background:var(--bg);border-radius:10px;padding:.85rem 1rem;text-align:center}
+.compara-card .num{font-size:19px;font-weight:800}
+.compara-card .lbl{font-size:11px;color:var(--ct);margin-top:2px}
+.tabela-desp{width:100%;border-collapse:collapse;font-size:13px;margin-top:.5rem}
+.tabela-desp td{padding:6px 0;border-bottom:1px solid var(--borda)}
+.tabela-desp td:last-child{text-align:right;font-weight:600}
+.vazio{color:var(--ct);font-size:13px;padding:1rem 0;text-align:center}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-left">
+    <button class="btn-back" onclick="window.location.href='gestao.html'">←</button>
+    <h1>📊 DRE — Resultado do Período</h1>
+  </div>
+</div>
+
+<div class="main">
+  <div class="filtro">
+    <label style="font-size:13px;color:var(--ct);font-weight:600">Período:</label>
+    <select id="sel-mes"></select>
+    <select id="sel-ano"></select>
+    <button class="btn-back" style="color:var(--verde-e);font-size:20px" onclick="carregarDRE()">↻</button>
+  </div>
+
+  <div class="info-box">
+    ℹ️ O <strong>Custo dos Serviços Prestados</strong> é calculado com base na Ficha Técnica de cada procedimento <em>realizado</em> no período — não a partir das compras de estoque, para não contar o mesmo custo duas vezes. As compras de insumos aparecem à parte, só como comparação.
+  </div>
+
+  <div id="alerta-sem-ficha"></div>
+
+  <div class="dre-card">
+    <div class="linha-dre">
+      <span class="rotulo">Receita Bruta (recebida)</span>
+      <span class="valor pos" id="dre-receita">R$ 0,00</span>
+    </div>
+    <div class="linha-dre sub">
+      <span class="rotulo">(−) Custo dos Serviços Prestados (Ficha Técnica)</span>
+      <span class="valor neg" id="dre-cmv">R$ 0,00</span>
+    </div>
+    <div class="linha-dre total">
+      <span class="rotulo">= Lucro Bruto</span>
+      <span class="valor" id="dre-bruto">R$ 0,00</span>
+    </div>
+    <div class="linha-dre sub">
+      <span class="rotulo">(−) Despesas Operacionais</span>
+      <span class="valor neg" id="dre-despesas">R$ 0,00</span>
+    </div>
+    <div class="linha-dre final">
+      <span class="rotulo">= Resultado Líquido do Período</span>
+      <span class="valor" id="dre-liquido">R$ 0,00</span>
+    </div>
+  </div>
+
+  <div class="dre-card">
+    <div class="mini-titulo">Compra × Consumo de Insumos (informativo)</div>
+    <div class="compara-grid">
+      <div class="compara-card">
+        <div class="num" id="comp-compra">R$ 0,00</div>
+        <div class="lbl">Comprado no período<br/>(categoria Produtos/Insumos)</div>
+      </div>
+      <div class="compara-card">
+        <div class="num" id="comp-consumo">R$ 0,00</div>
+        <div class="lbl">Consumido no período<br/>(via Ficha Técnica)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dre-card">
+    <div class="mini-titulo">Despesas operacionais por categoria</div>
+    <table class="tabela-desp" id="tabela-despesas"></table>
+    <div class="vazio" id="despesas-vazio" style="display:none">Nenhuma despesa lançada neste período.</div>
+  </div>
+</div>
+
+<script>
+const {createClient}=supabase;
+const _noOp={getItem:()=>null,setItem:()=>{},removeItem:()=>{}};
+const _dbClient=createClient(SB_URL,SB_KEY,{
+  auth:{storage:_noOp,persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
+  global:{fetch:(url,opts={})=>{
+    const _a=JSON.parse(localStorage.getItem('clinica_auth')||'{}');
+    const _t=_a.access_token||SB_KEY;
+    const _h=new Headers(opts.headers||{});
+    _h.set('Authorization',`Bearer ${_t}`);
+    _h.set('apikey',SB_KEY);
+    return fetch(url,{...opts,headers:_h}).then(res=>{
+      if(res.status===401){
+        localStorage.removeItem('clinica_auth');
+        sessionStorage.removeItem('clinica_auth');
+        setTimeout(()=>window.location.replace('login.html'),1500);
+      }
+      return res;
+    });
+  }}
+});
+const db={from:(t)=>_dbClient.from(t)};
+
+const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+function fmtBRL(v){return 'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+function initFiltro(){
+  const selMes=document.getElementById('sel-mes');
+  const selAno=document.getElementById('sel-ano');
+  selMes.innerHTML=MESES.map((m,i)=>`<option value="${i}">${m}</option>`).join('');
+  const anoAtual=new Date().getFullYear();
+  selAno.innerHTML=[anoAtual,anoAtual-1,anoAtual-2].map(a=>`<option value="${a}">${a}</option>`).join('');
+  selMes.value=new Date().getMonth();
+  selAno.value=anoAtual;
+}
+
+async function carregarDRE(){
+  const mes=parseInt(document.getElementById('sel-mes').value);
+  const ano=parseInt(document.getElementById('sel-ano').value);
+  const ini=`${ano}-${String(mes+1).padStart(2,'0')}-01`;
+  const ultimoDia=new Date(ano,mes+1,0).getDate();
+  const fim=`${ano}-${String(mes+1).padStart(2,'0')}-${String(ultimoDia).padStart(2,'0')}`;
+
+  // 1. Receita bruta (recebida)
+  const {data:receitas}=await db.from('financeiro').select('valor')
+    .eq('tipo','receita').eq('status','recebido').gte('data',ini).lte('data',fim);
+  const receitaTotal=(receitas||[]).reduce((s,r)=>s+parseFloat(r.valor||0),0);
+
+  // 2. Despesas (excluindo Produtos/Insumos, que vira CMV via ficha técnica)
+  const {data:despesas}=await db.from('financeiro').select('valor,categoria')
+    .eq('tipo','despesa').gte('data',ini).lte('data',fim);
+  const despesasOperacionais=(despesas||[]).filter(d=>d.categoria!=='Produtos / Insumos');
+  const totalDespesasOp=despesasOperacionais.reduce((s,d)=>s+parseFloat(d.valor||0),0);
+  const totalCompraInsumos=(despesas||[]).filter(d=>d.categoria==='Produtos / Insumos').reduce((s,d)=>s+parseFloat(d.valor||0),0);
+
+  // Agrupa despesas operacionais por categoria
+  const porCategoria={};
+  despesasOperacionais.forEach(d=>{porCategoria[d.categoria]=(porCategoria[d.categoria]||0)+parseFloat(d.valor||0);});
+
+  // 3. Custo dos Serviços Prestados — via Ficha Técnica dos atendimentos REALIZADOS no período
+  const [{data:realizados},{data:tiposProc},{data:fichas}]=await Promise.all([
+    db.from('agenda').select('procedimento').eq('status','realizado').gte('data',ini).lte('data',fim),
+    db.from('tipos_procedimento').select('id,nome'),
+    db.from('ficha_tecnica').select('procedimento_id,quantidade,produtos(custo_unitario)')
+  ]);
+
+  const custoPorProcId={};
+  (fichas||[]).forEach(f=>{
+    const cu=f.produtos?.custo_unitario||0;
+    custoPorProcId[f.procedimento_id]=(custoPorProcId[f.procedimento_id]||0)+(f.quantidade*cu);
+  });
+
+  const mapaNomeParaId={};
+  (tiposProc||[]).forEach(p=>{mapaNomeParaId[(p.nome||'').trim().toLowerCase()]=p.id;});
+
+  let cmvTotal=0;
+  const semFicha={};
+  (realizados||[]).forEach(a=>{
+    const nome=(a.procedimento||'').trim().toLowerCase();
+    const procId=mapaNomeParaId[nome];
+    if(procId && custoPorProcId[procId]!=null){
+      cmvTotal+=custoPorProcId[procId];
+    } else if(a.procedimento) {
+      semFicha[a.procedimento]=(semFicha[a.procedimento]||0)+1;
+    }
+  });
+
+  // Render alerta de procedimentos sem ficha técnica
+  const alertaEl=document.getElementById('alerta-sem-ficha');
+  const semFichaKeys=Object.keys(semFicha);
+  if(semFichaKeys.length){
+    alertaEl.innerHTML=`<div class="alerta-box">
+      ⚠️ <strong>${semFichaKeys.reduce((s,k)=>s+semFicha[k],0)} atendimento(s) realizado(s) neste período não entraram no cálculo</strong>, porque o procedimento não tem Ficha Técnica cadastrada (ou o nome não bate exatamente):
+      <ul>${semFichaKeys.map(k=>`<li>${k} — ${semFicha[k]}x</li>`).join('')}</ul>
+    </div>`;
+  } else {
+    alertaEl.innerHTML='';
+  }
+
+  // Render DRE
+  document.getElementById('dre-receita').textContent=fmtBRL(receitaTotal);
+  document.getElementById('dre-cmv').textContent='− '+fmtBRL(cmvTotal);
+  const lucroBruto=receitaTotal-cmvTotal;
+  document.getElementById('dre-bruto').textContent=fmtBRL(lucroBruto);
+  document.getElementById('dre-despesas').textContent='− '+fmtBRL(totalDespesasOp);
+  const resultadoLiquido=lucroBruto-totalDespesasOp;
+  const elLiq=document.getElementById('dre-liquido');
+  elLiq.textContent=fmtBRL(resultadoLiquido);
+  elLiq.className='valor '+(resultadoLiquido>=0?'':'neg');
+
+  // Comparativo compra x consumo
+  document.getElementById('comp-compra').textContent=fmtBRL(totalCompraInsumos);
+  document.getElementById('comp-consumo').textContent=fmtBRL(cmvTotal);
+
+  // Tabela de despesas por categoria
+  const tbEl=document.getElementById('tabela-despesas');
+  const vazioEl=document.getElementById('despesas-vazio');
+  const cats=Object.keys(porCategoria);
+  if(!cats.length){
+    tbEl.innerHTML=''; vazioEl.style.display='block';
+  } else {
+    vazioEl.style.display='none';
+    tbEl.innerHTML=cats.sort((a,b)=>porCategoria[b]-porCategoria[a]).map(c=>
+      `<tr><td>${c}</td><td>${fmtBRL(porCategoria[c])}</td></tr>`
+    ).join('');
+  }
+}
+
+initFiltro();
+carregarDRE();
+</script>
+</body>
+</html>

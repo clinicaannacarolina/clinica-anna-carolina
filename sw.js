@@ -3,7 +3,7 @@
 // v3 — cache inteligente + notificações + instalação PWA
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'clinica-cache-v14';
+const CACHE_NAME = 'clinica-cache-v15';
 
 // Arquivos do app que ficam em cache (shell do app)
 const APP_SHELL = [
@@ -24,6 +24,7 @@ const APP_SHELL = [
   './relatorio.html',
   './financeiro.html',
   './ficha-tecnica.html',
+  './dre.html',
 ];
 
 // ── Instalação: pré-cachear o shell do app ──
