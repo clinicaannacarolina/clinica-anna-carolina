@@ -20,7 +20,7 @@ jobs:
 
       - name: Clonar repositório privado de backups
         run: |
-          git clone https://x-access-token:${{ secrets.BACKUP_REPO_TOKEN }}@github.com/clinicaannacarolina/clinica-backups.git backup-repo
+          git clone https://x-access-token:${{ secrets.BACKUP_REPO_TOKEN }}@github.com/sistemasdias/clinica-backups.git backup-repo
 
       - name: Copiar backup de hoje
         run: cp -r backups/* backup-repo/
