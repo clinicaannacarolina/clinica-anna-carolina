@@ -1438,6 +1438,10 @@ async function abrirOrcamento(){
 function coletarRascunhoOrcamento(){
   return {
     itens:getOrcItens(),
+    produtos:getProdutosOrcamento(),
+    historico:Array.from(document.querySelectorAll('#orc-historico tr')).map(tr=>
+      Array.from(tr.querySelectorAll('input')).map(i=>i.value)
+    ).filter(row=>row.some(v=>v)),
     pagamento:document.getElementById('orc-pagamento')?.value||'',
     obs:document.getElementById('orc-obs')?.value||'',
     validadeDias:document.getElementById('orc-validade-dias')?.value||'',
@@ -1460,6 +1464,20 @@ function aplicarRascunhoOrcamento(dados){
       const val=linha.querySelector('.orc-val');if(val)val.value=item.val||'';
     });
   }
+  if(dados.produtos&&dados.produtos.length){
+    limparProdutosOrc();
+    dados.produtos.forEach(p=>adicionarProdutoOrc({produto_id:p.produto_id,qtd:p.qtd,lote:p.lote,validade:p.validade}));
+  }
+  if(dados.historico&&dados.historico.length){
+    document.getElementById('orc-historico').innerHTML='';
+    dados.historico.forEach(row=>{
+      addLinhaHistoricoOrc();
+      const trs=document.querySelectorAll('#orc-historico tr');
+      const tr=trs[trs.length-1];
+      const inputs=tr.querySelectorAll('input');
+      row.forEach((v,i)=>{if(inputs[i])inputs[i].value=v;});
+    });
+  }
   if(dados.pagamento!=null) document.getElementById('orc-pagamento').value=dados.pagamento;
   if(dados.obs!=null) document.getElementById('orc-obs').value=dados.obs;
   if(dados.validadeDias) document.getElementById('orc-validade-dias').value=dados.validadeDias;
@@ -1479,7 +1497,7 @@ function rascunhoOrcamentoAtivar(){
   }
   if(_orcRascunhoWired) return;
   _orcRascunhoWired=true;
-  ['orc-itens','orc-pagamento','orc-obs','orc-validade-dias','orc-validade','orc-categoria-sel'].forEach(id=>{
+  ['orc-itens','orc-produtos','orc-historico','orc-pagamento','orc-obs','orc-validade-dias','orc-validade','orc-categoria-sel'].forEach(id=>{
     const el=document.getElementById(id);
     if(!el) return;
     el.addEventListener('input',()=>{
