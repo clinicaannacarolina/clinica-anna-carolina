@@ -13,12 +13,24 @@ var CLINICA_CONFIG = {
 };
 
 // ── Renovação automática do token ──
+function _prazoRealToken(accessToken) {
+  // Decodifica o JWT em si (campo "exp") — é o prazo real que o Supabase usa
+  // para aceitar ou recusar o token, independente do prazo "de exibição" da sessão.
+  try {
+    const payload = JSON.parse(atob(accessToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    return payload.exp * 1000; // exp vem em segundos
+  } catch(e) {
+    return 0; // se não conseguir decodificar, força renovação por segurança
+  }
+}
+
 async function renovarTokenSeNecessario() {
   try {
     const auth = JSON.parse(localStorage.getItem('clinica_auth') || '{}');
-    if (!auth.ok || !auth.refresh_token) return false;
-    const faltam = auth.expires - Date.now();
-    if (faltam < 2 * 60 * 60 * 1000) { // Renova se faltam menos de 2 horas
+    if (!auth.ok || !auth.refresh_token || !auth.access_token) return false;
+    const expiraEm = _prazoRealToken(auth.access_token);
+    const faltam = expiraEm - Date.now();
+    if (faltam < 20 * 60 * 1000) { // Renova se faltam menos de 20 min para o TOKEN REAL expirar
       const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': SB_KEY },
@@ -45,12 +57,21 @@ async function renovarTokenSeNecessario() {
   } catch(e) { return false; }
 }
 
-// Renova ao carregar e a cada 20 minutos
+// Renova ao carregar e a cada 10 minutos — intervalo menor que o prazo real do
+// token (padrão de 1h no Supabase), garantindo que sempre haja tempo de renovar
+// antes de expirar de verdade, mesmo em atendimentos longos.
 (async () => {
   const auth = JSON.parse(localStorage.getItem('clinica_auth') || '{}');
   if (auth.ok) await renovarTokenSeNecessario();
-  setInterval(renovarTokenSeNecessario, 20 * 60 * 1000);
+  setInterval(renovarTokenSeNecessario, 10 * 60 * 1000);
 })();
+
+// Renova também assim que a aba volta a ficar visível — cobre o caso do
+// tablet/computador hibernar durante um atendimento longo, quando o
+// navegador pode pausar o setInterval sozinho enquanto está em segundo plano.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') renovarTokenSeNecessario();
+});
 
 // ── Carrega config da clínica do Supabase ──
 async function carregarConfigClinica() {
