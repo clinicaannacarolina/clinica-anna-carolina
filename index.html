@@ -3298,8 +3298,18 @@ document.getElementById('m-docs').addEventListener('click',e=>{
 });
 
 // LEMBRETE
-function abrLembr(pid){document.getElementById('l-pid').value=pid;document.getElementById('l-recado').value='';document.getElementById('l-prazo').value='90';document.getElementById('l-data-g').style.display='none';const _mLembr=document.getElementById('m-lembr');_mLembr.dataset.abertoEm=Date.now();_mLembr.classList.add('open');}
-function fchLembr(){document.getElementById('m-lembr').classList.remove('open');}
+const _CAMPOS_LEMBRETE_IDX=['l-recado','l-prazo','l-data'];
+function abrLembr(pid){
+  document.getElementById('l-pid').value=pid;document.getElementById('l-recado').value='';document.getElementById('l-prazo').value='90';document.getElementById('l-data-g').style.display='none';const _mLembr=document.getElementById('m-lembr');_mLembr.dataset.abertoEm=Date.now();_mLembr.classList.add('open');
+  const quandoLIdx=rascunhoChecar('lembrete_novo_'+pid,_CAMPOS_LEMBRETE_IDX);
+  if(quandoLIdx) toast('📝 Recuperamos o que você tinha digitado às '+rascunhoFormatarHora(quandoLIdx),'amarelo');
+  rascunhoAtivar('lembrete_novo_'+pid,_CAMPOS_LEMBRETE_IDX);
+}
+function fchLembr(){
+  document.getElementById('m-lembr').classList.remove('open');
+  const pidFch=document.getElementById('l-pid').value;
+  if(pidFch) rascunhoLimpar('lembrete_novo_'+pidFch);
+}
 async function salvarLembr(){
   const pid=document.getElementById('l-pid').value;const recado=document.getElementById('l-recado').value.trim();const prazo=document.getElementById('l-prazo').value;let dt=document.getElementById('l-data').value;
   if(!recado){toast('Digite o recado!','vermelho');return;}
@@ -3307,7 +3317,7 @@ async function salvarLembr(){
   if(!dt){toast('Informe a data!','vermelho');return;}
   const p=pacs.find(x=>x.id===pid);const lems=p.lembretes||[];lems.push({id:Date.now().toString(),recado,data:dt,criado:HOJE_STR});
   const{error}=await db.from('pacientes').update({lembretes:lems}).eq('id',pid);
-  if(error){toast('Erro','vermelho');return;}toast('Lembrete salvo!','verde');fchLembr();carregar();
+  if(error){toast('Erro','vermelho');return;}rascunhoLimpar('lembrete_novo_'+pid);toast('Lembrete salvo!','verde');fchLembr();carregar();
 }
 async function delLembr(pid,lid){
   const p=pacs.find(x=>x.id===pid);const lems=(p.lembretes||[]).filter(l=>l.id!==lid);
