@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Termos de Uso — Dra. Anna Carolina Dias</title>
+  <title>Termos de Uso</title>
   <script src="config.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <style>
@@ -46,7 +46,7 @@
     <div class="atualizado">Última atualização: 22 de julho de 2026</div>
 
     <h2>Aceitação dos termos</h2>
-    <p>Ao utilizar a ferramenta de agendamento online da Clínica Dra. Anna Carolina Dias, você declara ter lido, compreendido e concordado com estes Termos de Uso e com a nossa <a href="politica-privacidade.html" style="color:var(--verde-e);font-weight:600">Política de Privacidade</a>.</p>
+    <p>Ao utilizar a ferramenta de agendamento online da Clínica <span id="tu-nome1">Dra. Anna Carolina Dias</span>, você declara ter lido, compreendido e concordado com estes Termos de Uso e com a nossa <a href="politica-privacidade.html" style="color:var(--verde-e);font-weight:600">Política de Privacidade</a>.</p>
 
     <h2>Objeto</h2>
     <p>Estes termos regulam o uso da ferramenta de agendamento online, que permite solicitar horários de consulta sem necessidade de contato telefônico prévio. A solicitação é um <strong>pedido de agendamento</strong>, sujeito à confirmação da clínica — o horário só é considerado marcado após confirmação via WhatsApp.</p>
@@ -81,20 +81,29 @@
     <p>A clínica não se responsabiliza por indisponibilidades temporárias decorrentes de falhas de conexão, instabilidade de provedores externos ou outros eventos fora de seu controle razoável. Nesses casos, recomenda-se contato direto por telefone/WhatsApp.</p>
 
     <h2>Propriedade intelectual</h2>
-    <p>O sistema de agendamento é de uso exclusivo da Clínica Dra. Anna Carolina Dias, sendo vedada sua reprodução ou engenharia reversa para fins comerciais por terceiros.</p>
+    <p>O sistema de agendamento é de uso exclusivo da Clínica <span id="tu-nome2">Dra. Anna Carolina Dias</span>, sendo vedada sua reprodução ou engenharia reversa para fins comerciais por terceiros.</p>
 
     <h2>Alterações nestes termos</h2>
     <p>Estes termos podem ser atualizados periodicamente, com a data da última atualização sempre indicada no topo deste documento.</p>
 
     <h2>Foro</h2>
-    <p>Fica eleito o foro da comarca de Tanabi/SP para dirimir eventuais controvérsias decorrentes destes termos.</p>
+    <p>Fica eleito o foro da comarca de <span id="tu-foro">Tanabi/SP</span> para dirimir eventuais controvérsias decorrentes destes termos.</p>
   </div>
 </div>
 
 <script>
-  document.getElementById('header-logo').src = (typeof CLINICA_CONFIG!=='undefined' && CLINICA_CONFIG.logo) || 'logo.jpg';
-  document.getElementById('header-nome').textContent = (typeof CLINICA_CONFIG!=='undefined' && CLINICA_CONFIG.nome) || 'Clínica';
-  document.getElementById('header-esp').textContent = (typeof CLINICA_CONFIG!=='undefined' && CLINICA_CONFIG.especialidade) || '';
+(async () => {
+  if (window.CLINICA_CONFIG_PRONTO) await window.CLINICA_CONFIG_PRONTO;
+  const c = (typeof CLINICA_CONFIG !== 'undefined') ? CLINICA_CONFIG : {};
+  document.getElementById('header-logo').src = c.logo || 'logo.jpg';
+  document.getElementById('header-nome').textContent = c.nome || 'Clínica';
+  document.getElementById('header-esp').textContent = c.especialidade || '';
+  document.title = 'Termos de Uso — ' + (c.nome || 'Clínica');
+
+  document.getElementById('tu-nome1').textContent = c.nome || 'Clínica';
+  document.getElementById('tu-nome2').textContent = c.nome || 'Clínica';
+  document.getElementById('tu-foro').textContent = (c.cidade && c.uf) ? `${c.cidade}/${c.uf}` : 'Tanabi/SP';
+})();
 </script>
 </body>
 </html>

@@ -208,6 +208,9 @@ async function carregarConfigClinica() {
       CLINICA_CONFIG.email         = c.email         || '';
       CLINICA_CONFIG.instagram     = c.instagram     || '';
       CLINICA_CONFIG.registro      = c.registro_profissional || '';
+      CLINICA_CONFIG.cnpjCpf       = c.cnpj_cpf || '';
+      CLINICA_CONFIG.cidade        = c.cidade || '';
+      CLINICA_CONFIG.uf            = c.uf || '';
       CLINICA_CONFIG._id           = c.id;
       document.documentElement.style.setProperty('--verde', c.cor_principal || '#1D9E75');
     }

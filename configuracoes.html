@@ -198,6 +198,10 @@
           <label>Registro profissional (CRO/CRM etc.)</label>
           <input type="text" id="cfg-registro" placeholder="Ex: CRO 82281" oninput="atualizarPreview()"/>
         </div>
+        <div class="fi">
+          <label>CNPJ ou CPF (documentos legais)</label>
+          <input type="text" id="cfg-cnpj-cpf" placeholder="Ex: 000.000.000-00" oninput="atualizarPreview()"/>
+        </div>
       </div>
 
       <div class="divider"></div>
@@ -654,6 +658,7 @@ async function init(){
     document.getElementById('cfg-nome').value  = c.nome || '';
     document.getElementById('cfg-esp').value   = c.especialidade || '';
     document.getElementById('cfg-registro').value = c.registro_profissional || '';
+    document.getElementById('cfg-cnpj-cpf').value = c.cnpj_cpf || '';
     document.getElementById('cfg-tel').value   = c.telefone || '';
     document.getElementById('cfg-wpp').value   = c.whatsapp || '';
     document.getElementById('cfg-email').value = c.email || '';
@@ -875,6 +880,7 @@ async function salvar(){
     nome:          document.getElementById('cfg-nome').value.trim(),
     especialidade: document.getElementById('cfg-esp').value.trim(),
     registro_profissional: document.getElementById('cfg-registro').value.trim(),
+    cnpj_cpf: document.getElementById('cfg-cnpj-cpf').value.trim(),
     logo_url:      document.getElementById('cfg-logo').value.trim(),
     cor_principal: corAtual,
     telefone:      document.getElementById('cfg-tel').value.trim(),
