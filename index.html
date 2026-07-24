@@ -325,6 +325,7 @@ textarea{resize:vertical;min-height:70px}
     </div>
     <div id="sec-anamneses-online" style="display:none;margin-bottom:.75rem"></div>
     <div id="sec-pedidos-online" style="display:none;margin-bottom:.75rem"></div>
+    <div id="sec-atend-pendentes" style="display:none;margin-bottom:.75rem"></div>
     <div class="sl2">📅 Consultas de hoje</div><div id="l-cons-hoje"></div>
     <div class="sl2">⏰ Consultas amanhã — confirmar presença</div><div id="l-cons-amanha"></div>
     <div class="sl2">🔬 Verificações pós-procedimento</div><div id="l-verificacoes"></div>
@@ -2345,6 +2346,7 @@ async function salvarAtend(){
     }
   }
   toast('Atendimento salvo! ✓','verde');await carregar();
+  renderAtendPendentes();
   const pac=pacs.find(p=>p.id===id);if(pac)renderHistorico(pac);
   document.getElementById('a-trats').innerHTML='';addTratComData('a-trats');document.getElementById('a-data').value=HOJE_STR;document.getElementById('a-ver-dias').value=15;atualizarVerLabel(HOJE_STR);
 }
@@ -4726,6 +4728,43 @@ async function marcarAnamnesesRevisada(){
 }
 
 // ── Alertas de anamnese preenchida ──
+async function renderAtendPendentes(){
+  const el=document.getElementById('sec-atend-pendentes');
+  if(!el) return;
+  const{data}=await db.from('plano_itens')
+    .select('id,procedimento,valor,data_realizacao,paciente_id,pacientes(nome,telefone)')
+    .eq('status','pendente')
+    .order('data_realizacao',{ascending:false});
+  const pend=data||[];
+  if(!pend.length){el.style.display='none';return;}
+  const porPaciente={};
+  pend.forEach(item=>{
+    const pid=item.paciente_id;
+    if(!porPaciente[pid]) porPaciente[pid]={paciente:item.pacientes,itens:[]};
+    porPaciente[pid].itens.push(item);
+  });
+  const grupos=Object.entries(porPaciente);
+  el.style.display='block';
+  el.innerHTML=`
+    <div style="background:#fffbea;border:1.5px solid var(--amarelo);border-radius:12px;padding:12px 14px">
+      <div style="font-size:13px;font-weight:700;color:#7a5800;margin-bottom:10px">⏳ ${grupos.length} atendimento${grupos.length!==1?'s':''} aguardando confirmação de pagamento</div>
+      ${grupos.map(([pid,g])=>{
+        const nomes=g.itens.map(i=>i.procedimento).join(', ');
+        const total=g.itens.reduce((s,i)=>s+(parseFloat(i.valor)||0),0);
+        const dataStr=g.itens[0].data_realizacao?fDt(g.itens[0].data_realizacao):'';
+        return `<div style="background:white;border-radius:8px;padding:10px;margin-bottom:6px;border:1px solid #fde68a;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="flex:1;min-width:150px">
+            <div style="font-size:13px;font-weight:600">${escapeHtml(g.paciente?.nome||'Paciente')}</div>
+            <div style="font-size:11px;color:var(--ct)">${escapeHtml(nomes)} · ${dataStr}${total?' · R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2}):''}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <a href="documentos.html?pac=${pid}&doc=orcamento" class="btn" style="padding:5px 12px;font-size:12px;background:var(--amarelo);color:white;border-color:var(--amarelo)">💰 Confirmar</a>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
 async function renderAnamnesesOnline(){
   const el=document.getElementById('sec-anamneses-online');
   if(!el) return;
@@ -4839,6 +4878,8 @@ function compartilharWppAgOnline(){
 // Chamar no carregar inicial
 setTimeout(renderAnamnesesOnline, 2000);
 setInterval(renderAnamnesesOnline, 2 * 60 * 1000);
+setTimeout(renderAtendPendentes, 2200);
+setInterval(renderAtendPendentes, 2 * 60 * 1000);
 setTimeout(renderPedidosOnline, 1500);
 // Atualiza pedidos online a cada 2 minutos (detecta novos sem precisar recarregar)
 setInterval(renderPedidosOnline, 2 * 60 * 1000);
