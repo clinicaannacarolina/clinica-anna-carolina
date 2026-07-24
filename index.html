@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Clínica Dra. Anna Carolina Dias</title>
+<title>Sistema de Gestão Clínica</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0F6E56">
 <meta name="mobile-web-app-capable" content="yes">
@@ -239,7 +239,7 @@ textarea{resize:vertical;min-height:70px}
 <header class="hdr">
   <div style="display:flex;align-items:center;gap:10px">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-    <h1>Dra. Anna Carolina Dias <span>· Harmonização Orofacial</span></h1>
+    <h1 id="hdr-nome-clinica">Dra. Anna Carolina Dias <span id="hdr-especialidade">· Harmonização Orofacial</span></h1>
   </div>
   <div class="hdr-right">
     <div class="hdr-date" id="dt-hoje"></div>
@@ -1427,19 +1427,24 @@ function msgRetorno(p){
   const trats=p.tratamentos_adicionais||[];
   const nomeTrat=trats.length>0?trats.map(t=>t.nome).join(', '):(p.tratamento||'procedimento');
   const pr=trats.length>0&&trats[0].prazo>0?`${trats[0].prazo} ${trats[0].prazo===1?'mês':'meses'}`:'algum tempo';
-  return `Olá ${chamada(p)}, bom dia, tudo bem com você? 😊\n\nJá faz ${pr} desde o seu procedimento de ${nomeTrat} aqui na clínica da Dra. Anna Carolina Dias.\n\nGostaríamos de te convidar para marcar seu retorno e manter os melhores resultados! 🌿✨\n\nVamos agendar um horário para você?\n\nAguardo seu retorno 💚`;
+  return `Olá ${chamada(p)}, bom dia, tudo bem com você? 😊\n\nJá faz ${pr} desde o seu procedimento de ${nomeTrat} aqui na clínica da ${CLINICA_CONFIG.nome}.\n\nGostaríamos de te convidar para marcar seu retorno e manter os melhores resultados! 🌿✨\n\nVamos agendar um horário para você?\n\nAguardo seu retorno 💚`;
 }
-function msgAniv(p){return`Olá, ${chamada(p)}! 🎉🎂\n\nHoje é um dia especial — o seu aniversário!\n\nA equipe da clínica da Dra. Anna Carolina Dias deseja a você um dia incrível, repleto de alegria, saúde e muito amor! 🌸✨\n\nMuitos parabéns! 🥳💚`;}
+function msgAniv(p){return`Olá, ${chamada(p)}! 🎉🎂\n\nHoje é um dia especial — o seu aniversário!\n\nA equipe da clínica da ${CLINICA_CONFIG.nome} deseja a você um dia incrível, repleto de alegria, saúde e muito amor! 🌸✨\n\nMuitos parabéns! 🥳💚`;}
 function linkAgendaAdd(c){
   const d=c.data.replace(/-/g,'');
   const h=c.hora.slice(0,5).replace(':','');
   const base=window.location.href.replace('index.html','').replace(/\?.*$/,'');
   let url=base+'agenda-add.html?d='+d+'&h='+h;
   if(c.procedimento) url+='&p='+encodeURIComponent(c.procedimento);
+  url+='&nome='+encodeURIComponent(CLINICA_CONFIG.nome||'');
+  url+='&esp='+encodeURIComponent(CLINICA_CONFIG.especialidade||'');
+  url+='&reg='+encodeURIComponent(CLINICA_CONFIG.registro||'');
+  url+='&tel='+encodeURIComponent(CLINICA_CONFIG.telefone||'');
+  url+='&end='+encodeURIComponent(CLINICA_CONFIG.endereco||'');
   return url;
 }
-function msgConsulta(c){const hora=c.hora.slice(0,5);const nome=c.nome.split(' ')[0];const DIAS_EX=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];const diaSemana=DIAS_EX[new Date(c.data+'T12:00:00').getDay()];const quando=c.data===HOJE_STR?`hoje às ${hora}h`:c.data===AMANHA_STR?`amanhã às ${hora}h`:`${diaSemana}, dia ${fDt(c.data)} às ${hora}h`;return`Olá, ${nome}! 😊\n\nLembrando que você tem consulta *${quando}* na clínica da Dra. Anna Carolina Dias.\n\n${c.procedimento?`Procedimento: *${escapeHtml(c.procedimento)}*\n\n`:''}Confirma sua presença? ✅\n\n📆 Salvar na sua agenda:\n${linkAgendaAdd(c)}\n\nTe esperamos! 💚`;}
-function msgVerificacao(p,trat){return`Olá, ${chamada(p)}! 😊\n\nPassaram alguns dias desde o seu procedimento de *${trat}* aqui na clínica da Dra. Anna Carolina Dias.\n\nGostaríamos de saber como você está se sentindo com o resultado! Está tudo bem? 🌿✨\n\nQualquer dúvida, pode chamar! 💚`;}
+function msgConsulta(c){const hora=c.hora.slice(0,5);const nome=c.nome.split(' ')[0];const DIAS_EX=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];const diaSemana=DIAS_EX[new Date(c.data+'T12:00:00').getDay()];const quando=c.data===HOJE_STR?`hoje às ${hora}h`:c.data===AMANHA_STR?`amanhã às ${hora}h`:`${diaSemana}, dia ${fDt(c.data)} às ${hora}h`;return`Olá, ${nome}! 😊\n\nLembrando que você tem consulta *${quando}* na clínica da ${CLINICA_CONFIG.nome}.\n\n${c.procedimento?`Procedimento: *${escapeHtml(c.procedimento)}*\n\n`:''}Confirma sua presença? ✅\n\n📆 Salvar na sua agenda:\n${linkAgendaAdd(c)}\n\nTe esperamos! 💚`;}
+function msgVerificacao(p,trat){return`Olá, ${chamada(p)}! 😊\n\nPassaram alguns dias desde o seu procedimento de *${trat}* aqui na clínica da ${CLINICA_CONFIG.nome}.\n\nGostaríamos de saber como você está se sentindo com o resultado! Está tudo bem? 🌿✨\n\nQualquer dúvida, pode chamar! 💚`;}
 function urlGcal(c){const ini2=c.data.replace(/-/g,'')+`T${c.hora.replace(':','')}00`;const[h,mi]=c.hora.split(':');const fim=c.data.replace(/-/g,'')+`T${String(parseInt(h)+1).padStart(2,'0')}${mi}00`;return`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(c.nome+' - '+(c.procedimento||'Consulta'))}&dates=${ini2}/${fim}&details=${encodeURIComponent(`Paciente: ${escapeHtml(c.nome)}\nTel: ${c.telefone||''}\n${c.procedimento||''}\n${c.observacao||''}`)}`;}
 
 // CARREGAR
@@ -1460,6 +1465,10 @@ function urlGcal(c){const ini2=c.data.replace(/-/g,'')+`T${c.hora.replace(':',''
 // CREATE POLICY "acesso_total" ON financeiro FOR ALL USING (true) WITH CHECK (true);
 
 async function carregar(){
+  await window.CLINICA_CONFIG_PRONTO;
+  document.getElementById('hdr-nome-clinica').firstChild.textContent = CLINICA_CONFIG.nome+' ';
+  document.getElementById('hdr-especialidade').textContent = '· '+CLINICA_CONFIG.especialidade;
+  document.title = 'Clínica '+CLINICA_CONFIG.nome;
   const{data,error}=await db.from('pacientes').select('*').order('nome');
   if(error){toast('Erro ao carregar','vermelho');return;}
   pacs=data||[];
@@ -2045,7 +2054,7 @@ async function renderRelExec(){
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
       <div>
         <div style="font-size:16px;font-weight:700">📋 Relatório Executivo</div>
-        <div style="font-size:12px;color:var(--ct)">${mesLabel} · Dra. Anna Carolina Dias</div>
+        <div style="font-size:12px;color:var(--ct)">${mesLabel} · ${CLINICA_CONFIG.nome}</div>
       </div>
       <div style="font-size:11px;color:var(--ct)">Gerado em ${fDt(HOJE_STR)}</div>
     </div>
@@ -2538,7 +2547,9 @@ function enviarInformativo(telEnc,chave){
   const info=INFORMATIVOS[chave];
   if(!info||!tel)return;
   const num='55'+tel.replace(/\D/g,'');
-  window.open('https://wa.me/'+num+'?text='+encodeURIComponent(info.texto),'_blank');
+  const assinaturaDinamica='*'+CLINICA_CONFIG.nome+(CLINICA_CONFIG.registro?' | '+CLINICA_CONFIG.registro:'')+(CLINICA_CONFIG.telefone?' | '+CLINICA_CONFIG.telefone:'')+'*';
+  const texto=info.texto.replace('*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*',assinaturaDinamica);
+  window.open('https://wa.me/'+num+'?text='+encodeURIComponent(texto),'_blank');
   fecharModalInformativos();
 }
 
@@ -4132,14 +4143,14 @@ let _campIdx  = 0;       // índice atual no disparo
 const CAMP_TEMPLATES = {
   retorno: p => `Olá ${chamada(p)}, bom dia, tudo bem com você? 😊
 
-Já faz um tempo desde o seu último procedimento aqui na clínica da Dra. Anna Carolina Dias.
+Já faz um tempo desde o seu último procedimento aqui na clínica da ${CLINICA_CONFIG.nome}.
 
 Gostaríamos de te convidar para marcar seu retorno e manter os melhores resultados! 🌿✨
 
 Vamos agendar um horário para você?
 
 Aguardo seu retorno 💚
-*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*`,
+*${CLINICA_CONFIG.nome}${CLINICA_CONFIG.registro?' | '+CLINICA_CONFIG.registro:''}${CLINICA_CONFIG.telefone?' | '+CLINICA_CONFIG.telefone:''}*`,
   botox: p => `Olá ${chamada(p)}! 😊
 
 Passou o prazo do seu *Botox / Toxina Botulínica* e é hora de manter os resultados em alta! 💉✨
@@ -4147,7 +4158,7 @@ Passou o prazo do seu *Botox / Toxina Botulínica* e é hora de manter os result
 Aproveite para agendar seu retorno antes que o efeito diminua.
 
 Te esperamos! 💚
-*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*`,
+*${CLINICA_CONFIG.nome}${CLINICA_CONFIG.registro?' | '+CLINICA_CONFIG.registro:''}${CLINICA_CONFIG.telefone?' | '+CLINICA_CONFIG.telefone:''}*`,
   preenchimento: p => `Olá ${chamada(p)}! 😊
 
 Já passou o prazo do seu *Preenchimento Facial* e é hora de renovar seus resultados! 💧✨
@@ -4155,7 +4166,7 @@ Já passou o prazo do seu *Preenchimento Facial* e é hora de renovar seus resul
 Agende seu retorno e mantenha a beleza em dia!
 
 Te esperamos! 💚
-*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*`,
+*${CLINICA_CONFIG.nome}${CLINICA_CONFIG.registro?' | '+CLINICA_CONFIG.registro:''}${CLINICA_CONFIG.telefone?' | '+CLINICA_CONFIG.telefone:''}*`,
   aniversario: p => `Olá ${chamada(p)}! 😊
 
 Estamos com saudades e gostaríamos de te ver por aqui! 🌸
@@ -4163,7 +4174,7 @@ Estamos com saudades e gostaríamos de te ver por aqui! 🌸
 Que tal agendar um horário para cuidar ainda mais de você?
 
 Te esperamos com muito carinho! 💚
-*Dra. Anna Carolina | CRO 82281 | (17) 98211-3940*`,
+*${CLINICA_CONFIG.nome}${CLINICA_CONFIG.registro?' | '+CLINICA_CONFIG.registro:''}${CLINICA_CONFIG.telefone?' | '+CLINICA_CONFIG.telefone:''}*`,
   custom: p => '',
 };
 
@@ -4464,17 +4475,17 @@ function msgLembrete(c){
   const [y,m,d] = c.data.split('-');
   return `Olá ${c.nome.split(' ')[0]}! 😊
 
-Passando para confirmar sua consulta com a Dra. Anna Carolina:
+Passando para confirmar sua consulta com a ${CLINICA_CONFIG.nome}:
 
 📅 ${diaStr}, ${d}/${m}/${y} às ${c.hora.slice(0,5)}${c.procedimento?' — '+c.procedimento:''}
-📍 Rua Capitão Daniel da Cunha Morais, 632 - Tanabi/SP
+📍 ${CLINICA_CONFIG.endereco||''}
 
 📆 Salvar na sua agenda:
 ${linkAgendaAdd(c)}
 
 Por favor, confirme sua presença respondendo esta mensagem! 🙏
 
-Dra. Anna Carolina Dias — CRO 82281 | (17) 98211-3940`;
+${CLINICA_CONFIG.nome}${CLINICA_CONFIG.registro?' — '+CLINICA_CONFIG.registro:''}${CLINICA_CONFIG.telefone?' | '+CLINICA_CONFIG.telefone:''}`;
 }
 
 function enviarProximoLembrete(){
@@ -4764,7 +4775,7 @@ async function rejeitarPedido(id, tel, nome){
   if(eRejeita){toast('Erro ao rejeitar pedido','vermelho');return;}
   if(tel){
     const telF='55'+tel.replace(/\D/g,'');
-    const msg=`Olá ${nome.split(' ')[0]}! 😊\n\nInfelizmente o horário solicitado não está mais disponível.\n\nPor favor, acesse o link de agendamento para escolher outro horário, ou entre em contato diretamente.\n\nDra. Anna Carolina Dias — (17) 98211-3940`;
+    const msg=`Olá ${nome.split(' ')[0]}! 😊\n\nInfelizmente o horário solicitado não está mais disponível.\n\nPor favor, acesse o link de agendamento para escolher outro horário, ou entre em contato diretamente.\n\n${CLINICA_CONFIG.nome}${CLINICA_CONFIG.telefone?' — '+CLINICA_CONFIG.telefone:''}`;
     if(confirm('Abrir WhatsApp para notificar a paciente?'))
       window.open(`https://wa.me/${telF}?text=${encodeURIComponent(msg)}`,'_blank');
   }
@@ -4821,7 +4832,7 @@ function copiarLinkAgOnline(){
 
 function compartilharWppAgOnline(){
   const link=document.getElementById('cao-link').value;
-  const msg=`Olá! 😊 Para agendar sua consulta com a Dra. Anna Carolina, acesse o link abaixo e escolha o melhor horário:\n${link}\n\nDra. Anna Carolina Dias — CRO 82281 | (17) 98211-3940`;
+  const msg=`Olá! 😊 Para agendar sua consulta com a ${CLINICA_CONFIG.nome}, acesse o link abaixo e escolha o melhor horário:\n${link}\n\n${CLINICA_CONFIG.nome}${CLINICA_CONFIG.registro?' — '+CLINICA_CONFIG.registro:''}${CLINICA_CONFIG.telefone?' | '+CLINICA_CONFIG.telefone:''}`;
   window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank');
 }
 
@@ -4971,7 +4982,7 @@ function renderAniversariantesMes(){
       const tel=(p.telefone||'').replace(/\D/g,'');
       const msg=encodeURIComponent(`Olá ${(p.apelido||p.nome).split(' ')[0]}! 🎉🎂 Hoje é um dia especial — o seu aniversário!
 
-A equipe da Dra. Anna Carolina deseja a você um dia incrível, repleto de alegria, saúde e muito amor! 🌸✨
+A equipe da ${CLINICA_CONFIG.nome} deseja a você um dia incrível, repleto de alegria, saúde e muito amor! 🌸✨
 
 Muitos parabéns! 🥳💚`);
       return`<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--borda);gap:10px;flex-wrap:wrap">
@@ -5088,7 +5099,7 @@ function renderRetornosVencidos(){
       const msgTrats=g.itens.map(i=>i.trat.nome).join(', ');
       const msg=encodeURIComponent(`Olá ${(p.apelido||p.nome).split(' ')[0]}, bom dia! 😊
 
-Já faz um tempo desde o seu procedimento de ${msgTrats} aqui na clínica da Dra. Anna Carolina Dias.
+Já faz um tempo desde o seu procedimento de ${msgTrats} aqui na clínica da ${CLINICA_CONFIG.nome}.
 
 Gostaríamos de te convidar para marcar seu retorno e manter os melhores resultados! 🌿✨
 

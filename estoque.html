@@ -119,7 +119,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-
 <header class="hdr">
   <div class="hdr-left">
     <button class="btn-back" aria-label="Voltar" onclick="history.back()" title="Voltar">←</button>
-    <h1>📦 Estoque <span style="font-size:12px;opacity:.6;font-family:'DM Sans',sans-serif">Dra. Anna Carolina</span></h1>
+    <h1>📦 Estoque <span id="hdr-clinica-nome" style="font-size:12px;opacity:.6;font-family:'DM Sans',sans-serif">Dra. Anna Carolina</span></h1>
   </div>
   <div class="hdr-right">
     <button class="btn-dark" aria-label="Tema" onclick="toggleTheme()" title="Tema">🌙</button>
@@ -533,6 +533,9 @@ function setTab(tab){
 
 // ── CARREGAR DADOS ──
 async function carregar(){
+  await window.CLINICA_CONFIG_PRONTO;
+  document.getElementById('hdr-clinica-nome').textContent = CLINICA_CONFIG.nome;
+  document.title = 'Estoque — ' + CLINICA_CONFIG.nome;
   const[{data:p},{data:f},{data:m},{data:pac}]=await Promise.all([
     db.from('produtos').select('*').order('nome'),
     db.from('fornecedores').select('*').order('nome'),
@@ -1045,7 +1048,7 @@ async function exportarEstoqueExcel(){
   const bom='\uFEFF';
   const sep=';';
   const linhas=[];
-  linhas.push(['RELATÓRIO DE ESTOQUE — Clínica Dra. Anna Carolina','','','','','','','',''].join(sep));
+  linhas.push(['RELATÓRIO DE ESTOQUE — Clínica '+CLINICA_CONFIG.nome,'','','','','','','',''].join(sep));
   linhas.push(['Gerado em: '+new Date().toLocaleDateString('pt-BR')+' '+new Date().toLocaleTimeString('pt-BR'),'','','','','','','',''].join(sep));
   linhas.push([]);
   linhas.push(['PRODUTOS','','','','','','','',''].join(sep));

@@ -9,7 +9,8 @@ var CLINICA_CONFIG = {
   logo: 'logo.jpg',
   cor: '#1D9E75',
   pinLength: 4,
-  loginEmail: 'clinica@annacarolina.com'
+  loginEmail: 'clinica@annacarolina.com',
+  registro: 'CRO 82281'
 };
 
 // ── Renovação automática do token ──
@@ -206,6 +207,7 @@ async function carregarConfigClinica() {
       CLINICA_CONFIG.endereco      = c.endereco      || '';
       CLINICA_CONFIG.email         = c.email         || '';
       CLINICA_CONFIG.instagram     = c.instagram     || '';
+      CLINICA_CONFIG.registro      = c.registro_profissional || '';
       CLINICA_CONFIG._id           = c.id;
       document.documentElement.style.setProperty('--verde', c.cor_principal || '#1D9E75');
     }
@@ -247,3 +249,8 @@ async function authLogin(pin, email) {
     return { ok: false, error: 'Erro de conexão.' };
   }
 }
+
+// ── Dispara a busca da configuração da clínica assim que este arquivo carrega ──
+// Qualquer página pode fazer: await window.CLINICA_CONFIG_PRONTO;
+// antes de mostrar nome/logo/registro na tela, garantindo que já veio o dado certo.
+window.CLINICA_CONFIG_PRONTO = carregarConfigClinica();

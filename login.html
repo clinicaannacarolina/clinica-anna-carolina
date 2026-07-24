@@ -135,11 +135,14 @@
 </div>
 
 <script>
-// ── Dados da clínica ──
-document.getElementById('login-logo').src = CLINICA_CONFIG.logo || 'logo.jpg';
-document.getElementById('login-nome').textContent = CLINICA_CONFIG.nome || 'Clínica';
-document.getElementById('login-esp').textContent = CLINICA_CONFIG.especialidade || '';
-document.title = 'Acesso — ' + (CLINICA_CONFIG.nome || 'Clínica');
+// ── Dados da clínica — espera a busca real terminar antes de mostrar ──
+(async () => {
+  await window.CLINICA_CONFIG_PRONTO;
+  document.getElementById('login-logo').src = CLINICA_CONFIG.logo || 'logo.jpg';
+  document.getElementById('login-nome').textContent = CLINICA_CONFIG.nome || 'Clínica';
+  document.getElementById('login-esp').textContent = CLINICA_CONFIG.especialidade || '';
+  document.title = 'Acesso — ' + (CLINICA_CONFIG.nome || 'Clínica');
+})();
 
 // ── Sessão válida? Redireciona direto ──
 try {

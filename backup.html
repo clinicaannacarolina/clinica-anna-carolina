@@ -211,7 +211,7 @@ async function fazerBackup(){
     const backup={
       versao:'1.0',
       gerado_em:new Date().toISOString(),
-      sistema:'Clínica Anna Carolina',
+      sistema:CLINICA_CONFIG.nome,
       totais:{pacientes:pacientes.length,financeiro:financeiro.length,agenda:agenda.length,produtos:produtos.length},
       dados:{pacientes,financeiro,agenda,produtos,movimentos_estoque:movimentos,planos_tratamento:planos,plano_itens:planoItens}
     };
