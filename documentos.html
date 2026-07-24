@@ -3580,6 +3580,40 @@ window.abrirModalRealizado = async function() {
   document.getElementById('modal-realizado').style.display = 'flex';
 };
 
+// Calcula, sem alterar nada ainda, o que seria descontado do estoque para os
+// itens sendo confirmados — usado para mostrar a prévia antes de confirmar.
+async function calcularPreviaEstoque(itens) {
+  const nomes = [...new Set(itens.map(i => (i.trat||'').trim().toLowerCase()).filter(Boolean))];
+  if (!nomes.length) return { linhas: [], semFicha: [] };
+
+  const { data: tiposTodos } = await db.from('tipos_procedimento').select('id,nome');
+  const mapaNomeParaId = {};
+  (tiposTodos || []).forEach(t => { mapaNomeParaId[(t.nome||'').trim().toLowerCase()] = t.id; });
+
+  const idsEncontrados = [];
+  const semFicha = [];
+  nomes.forEach(nome => {
+    const id = mapaNomeParaId[nome];
+    if (id) idsEncontrados.push(id);
+    else semFicha.push(itens.find(i => (i.trat||'').trim().toLowerCase() === nome)?.trat || nome);
+  });
+
+  if (!idsEncontrados.length) return { linhas: [], semFicha };
+
+  const { data: fichaItens } = await db.from('ficha_tecnica')
+    .select('procedimento_id,quantidade,produtos(nome,unidade)')
+    .in('procedimento_id', idsEncontrados);
+
+  const agregado = {};
+  (fichaItens || []).forEach(f => {
+    const nomeProd = f.produtos?.nome || '?';
+    if (!agregado[nomeProd]) agregado[nomeProd] = { produto: nomeProd, quantidade: 0, unidade: f.produtos?.unidade };
+    agregado[nomeProd].quantidade += f.quantidade;
+  });
+
+  return { linhas: Object.values(agregado), semFicha };
+}
+
 // Baixa automática de estoque (Ficha Técnica) ao confirmar um item do plano como
 // realizado/pago. Evita baixar duas vezes usando a flag baixa_estoque_feita no item.
 async function baixarEstoquePorItemPlano(itemId, procedimentoNome) {
@@ -3626,6 +3660,19 @@ window.confirmarRealizado = async function() {
   const realizados = window._modalRealizados || [];
   const pendentes = window._modalPendentes || [];
   if (!realizados.length) { toast('Nenhum tratamento selecionado', 'vermelho'); return; }
+
+  // Prévia do que será baixado do estoque — mostra antes de confirmar, não depois
+  const previaEstoque = await calcularPreviaEstoque(realizados);
+  if (previaEstoque.linhas.length || previaEstoque.semFicha.length) {
+    let msg = 'Confirmar atendimento?';
+    if (previaEstoque.linhas.length) {
+      msg += '\n\nIsso vai baixar do estoque:\n' + previaEstoque.linhas.map(l => `• ${l.produto}: ${l.quantidade}${l.unidade?' '+l.unidade:''}`).join('\n');
+    }
+    if (previaEstoque.semFicha.length) {
+      msg += '\n\n⚠️ Sem Ficha Técnica cadastrada (não vai descontar nada): ' + previaEstoque.semFicha.join(', ');
+    }
+    if (!confirm(msg)) return;
+  }
 
   const btn = document.getElementById('btn-confirmar-realizado');
   if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
